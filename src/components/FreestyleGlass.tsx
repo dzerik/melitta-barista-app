@@ -132,7 +132,6 @@ export function FreestyleGlass({
             : `M ${x0L} ${y0} L ${x1L} ${y1} L ${x1R} ${y1} L ${x0R} ${y0} Z`
         }
         fill={color}
-        className="transition-all duration-500"
       />,
     );
 
@@ -158,7 +157,6 @@ export function FreestyleGlass({
           key={`bz${i}`}
           d={`M ${bx0L} ${by0} L ${bx1L} ${y1} L ${bx1R} ${y1} L ${bx0R} ${by0} Z`}
           fill={`url(#${blendId})`}
-          className="transition-all duration-500"
         />,
       );
     }
@@ -227,7 +225,7 @@ export function FreestyleGlass({
             <defs>
               <filter id="fs-steam-filter" x="-30%" y="-10%" width="160%" height="120%">
                 <feTurbulence type="fractalNoise" baseFrequency="0.04 0.06" numOctaves={3} seed={2} result="noise">
-                  <animate attributeName="seed" from="1" to="100" dur="8s" repeatCount="indefinite" />
+                  <animate attributeName="seed" from="1" to="100" dur="40s" repeatCount="indefinite" />
                 </feTurbulence>
                 <feDisplacementMap in="SourceGraphic" in2="noise" scale={4} xChannelSelector="R" yChannelSelector="G" result="displaced" />
                 <feGaussianBlur in="displaced" stdDeviation="1.2" />
@@ -240,9 +238,9 @@ export function FreestyleGlass({
               </linearGradient>
               <mask id="fs-steam-mask">
                 <rect
-                  x={cx - 15}
+                  x={topL}
                   y={cupTop - steamH}
-                  width={30}
+                  width={cupTopW}
                   height={steamH}
                   fill="url(#fs-steam-fade)"
                 />
@@ -250,24 +248,24 @@ export function FreestyleGlass({
             </defs>
 
             <g filter="url(#fs-steam-filter)" mask="url(#fs-steam-mask)" opacity={steamOpacity}>
-              {/* Three rising wisps */}
-              <ellipse cx={cx - 5} cy={cupTop - steamH * 0.35} rx={3} ry={steamH * 0.3} fill="rgba(255,255,255,0.5)">
-                <animate attributeName="cy" dur="3s" repeatCount="indefinite"
+              {/* Steam wisps spanning full glass width */}
+              <ellipse cx={cx - 8} cy={cupTop - steamH * 0.35} rx={5} ry={steamH * 0.3} fill="rgba(255,255,255,0.5)">
+                <animate attributeName="cy" dur="15s" repeatCount="indefinite"
                   values={`${cupTop - steamH * 0.25};${cupTop - steamH * 0.45};${cupTop - steamH * 0.25}`} />
-                <animate attributeName="rx" dur="3s" repeatCount="indefinite"
-                  values="3;4;3" />
+                <animate attributeName="rx" dur="15s" repeatCount="indefinite"
+                  values="5;7;5" />
               </ellipse>
-              <ellipse cx={cx + 1} cy={cupTop - steamH * 0.45} rx={3.5} ry={steamH * 0.35} fill="rgba(255,255,255,0.45)">
-                <animate attributeName="cy" dur="2.5s" repeatCount="indefinite"
+              <ellipse cx={cx} cy={cupTop - steamH * 0.45} rx={6} ry={steamH * 0.35} fill="rgba(255,255,255,0.45)">
+                <animate attributeName="cy" dur="12.5s" repeatCount="indefinite"
                   values={`${cupTop - steamH * 0.35};${cupTop - steamH * 0.55};${cupTop - steamH * 0.35}`} />
-                <animate attributeName="rx" dur="2.5s" repeatCount="indefinite"
-                  values="3.5;5;3.5" />
+                <animate attributeName="rx" dur="12.5s" repeatCount="indefinite"
+                  values="6;9;6" />
               </ellipse>
-              <ellipse cx={cx + 7} cy={cupTop - steamH * 0.3} rx={2.5} ry={steamH * 0.25} fill="rgba(255,255,255,0.4)">
-                <animate attributeName="cy" dur="3.5s" repeatCount="indefinite"
+              <ellipse cx={cx + 8} cy={cupTop - steamH * 0.3} rx={5} ry={steamH * 0.25} fill="rgba(255,255,255,0.4)">
+                <animate attributeName="cy" dur="17.5s" repeatCount="indefinite"
                   values={`${cupTop - steamH * 0.2};${cupTop - steamH * 0.4};${cupTop - steamH * 0.2}`} />
-                <animate attributeName="rx" dur="3.5s" repeatCount="indefinite"
-                  values="2.5;3.5;2.5" />
+                <animate attributeName="rx" dur="17.5s" repeatCount="indefinite"
+                  values="5;7;5" />
               </ellipse>
             </g>
           </g>
