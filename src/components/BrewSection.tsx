@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import type { Connection, HassEntities } from "home-assistant-js-websocket";
 import { getState, getOptions, getEntity } from "../lib/entities";
 import { selectOption, pressButton } from "../lib/ha";
@@ -151,6 +151,48 @@ function RecipeInfo({ details, vertical }: { details: RecipeDetails; vertical?: 
   );
 }
 
+const SERVICE_ICONS: Record<string, { icon: React.ReactElement; label: string; sub: string }> = {
+  "Cleaning": {
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-16 h-16 text-neutral-400"><path d="M12 3v18M8 7l-3 3 3 3M16 7l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" /><circle cx="12" cy="12" r="9" /></svg>,
+    label: "Cleaning",
+    sub: "Machine is running a cleaning cycle",
+  },
+  "Easy Clean": {
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-16 h-16 text-neutral-400"><path d="M12 3v18M8 7l-3 3 3 3M16 7l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" /><circle cx="12" cy="12" r="9" /></svg>,
+    label: "Easy Clean",
+    sub: "Quick rinse cycle in progress",
+  },
+  "Intensive Clean": {
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-16 h-16 text-neutral-400"><path d="M12 3v18M8 7l-3 3 3 3M16 7l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" /><circle cx="12" cy="12" r="9" /></svg>,
+    label: "Intensive Clean",
+    sub: "Deep cleaning cycle in progress",
+  },
+  "Descaling": {
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-16 h-16 text-neutral-400"><path d="M12 3L7 11.5C5.8 13.6 6.5 16.3 8.5 17.7 9.5 18.4 10.7 18.8 12 18.8s2.5-.4 3.5-1.1c2-1.4 2.7-4.1 1.5-6.2L12 3z" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+    label: "Descaling",
+    sub: "Descaling cycle in progress",
+  },
+  "Evaporating": {
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-16 h-16 text-neutral-400"><path d="M8 16c0-4 4-6 4-10s4 6 4 10a4 4 0 01-8 0z" /><path d="M6 20h12" strokeLinecap="round" /></svg>,
+    label: "Evaporating",
+    sub: "Steam system purging",
+  },
+  "Busy": {
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-16 h-16 text-neutral-400"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+    label: "Busy",
+    sub: "Machine is processing",
+  },
+};
+
+const ACTION_ICONS: Record<string, string> = {
+  "Brew Unit Removed": "Insert the brew unit",
+  "Trays Missing": "Insert the drip tray",
+  "Empty Trays": "Empty the drip tray and grounds container",
+  "Fill Water": "Refill the water tank",
+  "Close Powder Lid": "Close the powder chute lid",
+  "Fill Powder": "Add ground coffee to the powder chute",
+};
+
 export function BrewSection({ conn, entities, prefix }: Props) {
   const machineState = getState(entities, prefix, "sensor", "state");
   const isReady = machineState === "Ready";
@@ -217,12 +259,88 @@ export function BrewSection({ conn, entities, prefix }: Props) {
     );
   }
 
+  // Offline / disconnected
+  if (!machineState || machineState === "Off" || machineState === "offline") {
+    return (
+      <div className="flex h-full flex-col items-center justify-center px-8">
+        <div className="flex flex-col items-center gap-6 max-w-sm">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" className="w-20 h-20 text-neutral-700">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 7v1M12 16v1M7.5 9.5l.7.7M15.8 13.8l.7.7M7 12h1M16 12h1M7.5 14.5l.7-.7M15.8 10.2l.7-.7" strokeLinecap="round" />
+          </svg>
+          <div className="text-center">
+            <div className="text-xl font-light text-neutral-300 tracking-wide">Machine Offline</div>
+            <div className="text-sm text-neutral-600 mt-2 leading-relaxed">
+              The coffee machine is powered off or out of range.
+              Turn it on and wait for the Bluetooth connection.
+            </div>
+          </div>
+          <div className="w-12 h-px bg-neutral-800" />
+        </div>
+      </div>
+    );
+  }
+
+  // Action required (manipulation) — full-screen premium alert
+  if (hasAction && !isReady && !isBrewing) {
+    const actionHint = ACTION_ICONS[actionRequired || ""] || "";
+    return (
+      <div className="flex h-full flex-col items-center justify-center px-8">
+        <div className="flex flex-col items-center gap-6 max-w-sm">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" className="w-20 h-20 text-neutral-500">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v5M12 16v.5" strokeLinecap="round" strokeWidth="1.5" />
+          </svg>
+          <div className="text-center">
+            <div className="text-xl font-light text-white tracking-wide">{actionRequired}</div>
+            {actionHint && (
+              <div className="text-sm text-neutral-500 mt-2 leading-relaxed">{actionHint}</div>
+            )}
+          </div>
+          <div className="w-12 h-px bg-neutral-800" />
+        </div>
+      </div>
+    );
+  }
+
+  // Service states (cleaning, descaling, etc.)
+  const serviceInfo = machineState ? SERVICE_ICONS[machineState] : null;
+  if (serviceInfo && !isReady && !isBrewing) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center px-8">
+        <div className="flex flex-col items-center gap-6 max-w-sm">
+          {serviceInfo.icon}
+          <div className="text-center">
+            <div className="text-xl font-light text-white tracking-wide">{serviceInfo.label}</div>
+            <div className="text-sm text-neutral-500 mt-2 leading-relaxed">{serviceInfo.sub}</div>
+          </div>
+          {progress && (
+            <div className="w-48 flex items-center gap-3">
+              <div className="flex-1 h-px bg-neutral-800 overflow-hidden rounded-full">
+                <div
+                  className="h-full bg-neutral-400 transition-all duration-500"
+                  style={{ width: `${progressNum}%` }}
+                />
+              </div>
+              <span className="text-neutral-600 text-xs tabular-nums">{progressNum}%</span>
+            </div>
+          )}
+          <div className="w-12 h-px bg-neutral-800" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full flex-col">
-      {/* Action required */}
+      {/* Action required banner (when ready but action needed) */}
       {hasAction && (
-        <div className="flex items-center gap-2 mx-4 mt-2 rounded-lg bg-red-950/30 px-4 py-2.5 text-sm text-red-400 ring-1 ring-red-900/50 shrink-0">
-          <span>{actionRequired}</span>
+        <div className="flex items-center gap-3 mx-4 mt-2 rounded-xl backdrop-blur-xl bg-white/[0.04] ring-1 ring-white/[0.08] px-4 py-3 shrink-0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-5 h-5 text-neutral-400 shrink-0">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v5M12 16v.5" strokeLinecap="round" strokeWidth="1.5" />
+          </svg>
+          <span className="text-sm text-neutral-300">{actionRequired}</span>
         </div>
       )}
 

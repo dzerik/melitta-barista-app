@@ -181,8 +181,21 @@ export function FreestyleSection({ conn, entities, prefix }: Props) {
 
   if (!isReady) {
     return (
-      <div className="flex h-full items-center justify-center text-neutral-600">
-        Machine is not ready
+      <div className="flex h-full flex-col items-center justify-center px-8">
+        <div className="flex flex-col items-center gap-6 max-w-sm">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" className="w-16 h-16 text-neutral-700">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v5M12 16v.5" strokeLinecap="round" strokeWidth="1.5" />
+          </svg>
+          <div className="text-center">
+            <div className="text-lg font-light text-neutral-300 tracking-wide">
+              {machineState || "Offline"}
+            </div>
+            <div className="text-sm text-neutral-600 mt-2">
+              Freestyle is available when the machine is ready
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
