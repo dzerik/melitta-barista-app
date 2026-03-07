@@ -26,7 +26,6 @@ const INTENSITY_DOTS: Record<string, number> = {
 
 const TEMP_ICONS: Record<string, string> = {
   low: "❄",
-  normal: "🌡",
   high: "🔥",
 };
 
@@ -45,11 +44,11 @@ interface RecipeDetails {
 
 function IntensityDots({ level }: { level: number }) {
   return (
-    <span className="inline-flex gap-px">
+    <span className="inline-flex gap-0.5">
       {[1, 2, 3, 4, 5].map((n) => (
         <span
           key={n}
-          className={`inline-block w-1.5 h-1.5 rounded-full ${
+          className={`inline-block w-2 h-2 rounded-full ${
             n <= level ? "bg-white" : "bg-neutral-600"
           }`}
         />
@@ -81,21 +80,21 @@ function RecipeInfo({ details, vertical }: { details: RecipeDetails; vertical?: 
   if (components.length === 0) return null;
 
   return (
-    <div className={vertical ? "flex flex-col gap-1.5" : "flex gap-4"}>
+    <div className={vertical ? "flex flex-col gap-2" : "flex gap-5"}>
       {components.map((c, i) => (
         <div key={i} className={vertical
-          ? "flex items-center gap-2 text-xs text-neutral-200"
-          : "flex items-center gap-2 text-xs text-neutral-400"
+          ? "flex items-center gap-2.5 text-sm text-neutral-200"
+          : "flex items-center gap-2.5 text-sm text-neutral-400"
         }>
-          <span className="text-sm">{PROCESS_ICONS[c.process] || "•"}</span>
-          <span className="font-medium tabular-nums">{c.ml}<span className="text-neutral-500 text-[10px]">ml</span></span>
+          <span className="text-base">{PROCESS_ICONS[c.process] || "•"}</span>
+          <span className="font-semibold tabular-nums">{c.ml}<span className="text-neutral-500 text-xs font-normal">ml</span></span>
           {c.process === "coffee" && (
             <>
               <IntensityDots level={INTENSITY_DOTS[c.intensity] || 3} />
-              {c.shots > 0 && <span className="text-neutral-400">×{c.shots}</span>}
+              {c.shots > 0 && <span className="text-neutral-400 font-medium">×{c.shots}</span>}
             </>
           )}
-          <span className="text-sm">{TEMP_ICONS[c.temp] || "🌡"}</span>
+          {TEMP_ICONS[c.temp] && <span className="text-base">{TEMP_ICONS[c.temp]}</span>}
         </div>
       ))}
     </div>
