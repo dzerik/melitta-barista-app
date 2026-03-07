@@ -53,7 +53,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
   if (isBrewing) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-6 px-6">
-        <CoffeeIcon recipe={activity || "Espresso"} size={96} />
+        <CoffeeIcon recipe={activity || "Espresso"} size={192} />
         <div className="text-center">
           <div className="text-xl font-bold text-amber-300">{activity}</div>
           {progress && (
@@ -127,10 +127,10 @@ export function BrewSection({ conn, entities, prefix }: Props) {
                 }`}
               >
                 <div style={{ filter: "drop-shadow(0 0 12px rgba(255,255,255,0.8)) drop-shadow(0 0 4px rgba(255,255,255,0.6))" }}>
-                <CoffeeIcon recipe={opt} size={40} />
+                <CoffeeIcon recipe={opt} size={80} />
               </div>
                 <span
-                  className={`text-[10px] leading-tight text-center font-medium ${
+                  className={`text-sm leading-snug text-center font-bold ${
                     opt === selectedRecipe ? "text-coffee-50" : "text-coffee-300"
                   }`}
                 >
