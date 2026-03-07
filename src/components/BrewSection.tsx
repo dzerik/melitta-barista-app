@@ -1,3 +1,4 @@
+import { useRef, useState, useEffect } from "react";
 import type { Connection, HassEntities } from "home-assistant-js-websocket";
 import { getState, getOptions, getEntity } from "../lib/entities";
 import { selectOption, pressButton } from "../lib/ha";
@@ -28,6 +29,25 @@ export function BrewSection({ conn, entities, prefix }: Props) {
 
   const brewId = `button.${prefix}_brew`;
   const cancelId = `button.${prefix}_cancel`;
+
+  // Tooltip position
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!selectedRecipe || !gridRef.current) {
+      setTooltipPos(null);
+      return;
+    }
+    const btn = gridRef.current.querySelector<HTMLElement>(`[data-recipe="${selectedRecipe}"]`);
+    if (!btn) { setTooltipPos(null); return; }
+    const gridRect = gridRef.current.getBoundingClientRect();
+    const btnRect = btn.getBoundingClientRect();
+    setTooltipPos({
+      x: btnRect.left - gridRect.left + btnRect.width / 2,
+      y: btnRect.top - gridRect.top - 8,
+    });
+  }, [selectedRecipe, recipeOptions]);
 
   // Brewing state
   if (isBrewing) {
@@ -91,44 +111,60 @@ export function BrewSection({ conn, entities, prefix }: Props) {
 
       {/* Recipe grid — fills remaining space */}
       {isReady && recipeOptions.length > 0 && (
-        <div className="flex-1 min-h-0 grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 auto-rows-fr gap-2">
-          {recipeOptions.map((opt) => (
-            <button
-              key={opt}
-              onClick={() =>
-                selectOption(conn, `select.${prefix}_recipe`, opt)
-              }
-              className={`aspect-square flex flex-col items-center justify-center gap-1 rounded-2xl p-1.5 transition active:scale-[0.95] ${
-                opt === selectedRecipe
-                  ? "bg-coffee-700/80 ring-2 ring-coffee-400 shadow-lg shadow-coffee-500/10"
-                  : "bg-coffee-900/50 ring-1 ring-coffee-800 hover:bg-coffee-800/50"
-              }`}
-            >
-              <CoffeeIcon recipe={opt} size={40} />
-              <span
-                className={`text-[10px] leading-tight text-center font-medium ${
-                  opt === selectedRecipe ? "text-coffee-100" : "text-coffee-400"
+        <div className="flex-1 min-h-0 relative" ref={gridRef}>
+          <div className="h-full grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 auto-rows-fr gap-2">
+            {recipeOptions.map((opt) => (
+              <button
+                key={opt}
+                data-recipe={opt}
+                onClick={() =>
+                  selectOption(conn, `select.${prefix}_recipe`, opt)
+                }
+                className={`aspect-square flex flex-col items-center justify-center gap-1 rounded-2xl p-1.5 transition active:scale-[0.95] ${
+                  opt === selectedRecipe
+                    ? "bg-coffee-700 ring-2 ring-coffee-400 shadow-lg shadow-coffee-400/15"
+                    : "bg-coffee-800/70 ring-1 ring-coffee-700/50 hover:bg-coffee-700/60 hover:ring-coffee-600/50"
                 }`}
               >
-                {opt}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
+                <CoffeeIcon recipe={opt} size={40} />
+                <span
+                  className={`text-[10px] leading-tight text-center font-medium ${
+                    opt === selectedRecipe ? "text-coffee-50" : "text-coffee-300"
+                  }`}
+                >
+                  {opt}
+                </span>
+              </button>
+            ))}
+          </div>
 
-      {/* Brew button */}
-      {isReady && (
-        <button
-          onClick={() => pressButton(conn, brewId)}
-          disabled={
-            !selectedRecipe ||
-            !getEntity(entities, prefix, "button", "brew")
-          }
-          className="shrink-0 w-full rounded-2xl bg-coffee-500 py-3 text-base font-bold text-coffee-950 shadow-lg shadow-coffee-500/20 transition hover:bg-coffee-400 active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          ☕ Brew {selectedRecipe || ""}
-        </button>
+          {/* Brew tooltip */}
+          {selectedRecipe && tooltipPos && (
+            <div
+              className="absolute z-10 transition-all duration-200"
+              style={{
+                left: tooltipPos.x,
+                top: tooltipPos.y,
+                transform: "translate(-50%, -100%)",
+              }}
+            >
+              <button
+                onClick={() => {
+                  if (getEntity(entities, prefix, "button", "brew")) {
+                    pressButton(conn, brewId);
+                  }
+                }}
+                className="flex items-center gap-1.5 rounded-xl bg-coffee-400 px-4 py-2 text-sm font-bold text-coffee-950 shadow-xl shadow-coffee-400/30 transition hover:bg-coffee-300 active:scale-[0.95] whitespace-nowrap"
+              >
+                ☕ Brew
+              </button>
+              {/* Arrow */}
+              <div className="flex justify-center">
+                <div className="w-2.5 h-2.5 bg-coffee-400 rotate-45 -mt-1.5" />
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

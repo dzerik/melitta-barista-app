@@ -88,17 +88,20 @@ export default function App() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex border-t border-coffee-800 bg-coffee-950/80 backdrop-blur-sm">
+      <div className="flex border-t border-coffee-800 bg-coffee-900/90 backdrop-blur-sm">
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition ${
+            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition relative ${
               tab === t.id
-                ? "text-coffee-300"
-                : "text-coffee-600 hover:text-coffee-400"
+                ? "text-coffee-100"
+                : "text-coffee-500 hover:text-coffee-300"
             }`}
           >
+            {tab === t.id && (
+              <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-coffee-400" />
+            )}
             <span className="text-lg">{t.icon}</span>
             <span>{t.label}</span>
           </button>
