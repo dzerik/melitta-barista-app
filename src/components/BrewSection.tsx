@@ -10,11 +10,36 @@ interface Props {
   prefix: string;
 }
 
-const PROCESS_ICONS: Record<string, string> = {
-  coffee: "☕",
-  milk: "🥛",
-  water: "💧",
-};
+/** Monochrome SVG pictograms for process types */
+function ProcessIcon({ process, className }: { process: string; className?: string }) {
+  const cls = className || "w-4 h-4";
+  if (process === "coffee") {
+    // Coffee bean
+    return (
+      <svg viewBox="0 0 24 24" fill="currentColor" className={cls}>
+        <path d="M12 2C9.5 2 7.1 3.3 5.8 5.5c-1.7 2.9-1.4 6.6.8 9.1C8.4 16.6 10.1 18 12 18s3.6-1.4 5.4-3.4c2.2-2.5 2.5-6.2.8-9.1C16.9 3.3 14.5 2 12 2zm0 14c-1.3 0-2.7-1-4.2-2.8-1.8-2-2-4.9-.7-7.2C8.2 4.2 10 3.2 12 3.2S15.8 4.2 16.9 6c1.3 2.3 1.1 5.2-.7 7.2C14.7 15 13.3 16 12 16z" />
+        <path d="M12 5c-1.1 0-2.1.6-2.7 1.5-.8 1.2-.8 2.8.1 4C10.3 11.7 11.1 12.5 12 12.5s1.7-.8 2.6-2c.9-1.2.9-2.8.1-4C14.1 5.6 13.1 5 12 5z" />
+      </svg>
+    );
+  }
+  if (process === "milk") {
+    // Milk drop
+    return (
+      <svg viewBox="0 0 24 24" fill="currentColor" className={cls}>
+        <path d="M12 2.5c-.3 0-.5.1-.7.3C9.5 5 7 8.5 7 12c0 2.8 2.2 5 5 5s5-2.2 5-5c0-3.5-2.5-7-4.3-9.2-.2-.2-.4-.3-.7-.3zM12 16c-2.2 0-4-1.8-4-4 0-2.8 2-5.8 4-8.2 2 2.4 4 5.4 4 8.2 0 2.2-1.8 4-4 4z" />
+      </svg>
+    );
+  }
+  if (process === "water") {
+    // Water droplet
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={cls}>
+        <path d="M12 3L7 11.5C5.8 13.6 6.5 16.3 8.5 17.7 9.5 18.4 10.7 18.8 12 18.8s2.5-.4 3.5-1.1c2-1.4 2.7-4.1 1.5-6.2L12 3z" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  return null;
+}
 
 const INTENSITY_DOTS: Record<string, number> = {
   very_mild: 1,
@@ -24,10 +49,26 @@ const INTENSITY_DOTS: Record<string, number> = {
   very_strong: 5,
 };
 
-const TEMP_ICONS: Record<string, string> = {
-  low: "❄",
-  high: "🔥",
-};
+function TempIcon({ temp, className }: { temp: string; className?: string }) {
+  const cls = className || "w-3.5 h-3.5";
+  if (temp === "low") {
+    // Snowflake
+    return (
+      <svg viewBox="0 0 24 24" fill="currentColor" className={cls}>
+        <path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1M12 2l-2 3h4l-2-3zM12 22l2-3h-4l2 3zM2 12l3 2v-4l-3 2zM22 12l-3-2v4l3-2z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (temp === "high") {
+    // Flame
+    return (
+      <svg viewBox="0 0 24 24" fill="currentColor" className={cls}>
+        <path d="M12 2c0 4-4 6-4 10a4 4 0 008 0c0-4-4-6-4-10zm0 14a2 2 0 01-2-2c0-1.5 2-3 2-5 0 2 2 3.5 2 5a2 2 0 01-2 2z" />
+      </svg>
+    );
+  }
+  return null;
+}
 
 interface RecipeDetails {
   c1_process: string;
@@ -86,7 +127,7 @@ function RecipeInfo({ details, vertical }: { details: RecipeDetails; vertical?: 
           ? "flex items-center gap-2.5 text-sm text-neutral-200"
           : "flex items-center gap-2.5 text-sm text-neutral-400"
         }>
-          <span className="text-base">{PROCESS_ICONS[c.process] || "•"}</span>
+          <ProcessIcon process={c.process} className="w-4 h-4 shrink-0" />
           <span className="font-semibold tabular-nums">{c.ml}<span className="text-neutral-500 text-xs font-normal">ml</span></span>
           {c.process === "coffee" && (
             <>
@@ -94,7 +135,7 @@ function RecipeInfo({ details, vertical }: { details: RecipeDetails; vertical?: 
               {c.shots > 0 && <span className="text-neutral-400 font-medium">×{c.shots}</span>}
             </>
           )}
-          {TEMP_ICONS[c.temp] && <span className="text-base">{TEMP_ICONS[c.temp]}</span>}
+          <TempIcon temp={c.temp} className="w-3.5 h-3.5 shrink-0" />
         </div>
       ))}
     </div>
