@@ -44,7 +44,7 @@ interface RecipeDetails {
   c2_portion_ml: number;
 }
 
-function RecipeInfo({ details }: { details: RecipeDetails }) {
+function RecipeInfo({ details, vertical }: { details: RecipeDetails; vertical?: boolean }) {
   const components: { process: string; intensity: string; temp: string; shots: number; ml: number }[] = [];
   if (details.c1_process && details.c1_process !== "none") {
     components.push({
@@ -67,19 +67,19 @@ function RecipeInfo({ details }: { details: RecipeDetails }) {
   if (components.length === 0) return null;
 
   return (
-    <div className="flex gap-3 text-[10px] text-neutral-400 mt-0.5">
+    <div className={vertical ? "flex flex-col gap-0.5 text-[9px]" : "flex gap-3 text-[10px] text-neutral-400 mt-0.5"}>
       {components.map((c, i) => (
-        <div key={i} className="flex items-center gap-1">
-          <span className="text-neutral-300 font-medium">{PROCESS_LABELS[c.process] || c.process}</span>
+        <div key={i} className={vertical ? "flex items-center gap-1 text-neutral-300" : "flex items-center gap-1"}>
+          <span className={vertical ? "text-white font-medium" : "text-neutral-300 font-medium"}>{PROCESS_LABELS[c.process] || c.process}</span>
           <span>{c.ml}ml</span>
           {c.process === "coffee" && (
             <>
-              <span className="text-neutral-600">·</span>
+              <span className="text-neutral-500">·</span>
               <span>{INTENSITY_LABELS[c.intensity] || c.intensity}</span>
               {c.shots > 0 && <span>×{c.shots}</span>}
             </>
           )}
-          <span className="text-neutral-600">·</span>
+          <span className="text-neutral-500">·</span>
           <span>{TEMP_LABELS[c.temp] || c.temp}</span>
         </div>
       ))}
@@ -225,7 +225,13 @@ export function BrewSection({ conn, entities, prefix }: Props) {
                   }`}
                 >
                   <CoffeeIcon recipe={opt} size={120} />
-                  <span className={`absolute bottom-0 left-0 right-0 text-center text-xs font-semibold py-1.5 transition-all ${
+                  {/* Recipe details overlay on selected card */}
+                  {isSelected && hasRecipeDetails && recipeDetails && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center backdrop-blur-md bg-black/60 transition-all">
+                      <RecipeInfo details={recipeDetails} vertical />
+                    </div>
+                  )}
+                  <span className={`absolute bottom-0 left-0 right-0 text-center text-xs font-semibold py-1.5 transition-all z-10 ${
                     isSelected
                       ? "bg-white text-black"
                       : "bg-transparent text-neutral-500 font-medium"
@@ -239,12 +245,6 @@ export function BrewSection({ conn, entities, prefix }: Props) {
         </div>
       )}
 
-      {/* Recipe details bar */}
-      {isReady && selectedRecipe && hasRecipeDetails && recipeDetails && (
-        <div className="shrink-0 flex items-center justify-center gap-1 px-4 py-2 border-t border-neutral-800/40">
-          <RecipeInfo details={recipeDetails} />
-        </div>
-      )}
     </div>
   );
 }
