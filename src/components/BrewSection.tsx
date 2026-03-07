@@ -126,7 +126,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
                     : "bg-coffee-700/60 ring-1 ring-coffee-600/40 hover:bg-coffee-600/50 hover:ring-coffee-500/50"
                 }`}
               >
-                <div style={{ filter: "drop-shadow(0 0 6px rgba(255,255,255,0.5))" }}>
+                <div style={{ filter: "drop-shadow(0 0 12px rgba(255,255,255,0.8)) drop-shadow(0 0 4px rgba(255,255,255,0.6))" }}>
                 <CoffeeIcon recipe={opt} size={40} />
               </div>
                 <span
