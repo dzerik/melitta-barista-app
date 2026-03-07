@@ -10,25 +10,24 @@ interface Props {
   prefix: string;
 }
 
-const PROCESS_LABELS: Record<string, string> = {
-  coffee: "Coffee",
-  milk: "Milk",
-  water: "Water",
-  none: "",
+const PROCESS_ICONS: Record<string, string> = {
+  coffee: "☕",
+  milk: "🥛",
+  water: "💧",
 };
 
-const INTENSITY_LABELS: Record<string, string> = {
-  very_mild: "Very Mild",
-  mild: "Mild",
-  medium: "Medium",
-  strong: "Strong",
-  very_strong: "V. Strong",
+const INTENSITY_DOTS: Record<string, number> = {
+  very_mild: 1,
+  mild: 2,
+  medium: 3,
+  strong: 4,
+  very_strong: 5,
 };
 
-const TEMP_LABELS: Record<string, string> = {
-  low: "Low",
-  normal: "Normal",
-  high: "High",
+const TEMP_ICONS: Record<string, string> = {
+  low: "❄",
+  normal: "🌡",
+  high: "🔥",
 };
 
 interface RecipeDetails {
@@ -42,6 +41,21 @@ interface RecipeDetails {
   c2_temperature: string;
   c2_shots: number;
   c2_portion_ml: number;
+}
+
+function IntensityDots({ level }: { level: number }) {
+  return (
+    <span className="inline-flex gap-px">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <span
+          key={n}
+          className={`inline-block w-1.5 h-1.5 rounded-full ${
+            n <= level ? "bg-white" : "bg-neutral-600"
+          }`}
+        />
+      ))}
+    </span>
+  );
 }
 
 function RecipeInfo({ details, vertical }: { details: RecipeDetails; vertical?: boolean }) {
@@ -67,20 +81,21 @@ function RecipeInfo({ details, vertical }: { details: RecipeDetails; vertical?: 
   if (components.length === 0) return null;
 
   return (
-    <div className={vertical ? "flex flex-col gap-0.5 text-[9px]" : "flex gap-3 text-[10px] text-neutral-400 mt-0.5"}>
+    <div className={vertical ? "flex flex-col gap-1.5" : "flex gap-4"}>
       {components.map((c, i) => (
-        <div key={i} className={vertical ? "flex items-center gap-1 text-neutral-300" : "flex items-center gap-1"}>
-          <span className={vertical ? "text-white font-medium" : "text-neutral-300 font-medium"}>{PROCESS_LABELS[c.process] || c.process}</span>
-          <span>{c.ml}ml</span>
+        <div key={i} className={vertical
+          ? "flex items-center gap-2 text-xs text-neutral-200"
+          : "flex items-center gap-2 text-xs text-neutral-400"
+        }>
+          <span className="text-sm">{PROCESS_ICONS[c.process] || "•"}</span>
+          <span className="font-medium tabular-nums">{c.ml}<span className="text-neutral-500 text-[10px]">ml</span></span>
           {c.process === "coffee" && (
             <>
-              <span className="text-neutral-500">·</span>
-              <span>{INTENSITY_LABELS[c.intensity] || c.intensity}</span>
-              {c.shots > 0 && <span>×{c.shots}</span>}
+              <IntensityDots level={INTENSITY_DOTS[c.intensity] || 3} />
+              {c.shots > 0 && <span className="text-neutral-400">×{c.shots}</span>}
             </>
           )}
-          <span className="text-neutral-500">·</span>
-          <span>{TEMP_LABELS[c.temp] || c.temp}</span>
+          <span className="text-sm">{TEMP_ICONS[c.temp] || "🌡"}</span>
         </div>
       ))}
     </div>
