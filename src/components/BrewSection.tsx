@@ -117,28 +117,38 @@ export function BrewSection({ conn, entities, prefix }: Props) {
   // Brewing state
   if (isBrewing) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-6 px-6">
-        <CoffeeIcon recipe={activity || "Espresso"} size={240} />
-        <div className="text-center">
-          <div className="text-xl font-light text-white tracking-wide">{activity}</div>
-          {progress && (
-            <div className="text-neutral-500 mt-1 text-sm">{progressNum}%</div>
-          )}
-        </div>
-        {progress && (
-          <div className="w-64 h-px bg-neutral-800 overflow-hidden">
-            <div
-              className="h-full bg-white transition-all duration-500"
-              style={{ width: `${progressNum}%` }}
-            />
+      <div className="flex h-full flex-col items-center justify-center gap-8 px-6">
+        <CoffeeIcon recipe={activity || "Espresso"} size={260} />
+
+        <div className="flex flex-col items-center gap-4 w-full max-w-xs">
+          {/* Recipe info card — blurred dark glass */}
+          <div className="w-full rounded-2xl backdrop-blur-xl bg-white/[0.04] ring-1 ring-white/[0.08] px-5 py-4">
+            <div className="text-lg font-light text-white tracking-wide text-center">{activity}</div>
+            {hasRecipeDetails && recipeDetails && (
+              <div className="flex justify-center mt-2">
+                <RecipeInfo details={recipeDetails} />
+              </div>
+            )}
+            {progress && (
+              <div className="mt-3 flex items-center gap-3">
+                <div className="flex-1 h-px bg-neutral-800 overflow-hidden rounded-full">
+                  <div
+                    className="h-full bg-white transition-all duration-500"
+                    style={{ width: `${progressNum}%` }}
+                  />
+                </div>
+                <span className="text-neutral-500 text-xs tabular-nums w-8 text-right">{progressNum}%</span>
+              </div>
+            )}
           </div>
-        )}
-        <button
-          onClick={() => pressButton(conn, cancelId)}
-          className="rounded-lg px-8 py-2.5 text-sm font-medium text-neutral-500 ring-1 ring-neutral-700 hover:bg-neutral-900 transition active:scale-[0.98]"
-        >
-          Cancel
-        </button>
+
+          <button
+            onClick={() => pressButton(conn, cancelId)}
+            className="rounded-lg px-8 py-2.5 text-sm font-medium text-neutral-500 ring-1 ring-neutral-700 hover:bg-neutral-900 transition active:scale-[0.98]"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
     );
   }
