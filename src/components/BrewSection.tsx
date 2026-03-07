@@ -281,28 +281,6 @@ export function BrewSection({ conn, entities, prefix }: Props) {
     );
   }
 
-  // Action required (manipulation) — full-screen premium alert
-  if (hasAction && !isReady && !isBrewing) {
-    const actionHint = ACTION_ICONS[actionRequired || ""] || "";
-    return (
-      <div className="flex h-full flex-col items-center justify-center px-8">
-        <div className="flex flex-col items-center gap-6 max-w-sm">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" className="w-20 h-20 text-neutral-500">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 8v5M12 16v.5" strokeLinecap="round" strokeWidth="1.5" />
-          </svg>
-          <div className="text-center">
-            <div className="text-xl font-light text-white tracking-wide">{actionRequired}</div>
-            {actionHint && (
-              <div className="text-sm text-neutral-500 mt-2 leading-relaxed">{actionHint}</div>
-            )}
-          </div>
-          <div className="w-12 h-px bg-neutral-800" />
-        </div>
-      </div>
-    );
-  }
-
   // Service states (cleaning, descaling, etc.)
   const serviceInfo = machineState ? SERVICE_ICONS[machineState] : null;
   if (serviceInfo && !isReady && !isBrewing) {
@@ -331,16 +309,25 @@ export function BrewSection({ conn, entities, prefix }: Props) {
     );
   }
 
+  const actionHint = ACTION_ICONS[actionRequired || ""] || "";
+
   return (
-    <div className="flex h-full flex-col">
-      {/* Action required banner (when ready but action needed) */}
+    <div className="relative flex h-full flex-col">
+      {/* Action required — modal overlay with blur */}
       {hasAction && (
-        <div className="flex items-center gap-3 mx-4 mt-2 rounded-xl backdrop-blur-xl bg-white/[0.04] ring-1 ring-white/[0.08] px-4 py-3 shrink-0">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-5 h-5 text-neutral-400 shrink-0">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 8v5M12 16v.5" strokeLinecap="round" strokeWidth="1.5" />
-          </svg>
-          <span className="text-sm text-neutral-300">{actionRequired}</span>
+        <div className="absolute inset-0 z-30 flex items-center justify-center backdrop-blur-sm bg-black/50">
+          <div className="flex flex-col items-center gap-5 max-w-xs rounded-2xl bg-neutral-900/90 ring-1 ring-white/[0.08] px-8 py-8">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" className="w-14 h-14 text-neutral-400">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 8v5M12 16v.5" strokeLinecap="round" strokeWidth="1.5" />
+            </svg>
+            <div className="text-center">
+              <div className="text-lg font-light text-white tracking-wide">{actionRequired}</div>
+              {actionHint && (
+                <div className="text-sm text-neutral-500 mt-2 leading-relaxed">{actionHint}</div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
