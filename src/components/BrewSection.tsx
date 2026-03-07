@@ -10,6 +10,83 @@ interface Props {
   prefix: string;
 }
 
+const PROCESS_LABELS: Record<string, string> = {
+  coffee: "Coffee",
+  milk: "Milk",
+  water: "Water",
+  none: "",
+};
+
+const INTENSITY_LABELS: Record<string, string> = {
+  very_mild: "Very Mild",
+  mild: "Mild",
+  medium: "Medium",
+  strong: "Strong",
+  very_strong: "V. Strong",
+};
+
+const TEMP_LABELS: Record<string, string> = {
+  low: "Low",
+  normal: "Normal",
+  high: "High",
+};
+
+interface RecipeDetails {
+  c1_process: string;
+  c1_intensity: string;
+  c1_temperature: string;
+  c1_shots: number;
+  c1_portion_ml: number;
+  c2_process: string;
+  c2_intensity: string;
+  c2_temperature: string;
+  c2_shots: number;
+  c2_portion_ml: number;
+}
+
+function RecipeInfo({ details }: { details: RecipeDetails }) {
+  const components: { process: string; intensity: string; temp: string; shots: number; ml: number }[] = [];
+  if (details.c1_process && details.c1_process !== "none") {
+    components.push({
+      process: details.c1_process,
+      intensity: details.c1_intensity,
+      temp: details.c1_temperature,
+      shots: details.c1_shots,
+      ml: details.c1_portion_ml,
+    });
+  }
+  if (details.c2_process && details.c2_process !== "none") {
+    components.push({
+      process: details.c2_process,
+      intensity: details.c2_intensity,
+      temp: details.c2_temperature,
+      shots: details.c2_shots,
+      ml: details.c2_portion_ml,
+    });
+  }
+  if (components.length === 0) return null;
+
+  return (
+    <div className="flex gap-3 text-[10px] text-neutral-400 mt-0.5">
+      {components.map((c, i) => (
+        <div key={i} className="flex items-center gap-1">
+          <span className="text-neutral-300 font-medium">{PROCESS_LABELS[c.process] || c.process}</span>
+          <span>{c.ml}ml</span>
+          {c.process === "coffee" && (
+            <>
+              <span className="text-neutral-600">·</span>
+              <span>{INTENSITY_LABELS[c.intensity] || c.intensity}</span>
+              {c.shots > 0 && <span>×{c.shots}</span>}
+            </>
+          )}
+          <span className="text-neutral-600">·</span>
+          <span>{TEMP_LABELS[c.temp] || c.temp}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function BrewSection({ conn, entities, prefix }: Props) {
   const machineState = getState(entities, prefix, "sensor", "state");
   const isReady = machineState === "Ready";
@@ -26,6 +103,11 @@ export function BrewSection({ conn, entities, prefix }: Props) {
   const selectedProfile = getState(entities, prefix, "select", "profile");
   const recipeOptions = getOptions(entities, prefix, "recipe");
   const selectedRecipe = getState(entities, prefix, "select", "recipe");
+
+  // Recipe details from entity attributes
+  const recipeEntity = getEntity(entities, prefix, "select", "recipe");
+  const recipeDetails = recipeEntity?.attributes as RecipeDetails | undefined;
+  const hasRecipeDetails = recipeDetails?.c1_process !== undefined;
 
   const brewId = `button.${prefix}_brew`;
   const cancelId = `button.${prefix}_cancel`;
@@ -144,6 +226,13 @@ export function BrewSection({ conn, entities, prefix }: Props) {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Recipe details bar */}
+      {isReady && selectedRecipe && hasRecipeDetails && recipeDetails && (
+        <div className="shrink-0 flex items-center justify-center gap-1 px-4 py-2 border-t border-neutral-800/40">
+          <RecipeInfo details={recipeDetails} />
         </div>
       )}
     </div>
