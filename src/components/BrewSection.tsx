@@ -154,13 +154,13 @@ export function BrewSection({ conn, entities, prefix }: Props) {
                     pressButton(conn, brewId);
                   }
                 }}
-                className="flex items-center gap-1.5 rounded-xl bg-coffee-400 px-4 py-2 text-sm font-bold text-coffee-950 shadow-xl shadow-coffee-400/30 transition hover:bg-coffee-300 active:scale-[0.95] whitespace-nowrap"
+                className="flex items-center gap-2 rounded-2xl bg-coffee-400 px-8 py-4 text-lg font-bold text-coffee-950 shadow-xl shadow-coffee-400/30 transition hover:bg-coffee-300 active:scale-[0.95] whitespace-nowrap"
               >
                 ☕ Brew
               </button>
               {/* Arrow */}
               <div className="flex justify-center">
-                <div className="w-2.5 h-2.5 bg-coffee-400 rotate-45 -mt-1.5" />
+                <div className="w-4 h-4 bg-coffee-400 rotate-45 -mt-2.5" />
               </div>
             </div>
           )}
