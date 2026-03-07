@@ -126,7 +126,9 @@ export function BrewSection({ conn, entities, prefix }: Props) {
                     : "bg-coffee-700/60 ring-1 ring-coffee-600/40 hover:bg-coffee-600/50 hover:ring-coffee-500/50"
                 }`}
               >
+                <div style={{ filter: "drop-shadow(0 0 6px rgba(255,255,255,0.5))" }}>
                 <CoffeeIcon recipe={opt} size={40} />
+              </div>
                 <span
                   className={`text-[10px] leading-tight text-center font-medium ${
                     opt === selectedRecipe ? "text-coffee-50" : "text-coffee-300"
