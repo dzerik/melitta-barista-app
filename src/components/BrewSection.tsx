@@ -122,8 +122,8 @@ export function BrewSection({ conn, entities, prefix }: Props) {
                 }
                 className={`aspect-square flex flex-col items-center justify-center gap-1 rounded-2xl p-1.5 transition active:scale-[0.95] ${
                   opt === selectedRecipe
-                    ? "bg-coffee-700 ring-2 ring-coffee-400 shadow-lg shadow-coffee-400/15"
-                    : "bg-coffee-800/70 ring-1 ring-coffee-700/50 hover:bg-coffee-700/60 hover:ring-coffee-600/50"
+                    ? "bg-coffee-600 ring-2 ring-coffee-400 shadow-lg shadow-coffee-400/20"
+                    : "bg-coffee-700/60 ring-1 ring-coffee-600/40 hover:bg-coffee-600/50 hover:ring-coffee-500/50"
                 }`}
               >
                 <CoffeeIcon recipe={opt} size={40} />
