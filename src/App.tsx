@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useHA } from "./hooks/useHA";
 import { clearConfig } from "./lib/ha";
+import { getState } from "./lib/entities";
 import { ConnectScreen } from "./components/ConnectScreen";
 import { StatusBar } from "./components/StatusBar";
 import { BrewSection } from "./components/BrewSection";
@@ -51,6 +52,9 @@ export default function App() {
     disconnect();
   };
 
+  const actionRequired = getState(entities, prefix, "sensor", "action_required");
+  const hasAction = !!actionRequired && actionRequired !== "None";
+
   const tabs: { id: Tab; label: string }[] = [
     { id: "brew", label: "Brew" },
     { id: "freestyle", label: "Freestyle" },
@@ -90,11 +94,14 @@ export default function App() {
         {tabs.map((t) => (
           <button
             key={t.id}
-            onClick={() => setTab(t.id)}
+            onClick={() => !hasAction && setTab(t.id)}
+            disabled={hasAction && tab !== t.id}
             className={`flex-1 py-3 text-xs font-medium tracking-wider uppercase transition relative ${
-              tab === t.id
-                ? "text-white"
-                : "text-neutral-600 hover:text-neutral-400"
+              hasAction && tab !== t.id
+                ? "text-neutral-800 cursor-not-allowed"
+                : tab === t.id
+                  ? "text-white"
+                  : "text-neutral-600 hover:text-neutral-400"
             }`}
           >
             {tab === t.id && (
