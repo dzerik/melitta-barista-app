@@ -123,17 +123,17 @@ function RecipeInfo({ details, vertical }: { details: RecipeDetails; vertical?: 
   const textCls = vertical ? "text-neutral-200" : "text-neutral-400";
 
   return (
-    <div className={vertical ? "flex flex-col gap-3" : "flex gap-6"}>
+    <div className={vertical ? "flex flex-col gap-3 items-center" : "flex gap-6 justify-center"}>
       {components.map((c, i) => (
-        <div key={i} className={`flex flex-col gap-1 text-sm ${textCls}`}>
+        <div key={i} className={`flex flex-col gap-1 items-center text-sm ${textCls}`}>
           {/* Row 1: icon + volume + temperature */}
           <div className="flex items-center gap-2">
             <ProcessIcon process={c.process} className="w-5 h-5 shrink-0" />
             <span className="font-semibold tabular-nums text-white">{c.ml}<span className="text-neutral-500 text-xs font-normal">ml</span></span>
             <TempIcon temp={c.temp} className="w-4 h-4 shrink-0" />
           </div>
-          {/* Row 2: intensity + shots (coffee) or empty line */}
-          <div className="flex items-center gap-2 pl-7">
+          {/* Row 2: intensity + shots (coffee) or type label */}
+          <div className="flex items-center gap-2">
             {c.process === "coffee" ? (
               <>
                 <IntensityDots level={INTENSITY_DOTS[c.intensity] || 3} />
