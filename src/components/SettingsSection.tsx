@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { Connection, HassEntities } from "home-assistant-js-websocket";
 import { getEntity, getState } from "../lib/entities";
 import { toggleSwitch, setNumber } from "../lib/ha";
@@ -22,90 +21,80 @@ const NUMBERS = [
 ];
 
 export function SettingsSection({ conn, entities, prefix }: Props) {
-  const [expanded, setExpanded] = useState(false);
-
   return (
-    <div className="px-6">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between py-2 text-xs font-medium text-coffee-400 uppercase tracking-wider"
-      >
-        <span>Settings</span>
-        <span className="text-coffee-600">{expanded ? "▲" : "▼"}</span>
-      </button>
+    <div className="flex h-full flex-col gap-2 px-4 py-3 overflow-y-auto">
+      <div className="text-xs font-medium text-coffee-400 uppercase tracking-wider shrink-0">
+        Machine Settings
+      </div>
 
-      {expanded && (
-        <div className="space-y-2 pb-4">
-          {SWITCHES.map(({ suffix, label, icon }) => {
-            const entity = getEntity(entities, prefix, "switch", suffix);
-            if (!entity) return null;
-            const isOn = entity.state === "on";
-            return (
-              <div
-                key={suffix}
-                className="flex items-center justify-between rounded-xl bg-coffee-800/30 px-4 py-3"
-              >
-                <span className="flex items-center gap-2 text-sm text-coffee-200">
-                  <span>{icon}</span> {label}
-                </span>
-                <button
-                  onClick={() =>
-                    toggleSwitch(conn, `switch.${prefix}_${suffix}`, !isOn)
-                  }
-                  className={`relative h-7 w-12 rounded-full transition ${
-                    isOn ? "bg-coffee-500" : "bg-coffee-700"
-                  }`}
-                >
-                  <span
-                    className={`absolute top-0.5 h-6 w-6 rounded-full bg-coffee-50 shadow transition-transform ${
-                      isOn ? "translate-x-5" : "translate-x-0.5"
-                    }`}
-                  />
-                </button>
-              </div>
-            );
-          })}
+      {SWITCHES.map(({ suffix, label, icon }) => {
+        const entity = getEntity(entities, prefix, "switch", suffix);
+        if (!entity) return null;
+        const isOn = entity.state === "on";
+        return (
+          <div
+            key={suffix}
+            className="flex items-center justify-between rounded-xl bg-coffee-900/40 px-4 py-3 ring-1 ring-coffee-800"
+          >
+            <span className="flex items-center gap-2.5 text-sm text-coffee-200">
+              <span className="text-base">{icon}</span> {label}
+            </span>
+            <button
+              onClick={() =>
+                toggleSwitch(conn, `switch.${prefix}_${suffix}`, !isOn)
+              }
+              className={`relative h-7 w-12 rounded-full transition ${
+                isOn ? "bg-coffee-500" : "bg-coffee-700"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 h-6 w-6 rounded-full bg-coffee-50 shadow transition-transform ${
+                  isOn ? "translate-x-5" : "translate-x-0.5"
+                }`}
+              />
+            </button>
+          </div>
+        );
+      })}
 
-          {NUMBERS.map(({ suffix, label, icon, unit }) => {
-            const value = getState(entities, prefix, "number", suffix);
-            const entity = getEntity(entities, prefix, "number", suffix);
-            if (!entity) return null;
-            const min = entity.attributes?.min ?? 0;
-            const max = entity.attributes?.max ?? 100;
-            const step = entity.attributes?.step ?? 1;
-            return (
-              <div
-                key={suffix}
-                className="flex items-center justify-between rounded-xl bg-coffee-800/30 px-4 py-3"
-              >
-                <span className="flex items-center gap-2 text-sm text-coffee-200">
-                  <span>{icon}</span> {label}
-                </span>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="range"
-                    min={min}
-                    max={max}
-                    step={step}
-                    value={value || 0}
-                    onChange={(e) =>
-                      setNumber(
-                        conn,
-                        `number.${prefix}_${suffix}`,
-                        parseFloat(e.target.value),
-                      )
-                    }
-                    className="w-24 accent-coffee-500"
-                  />
-                  <span className="text-sm text-coffee-300 w-12 text-right">
-                    {value}{unit}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {NUMBERS.map(({ suffix, label, icon, unit }) => {
+        const value = getState(entities, prefix, "number", suffix);
+        const entity = getEntity(entities, prefix, "number", suffix);
+        if (!entity) return null;
+        const min = entity.attributes?.min ?? 0;
+        const max = entity.attributes?.max ?? 100;
+        const step = entity.attributes?.step ?? 1;
+        return (
+          <div
+            key={suffix}
+            className="flex items-center justify-between rounded-xl bg-coffee-900/40 px-4 py-3 ring-1 ring-coffee-800"
+          >
+            <span className="flex items-center gap-2.5 text-sm text-coffee-200">
+              <span className="text-base">{icon}</span> {label}
+            </span>
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                min={min}
+                max={max}
+                step={step}
+                value={value || 0}
+                onChange={(e) =>
+                  setNumber(
+                    conn,
+                    `number.${prefix}_${suffix}`,
+                    parseFloat(e.target.value),
+                  )
+                }
+                className="w-24 accent-coffee-500"
+              />
+              <span className="text-sm text-coffee-300 w-14 text-right">
+                {value}{unit}
+              </span>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

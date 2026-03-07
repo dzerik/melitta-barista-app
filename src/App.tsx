@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useHA } from "./hooks/useHA";
 import { clearConfig } from "./lib/ha";
 import { ConnectScreen } from "./components/ConnectScreen";
@@ -6,9 +7,12 @@ import { BrewSection } from "./components/BrewSection";
 import { FreestyleSection } from "./components/FreestyleSection";
 import { SettingsSection } from "./components/SettingsSection";
 
+type Tab = "brew" | "freestyle" | "settings";
+
 export default function App() {
   const { status, connection, entities, prefix, error, connect, disconnect } =
     useHA();
+  const [tab, setTab] = useState<Tab>("brew");
 
   if (status === "disconnected" || status === "error" || !connection) {
     return (
@@ -43,21 +47,62 @@ export default function App() {
     );
   }
 
+  const handleDisconnect = () => {
+    clearConfig();
+    disconnect();
+  };
+
+  const tabs: { id: Tab; label: string; icon: string }[] = [
+    { id: "brew", label: "Brew", icon: "☕" },
+    { id: "freestyle", label: "Freestyle", icon: "🧪" },
+    { id: "settings", label: "Settings", icon: "⚙️" },
+  ];
+
   return (
-    <div className="flex h-full flex-col overflow-y-auto">
+    <div className="flex h-full flex-col">
       <StatusBar
         entities={entities}
         prefix={prefix}
-        onDisconnect={() => {
-          clearConfig();
-          disconnect();
-        }}
+        onDisconnect={handleDisconnect}
       />
 
-      <div className="flex-1 space-y-4 pb-8">
-        <BrewSection conn={connection} entities={entities} prefix={prefix} />
-        <FreestyleSection conn={connection} entities={entities} prefix={prefix} />
-        <SettingsSection conn={connection} entities={entities} prefix={prefix} />
+      {/* Content area — fills remaining space, no scroll */}
+      <div className="flex-1 min-h-0">
+        {tab === "brew" && (
+          <BrewSection conn={connection} entities={entities} prefix={prefix} />
+        )}
+        {tab === "freestyle" && (
+          <FreestyleSection
+            conn={connection}
+            entities={entities}
+            prefix={prefix}
+          />
+        )}
+        {tab === "settings" && (
+          <SettingsSection
+            conn={connection}
+            entities={entities}
+            prefix={prefix}
+          />
+        )}
+      </div>
+
+      {/* Tab bar */}
+      <div className="flex border-t border-coffee-800 bg-coffee-950/80 backdrop-blur-sm">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition ${
+              tab === t.id
+                ? "text-coffee-300"
+                : "text-coffee-600 hover:text-coffee-400"
+            }`}
+          >
+            <span className="text-lg">{t.icon}</span>
+            <span>{t.label}</span>
+          </button>
+        ))}
       </div>
     </div>
   );
