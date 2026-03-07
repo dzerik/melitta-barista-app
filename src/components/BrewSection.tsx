@@ -98,7 +98,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
               onClick={() =>
                 selectOption(conn, `select.${prefix}_recipe`, opt)
               }
-              className={`flex flex-col items-center justify-center gap-1 rounded-2xl p-1.5 transition active:scale-[0.95] ${
+              className={`aspect-square flex flex-col items-center justify-center gap-1 rounded-2xl p-1.5 transition active:scale-[0.95] ${
                 opt === selectedRecipe
                   ? "bg-coffee-700/80 ring-2 ring-coffee-400 shadow-lg shadow-coffee-500/10"
                   : "bg-coffee-900/50 ring-1 ring-coffee-800 hover:bg-coffee-800/50"
