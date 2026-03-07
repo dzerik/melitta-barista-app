@@ -9,47 +9,45 @@ interface Props {
 }
 
 const SWITCHES = [
-  { suffix: "energy_saving", label: "Energy Saving", icon: "🌱" },
-  { suffix: "auto_bean_select", label: "Auto Bean Select", icon: "🫘" },
-  { suffix: "rinsing_disabled", label: "Rinsing Disabled", icon: "💧" },
+  { suffix: "energy_saving", label: "Energy Saving" },
+  { suffix: "auto_bean_select", label: "Auto Bean Select" },
+  { suffix: "rinsing_disabled", label: "Rinsing Disabled" },
 ];
 
 const NUMBERS = [
-  { suffix: "water_hardness", label: "Water Hardness", icon: "💎", unit: "" },
-  { suffix: "auto_off_after", label: "Auto Off After", icon: "⏱️", unit: " min" },
-  { suffix: "brew_temperature", label: "Brew Temperature", icon: "🌡️", unit: "" },
+  { suffix: "water_hardness", label: "Water Hardness", unit: "" },
+  { suffix: "auto_off_after", label: "Auto Off After", unit: " min" },
+  { suffix: "brew_temperature", label: "Brew Temperature", unit: "" },
 ];
 
 export function SettingsSection({ conn, entities, prefix }: Props) {
   return (
-    <div className="flex h-full flex-col gap-2 px-4 py-3 overflow-y-auto">
-      <div className="text-xs font-medium text-coffee-400 uppercase tracking-wider shrink-0">
+    <div className="flex h-full flex-col gap-px px-4 py-4 overflow-y-auto">
+      <div className="text-[10px] font-medium text-neutral-600 uppercase tracking-[0.2em] mb-2 shrink-0">
         Machine Settings
       </div>
 
-      {SWITCHES.map(({ suffix, label, icon }) => {
+      {SWITCHES.map(({ suffix, label }) => {
         const entity = getEntity(entities, prefix, "switch", suffix);
         if (!entity) return null;
         const isOn = entity.state === "on";
         return (
           <div
             key={suffix}
-            className="flex items-center justify-between rounded-xl bg-coffee-900/40 px-4 py-3 ring-1 ring-coffee-800"
+            className="flex items-center justify-between py-3 border-b border-neutral-800/40"
           >
-            <span className="flex items-center gap-2.5 text-sm text-coffee-200">
-              <span className="text-base">{icon}</span> {label}
-            </span>
+            <span className="text-sm text-neutral-300">{label}</span>
             <button
               onClick={() =>
                 toggleSwitch(conn, `switch.${prefix}_${suffix}`, !isOn)
               }
-              className={`relative h-7 w-12 rounded-full transition ${
-                isOn ? "bg-coffee-500" : "bg-coffee-700"
+              className={`relative h-6 w-10 rounded-full transition ${
+                isOn ? "bg-white" : "bg-neutral-700"
               }`}
             >
               <span
-                className={`absolute top-0.5 h-6 w-6 rounded-full bg-coffee-50 shadow transition-transform ${
-                  isOn ? "translate-x-5" : "translate-x-0.5"
+                className={`absolute top-0.5 h-5 w-5 rounded-full shadow transition-transform ${
+                  isOn ? "translate-x-4 bg-black" : "translate-x-0.5 bg-neutral-400"
                 }`}
               />
             </button>
@@ -57,7 +55,7 @@ export function SettingsSection({ conn, entities, prefix }: Props) {
         );
       })}
 
-      {NUMBERS.map(({ suffix, label, icon, unit }) => {
+      {NUMBERS.map(({ suffix, label, unit }) => {
         const value = getState(entities, prefix, "number", suffix);
         const entity = getEntity(entities, prefix, "number", suffix);
         if (!entity) return null;
@@ -67,12 +65,10 @@ export function SettingsSection({ conn, entities, prefix }: Props) {
         return (
           <div
             key={suffix}
-            className="flex items-center justify-between rounded-xl bg-coffee-900/40 px-4 py-3 ring-1 ring-coffee-800"
+            className="flex items-center justify-between py-3 border-b border-neutral-800/40"
           >
-            <span className="flex items-center gap-2.5 text-sm text-coffee-200">
-              <span className="text-base">{icon}</span> {label}
-            </span>
-            <div className="flex items-center gap-2">
+            <span className="text-sm text-neutral-300">{label}</span>
+            <div className="flex items-center gap-3">
               <input
                 type="range"
                 min={min}
@@ -86,9 +82,9 @@ export function SettingsSection({ conn, entities, prefix }: Props) {
                     parseFloat(e.target.value),
                   )
                 }
-                className="w-24 accent-coffee-500"
+                className="w-24 accent-white"
               />
-              <span className="text-sm text-coffee-300 w-14 text-right">
+              <span className="text-sm text-neutral-500 w-14 text-right tabular-nums">
                 {value}{unit}
               </span>
             </div>

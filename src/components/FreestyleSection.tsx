@@ -1,6 +1,7 @@
 import type { Connection, HassEntities } from "home-assistant-js-websocket";
 import { getState, getOptions } from "../lib/entities";
 import { selectOption, setNumber, setTextValue, pressButton } from "../lib/ha";
+import { FreestyleGlass } from "./FreestyleGlass";
 
 interface Props {
   conn: Connection;
@@ -8,31 +9,144 @@ interface Props {
   prefix: string;
 }
 
-function SelectField({
+/** Segmented slider-style option picker */
+function SegmentPicker({
   label,
-  entityId,
   options,
   value,
-  conn,
+  onChange,
 }: {
   label: string;
-  entityId: string;
   options: string[];
-  value: string | null;
-  conn: Connection;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  if (options.length === 0) return null;
+  return (
+    <div className="space-y-1.5">
+      <span className="text-xs text-white uppercase tracking-wider">{label}</span>
+      <div className="flex rounded-xl overflow-hidden ring-1 ring-neutral-700">
+        {options.map((opt) => (
+          <button
+            key={opt}
+            onClick={() => onChange(opt)}
+            className={`flex-1 py-2.5 text-xs font-medium transition ${
+              opt === value
+                ? "bg-white text-black font-bold"
+                : "bg-neutral-900 text-neutral-500 hover:text-neutral-300"
+            }`}
+          >
+            {displayName(opt)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Display name for option values */
+const DISPLAY_NAMES: Record<string, string> = {
+  very_mild: "Very Mild",
+  mild: "Mild",
+  medium: "Medium",
+  strong: "Strong",
+  very_strong: "Very Strong",
+  extra_strong: "Extra Strong",
+  low: "Low",
+  normal: "Normal",
+  high: "High",
+  one: "1",
+  two: "2",
+  three: "3",
+};
+
+function displayName(v: string): string {
+  return DISPLAY_NAMES[v] || v.charAt(0).toUpperCase() + v.slice(1).replaceAll("_", " ");
+}
+
+/** Labeled range slider with step labels */
+function SliderRow({
+  label,
+  options,
+  value,
+  onChange,
+  disabled = false,
+}: {
+  label: string;
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  if (options.length === 0) return null;
+  const idx = options.indexOf(value);
+  return (
+    <div className={`space-y-1.5 transition-opacity ${disabled ? "opacity-20 pointer-events-none" : ""}`}>
+      <span className="text-xs text-white uppercase tracking-wider">{label}</span>
+      <input
+        type="range"
+        min={0}
+        max={options.length - 1}
+        step={1}
+        value={idx >= 0 ? idx : 0}
+        onChange={(e) => onChange(options[parseInt(e.target.value)])}
+        disabled={disabled}
+        className="w-full accent-white h-1.5 appearance-none bg-neutral-800 rounded-full
+          [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
+          [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg"
+      />
+      <div className="flex justify-between">
+        {options.map((opt) => (
+          <span
+            key={opt}
+            className={`text-[10px] transition ${
+              opt === value ? "text-white font-bold" : "text-neutral-600"
+            }`}
+          >
+            {displayName(opt)}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Portion slider (ml) */
+function PortionSlider({
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+  disabled = false,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (v: number) => void;
+  disabled?: boolean;
 }) {
   return (
-    <div>
-      <label className="block text-[10px] text-coffee-500 mb-0.5">{label}</label>
-      <select
-        value={value || ""}
-        onChange={(e) => selectOption(conn, entityId, e.target.value)}
-        className="w-full rounded-lg bg-coffee-800/50 px-2.5 py-1.5 text-sm text-coffee-100 ring-1 ring-coffee-700 outline-none focus:ring-coffee-500"
-      >
-        {options.map((o) => (
-          <option key={o} value={o}>{o}</option>
-        ))}
-      </select>
+    <div className={`space-y-1.5 transition-opacity ${disabled ? "opacity-20 pointer-events-none" : ""}`}>
+      <div className="flex justify-between">
+        <span className="text-xs text-white uppercase tracking-wider">{label}</span>
+        <span className="text-xs text-white font-bold tabular-nums">{value} ml</span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(parseInt(e.target.value))}
+        disabled={disabled}
+        className="w-full accent-white h-1.5 appearance-none bg-neutral-800 rounded-full
+          [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
+          [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg"
+      />
     </div>
   );
 }
@@ -43,132 +157,165 @@ export function FreestyleSection({ conn, entities, prefix }: Props) {
   const name = getState(entities, prefix, "text", "freestyle_name") || "Custom";
   const brewFreestyleId = `button.${prefix}_brew_freestyle`;
 
-  const portion1 = getState(entities, prefix, "number", "freestyle_portion_1");
-  const portion2 = getState(entities, prefix, "number", "freestyle_portion_2");
+  // Component 1
+  const process1 = getState(entities, prefix, "select", "freestyle_process_1") || "coffee";
+  const intensity1 = getState(entities, prefix, "select", "freestyle_intensity_1") || "medium";
+  const temp1 = getState(entities, prefix, "select", "freestyle_temperature_1") || "normal";
+  const shots1 = getState(entities, prefix, "select", "freestyle_shots_1") || "one";
+  const portion1 = parseInt(getState(entities, prefix, "number", "freestyle_portion_1") || "40");
+  const processOpts1 = getOptions(entities, prefix, "freestyle_process_1");
+  const intensityOpts1 = getOptions(entities, prefix, "freestyle_intensity_1");
+  const tempOpts1 = getOptions(entities, prefix, "freestyle_temperature_1");
+  const shotsOpts1 = getOptions(entities, prefix, "freestyle_shots_1");
 
-  const fields1 = [
-    { label: "Process", suffix: "freestyle_process_1" },
-    { label: "Intensity", suffix: "freestyle_intensity_1" },
-    { label: "Temperature", suffix: "freestyle_temperature_1" },
-    { label: "Shots", suffix: "freestyle_shots_1" },
-  ];
-  const fields2 = [
-    { label: "Process", suffix: "freestyle_process_2" },
-    { label: "Intensity", suffix: "freestyle_intensity_2" },
-    { label: "Temperature", suffix: "freestyle_temperature_2" },
-    { label: "Shots", suffix: "freestyle_shots_2" },
-  ];
+  // Component 2
+  const process2 = getState(entities, prefix, "select", "freestyle_process_2") || "none";
+  const intensity2 = getState(entities, prefix, "select", "freestyle_intensity_2") || "medium";
+  const temp2 = getState(entities, prefix, "select", "freestyle_temperature_2") || "normal";
+  const shots2 = getState(entities, prefix, "select", "freestyle_shots_2") || "one";
+  const portion2 = parseInt(getState(entities, prefix, "number", "freestyle_portion_2") || "0");
+  const processOpts2 = getOptions(entities, prefix, "freestyle_process_2");
+  const intensityOpts2 = getOptions(entities, prefix, "freestyle_intensity_2");
+  const tempOpts2 = getOptions(entities, prefix, "freestyle_temperature_2");
+  const shotsOpts2 = getOptions(entities, prefix, "freestyle_shots_2");
 
   if (!isReady) {
     return (
-      <div className="flex h-full items-center justify-center text-coffee-500">
+      <div className="flex h-full items-center justify-center text-neutral-600">
         Machine is not ready
       </div>
     );
   }
 
   return (
-    <div className="flex h-full flex-col gap-3 px-4 py-3">
-      {/* Name */}
-      <div className="shrink-0">
-        <label className="block text-[10px] text-coffee-500 mb-0.5">Recipe Name</label>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) =>
-            setTextValue(conn, `text.${prefix}_freestyle_name`, e.target.value)
-          }
-          className="w-full rounded-lg bg-coffee-800/50 px-3 py-2 text-sm text-coffee-100 ring-1 ring-coffee-700 outline-none focus:ring-coffee-500"
-        />
-      </div>
+    <div className="flex h-full flex-col">
+      {/* Main content: left panel — glass — right panel */}
+      <div className="flex-1 min-h-0 flex items-stretch">
 
-      {/* Two component panels side by side */}
-      <div className="flex-1 min-h-0 grid grid-cols-2 gap-4">
-        {/* Component 1 */}
-        <div className="flex flex-col gap-2 rounded-2xl bg-coffee-900/40 p-3 ring-1 ring-coffee-800">
-          <div className="text-xs font-semibold text-coffee-300 shrink-0">
-            ☕ Component 1
+        {/* Component 1 — left */}
+        <div className="flex-1 flex flex-col justify-center gap-4 px-6 py-4">
+          <div className="text-xs font-bold text-white uppercase tracking-[0.2em]">
+            Component 1
           </div>
-          <div className="grid grid-cols-2 gap-2 flex-1 auto-rows-min">
-            {fields1.map((f) => (
-              <SelectField
-                key={f.suffix}
-                label={f.label}
-                entityId={`select.${prefix}_${f.suffix}`}
-                options={getOptions(entities, prefix, f.suffix)}
-                value={getState(entities, prefix, "select", f.suffix)}
-                conn={conn}
-              />
-            ))}
-            <div>
-              <label className="block text-[10px] text-coffee-500 mb-0.5">
-                Portion (ml)
-              </label>
-              <input
-                type="number"
-                min={5}
-                max={250}
-                step={5}
-                value={portion1 || 40}
-                onChange={(e) =>
-                  setNumber(
-                    conn,
-                    `number.${prefix}_freestyle_portion_1`,
-                    parseInt(e.target.value) || 40,
-                  )
-                }
-                className="w-full rounded-lg bg-coffee-800/50 px-2.5 py-1.5 text-sm text-coffee-100 ring-1 ring-coffee-700 outline-none focus:ring-coffee-500"
-              />
-            </div>
-          </div>
+
+          <SegmentPicker
+            label="Process"
+            options={processOpts1}
+            value={process1}
+            onChange={(v) => selectOption(conn, `select.${prefix}_freestyle_process_1`, v)}
+          />
+
+          <PortionSlider
+            label="Portion"
+            value={portion1}
+            min={5}
+            max={250}
+            step={5}
+            onChange={(v) => setNumber(conn, `number.${prefix}_freestyle_portion_1`, v)}
+          />
+
+          <SliderRow
+            label="Intensity"
+            options={intensityOpts1}
+            value={intensity1}
+            onChange={(v) => selectOption(conn, `select.${prefix}_freestyle_intensity_1`, v)}
+            disabled={process1 !== "coffee"}
+          />
+
+          <SliderRow
+            label="Temperature"
+            options={tempOpts1}
+            value={temp1}
+            onChange={(v) => selectOption(conn, `select.${prefix}_freestyle_temperature_1`, v)}
+          />
+
+          <SliderRow
+            label="Shots"
+            options={shotsOpts1}
+            value={shots1}
+            onChange={(v) => selectOption(conn, `select.${prefix}_freestyle_shots_1`, v)}
+            disabled={process1 !== "coffee"}
+          />
         </div>
 
-        {/* Component 2 */}
-        <div className="flex flex-col gap-2 rounded-2xl bg-coffee-900/40 p-3 ring-1 ring-coffee-800">
-          <div className="text-xs font-semibold text-coffee-300 shrink-0">
-            🥛 Component 2
+        {/* Glass — center */}
+        <div className="flex flex-col items-center justify-center px-4 border-x border-neutral-800/40">
+          <input
+            type="text"
+            value={name}
+            onChange={(e) =>
+              setTextValue(conn, `text.${prefix}_freestyle_name`, e.target.value)
+            }
+            className="mb-4 w-48 text-center bg-transparent text-white text-lg font-light tracking-wide outline-none border-b border-neutral-800 focus:border-neutral-500 transition pb-1"
+          />
+          <FreestyleGlass
+            process1={process1}
+            intensity1={intensity1}
+            temp1={temp1}
+            portion1={portion1}
+            process2={process2}
+            intensity2={intensity2}
+            temp2={temp2}
+            portion2={portion2}
+            size={280}
+          />
+        </div>
+
+        {/* Component 2 — right */}
+        <div className="flex-1 flex flex-col justify-center gap-4 px-6 py-4">
+          <div className="text-xs font-bold text-white uppercase tracking-[0.2em]">
+            Component 2
           </div>
-          <div className="grid grid-cols-2 gap-2 flex-1 auto-rows-min">
-            {fields2.map((f) => (
-              <SelectField
-                key={f.suffix}
-                label={f.label}
-                entityId={`select.${prefix}_${f.suffix}`}
-                options={getOptions(entities, prefix, f.suffix)}
-                value={getState(entities, prefix, "select", f.suffix)}
-                conn={conn}
-              />
-            ))}
-            <div>
-              <label className="block text-[10px] text-coffee-500 mb-0.5">
-                Portion (ml)
-              </label>
-              <input
-                type="number"
-                min={0}
-                max={250}
-                step={5}
-                value={portion2 || 0}
-                onChange={(e) =>
-                  setNumber(
-                    conn,
-                    `number.${prefix}_freestyle_portion_2`,
-                    parseInt(e.target.value) || 0,
-                  )
-                }
-                className="w-full rounded-lg bg-coffee-800/50 px-2.5 py-1.5 text-sm text-coffee-100 ring-1 ring-coffee-700 outline-none focus:ring-coffee-500"
-              />
-            </div>
-          </div>
+
+          <SegmentPicker
+            label="Process"
+            options={processOpts2}
+            value={process2}
+            onChange={(v) => selectOption(conn, `select.${prefix}_freestyle_process_2`, v)}
+          />
+
+          <PortionSlider
+            label="Portion"
+            value={portion2}
+            min={0}
+            max={250}
+            step={5}
+            onChange={(v) => setNumber(conn, `number.${prefix}_freestyle_portion_2`, v)}
+            disabled={process2 === "none"}
+          />
+
+          <SliderRow
+            label="Intensity"
+            options={intensityOpts2}
+            value={intensity2}
+            onChange={(v) => selectOption(conn, `select.${prefix}_freestyle_intensity_2`, v)}
+            disabled={process2 !== "coffee"}
+          />
+
+          <SliderRow
+            label="Temperature"
+            options={tempOpts2}
+            value={temp2}
+            onChange={(v) => selectOption(conn, `select.${prefix}_freestyle_temperature_2`, v)}
+            disabled={process2 === "none"}
+          />
+
+          <SliderRow
+            label="Shots"
+            options={shotsOpts2}
+            value={shots2}
+            onChange={(v) => selectOption(conn, `select.${prefix}_freestyle_shots_2`, v)}
+            disabled={process2 !== "coffee"}
+          />
         </div>
       </div>
 
-      {/* Brew button */}
+      {/* Brew button — full width footer */}
       <button
         onClick={() => pressButton(conn, brewFreestyleId)}
-        className="shrink-0 w-full rounded-2xl bg-coffee-600 py-3 text-base font-bold text-coffee-50 shadow-lg shadow-coffee-600/20 transition hover:bg-coffee-500 active:scale-[0.97]"
+        className="shrink-0 w-full bg-white py-3.5 text-sm font-semibold text-black transition hover:bg-neutral-200 active:scale-y-95"
       >
-        🧪 Brew Freestyle
+        Brew {name}
       </button>
     </div>
   );

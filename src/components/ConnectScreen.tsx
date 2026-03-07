@@ -23,19 +23,18 @@ export function ConnectScreen({ onConnect, error, connecting }: Props) {
     <div className="flex h-full items-center justify-center p-6">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-md space-y-6 rounded-3xl bg-coffee-900/60 p-8 backdrop-blur-sm"
+        className="w-full max-w-md space-y-6 rounded-2xl bg-neutral-900/80 p-8 ring-1 ring-neutral-800 backdrop-blur-sm"
       >
         <div className="text-center">
-          <div className="text-5xl mb-3">☕</div>
-          <h1 className="text-2xl font-bold text-coffee-100">Melitta Barista</h1>
-          <p className="mt-1 text-sm text-coffee-400">
+          <h1 className="text-2xl font-semibold text-white tracking-wide">Melitta Barista</h1>
+          <p className="mt-1 text-sm text-neutral-500">
             Connect to Home Assistant
           </p>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-coffee-300 mb-1">
+            <label className="block text-sm font-medium text-neutral-400 mb-1">
               HA URL
             </label>
             <input
@@ -43,12 +42,12 @@ export function ConnectScreen({ onConnect, error, connecting }: Props) {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="http://homeassistant.local:8123"
-              className="w-full rounded-xl bg-coffee-800/50 px-4 py-3 text-coffee-50 placeholder-coffee-600 outline-none ring-1 ring-coffee-700 focus:ring-coffee-500 transition"
+              className="w-full rounded-xl bg-neutral-800/60 px-4 py-3 text-white placeholder-neutral-600 outline-none ring-1 ring-neutral-700 focus:ring-neutral-500 transition"
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-coffee-300 mb-1">
+            <label className="block text-sm font-medium text-neutral-400 mb-1">
               Long-Lived Access Token
             </label>
             <input
@@ -56,14 +55,14 @@ export function ConnectScreen({ onConnect, error, connecting }: Props) {
               value={token}
               onChange={(e) => setToken(e.target.value)}
               placeholder="eyJhbGciOiJIUzI1NiIs..."
-              className="w-full rounded-xl bg-coffee-800/50 px-4 py-3 text-coffee-50 placeholder-coffee-600 outline-none ring-1 ring-coffee-700 focus:ring-coffee-500 transition"
+              className="w-full rounded-xl bg-neutral-800/60 px-4 py-3 text-white placeholder-neutral-600 outline-none ring-1 ring-neutral-700 focus:ring-neutral-500 transition"
               required
             />
           </div>
         </div>
 
         {error && (
-          <div className="rounded-xl bg-red-900/30 px-4 py-3 text-sm text-red-300 ring-1 ring-red-800">
+          <div className="rounded-xl bg-red-950/40 px-4 py-3 text-sm text-red-400 ring-1 ring-red-900">
             {error}
           </div>
         )}
@@ -71,12 +70,12 @@ export function ConnectScreen({ onConnect, error, connecting }: Props) {
         <button
           type="submit"
           disabled={connecting}
-          className="w-full rounded-xl bg-coffee-600 py-3.5 font-semibold text-coffee-50 transition hover:bg-coffee-500 active:scale-[0.98] disabled:opacity-50"
+          className="w-full rounded-xl bg-white py-3.5 font-semibold text-black transition hover:bg-neutral-200 active:scale-[0.98] disabled:opacity-50"
         >
           {connecting ? "Connecting..." : "Connect"}
         </button>
 
-        <p className="text-center text-xs text-coffee-600">
+        <p className="text-center text-xs text-neutral-600">
           Create a token in HA → Profile → Long-Lived Access Tokens
         </p>
       </form>

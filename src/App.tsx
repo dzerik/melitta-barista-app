@@ -28,9 +28,8 @@ export default function App() {
     return (
       <div className="flex h-full items-center justify-center p-6">
         <div className="text-center space-y-3">
-          <div className="text-4xl">🔍</div>
-          <p className="text-coffee-300">Looking for Melitta machine...</p>
-          <p className="text-sm text-coffee-500">
+          <p className="text-neutral-400">Looking for Melitta machine...</p>
+          <p className="text-sm text-neutral-600">
             Make sure the integration is set up in Home Assistant
           </p>
           <button
@@ -38,7 +37,7 @@ export default function App() {
               clearConfig();
               disconnect();
             }}
-            className="mt-4 rounded-lg px-4 py-2 text-sm text-coffee-400 ring-1 ring-coffee-700 hover:bg-coffee-800 transition"
+            className="mt-4 rounded-lg px-4 py-2 text-sm text-neutral-500 ring-1 ring-neutral-700 hover:bg-neutral-800 transition"
           >
             Disconnect
           </button>
@@ -52,21 +51,20 @@ export default function App() {
     disconnect();
   };
 
-  const tabs: { id: Tab; label: string; icon: string }[] = [
-    { id: "brew", label: "Brew", icon: "☕" },
-    { id: "freestyle", label: "Freestyle", icon: "🧪" },
-    { id: "settings", label: "Settings", icon: "⚙️" },
+  const tabs: { id: Tab; label: string }[] = [
+    { id: "brew", label: "Brew" },
+    { id: "freestyle", label: "Freestyle" },
+    { id: "settings", label: "Settings" },
   ];
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-black">
       <StatusBar
         entities={entities}
         prefix={prefix}
         onDisconnect={handleDisconnect}
       />
 
-      {/* Content area — fills remaining space, no scroll */}
       <div className="flex-1 min-h-0">
         {tab === "brew" && (
           <BrewSection conn={connection} entities={entities} prefix={prefix} />
@@ -88,22 +86,21 @@ export default function App() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex border-t border-coffee-800 bg-coffee-900/90 backdrop-blur-sm">
+      <div className="flex border-t border-neutral-800/60">
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition relative ${
+            className={`flex-1 py-3 text-xs font-medium tracking-wider uppercase transition relative ${
               tab === t.id
-                ? "text-coffee-100"
-                : "text-coffee-500 hover:text-coffee-300"
+                ? "text-white"
+                : "text-neutral-600 hover:text-neutral-400"
             }`}
           >
             {tab === t.id && (
-              <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-coffee-400" />
+              <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-px bg-white" />
             )}
-            <span className="text-lg">{t.icon}</span>
-            <span>{t.label}</span>
+            {t.label}
           </button>
         ))}
       </div>

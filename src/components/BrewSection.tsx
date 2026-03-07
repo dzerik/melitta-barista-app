@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useState } from "react";
 import type { Connection, HassEntities } from "home-assistant-js-websocket";
 import { getState, getOptions, getEntity } from "../lib/entities";
 import { selectOption, pressButton } from "../lib/ha";
@@ -30,47 +30,30 @@ export function BrewSection({ conn, entities, prefix }: Props) {
   const brewId = `button.${prefix}_brew`;
   const cancelId = `button.${prefix}_cancel`;
 
-  // Tooltip position
-  const gridRef = useRef<HTMLDivElement>(null);
-  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
-
-  useEffect(() => {
-    if (!selectedRecipe || !gridRef.current) {
-      setTooltipPos(null);
-      return;
-    }
-    const btn = gridRef.current.querySelector<HTMLElement>(`[data-recipe="${selectedRecipe}"]`);
-    if (!btn) { setTooltipPos(null); return; }
-    const gridRect = gridRef.current.getBoundingClientRect();
-    const btnRect = btn.getBoundingClientRect();
-    setTooltipPos({
-      x: btnRect.left - gridRect.left + btnRect.width / 2,
-      y: btnRect.top - gridRect.top - 8,
-    });
-  }, [selectedRecipe, recipeOptions]);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   // Brewing state
   if (isBrewing) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-6 px-6">
-        <CoffeeIcon recipe={activity || "Espresso"} size={192} />
+        <CoffeeIcon recipe={activity || "Espresso"} size={240} />
         <div className="text-center">
-          <div className="text-xl font-bold text-amber-300">{activity}</div>
+          <div className="text-xl font-light text-white tracking-wide">{activity}</div>
           {progress && (
-            <div className="text-coffee-400 mt-1">{progressNum}%</div>
+            <div className="text-neutral-500 mt-1 text-sm">{progressNum}%</div>
           )}
         </div>
         {progress && (
-          <div className="w-64 h-2 rounded-full bg-coffee-800 overflow-hidden">
+          <div className="w-64 h-px bg-neutral-800 overflow-hidden">
             <div
-              className="h-full rounded-full bg-amber-400 transition-all duration-500"
+              className="h-full bg-white transition-all duration-500"
               style={{ width: `${progressNum}%` }}
             />
           </div>
         )}
         <button
           onClick={() => pressButton(conn, cancelId)}
-          className="rounded-xl px-8 py-3 text-sm font-medium text-red-400 ring-1 ring-red-800 hover:bg-red-900/30 transition active:scale-[0.98]"
+          className="rounded-lg px-8 py-2.5 text-sm font-medium text-neutral-500 ring-1 ring-neutral-700 hover:bg-neutral-900 transition active:scale-[0.98]"
         >
           Cancel
         </button>
@@ -79,93 +62,88 @@ export function BrewSection({ conn, entities, prefix }: Props) {
   }
 
   return (
-    <div className="flex h-full flex-col gap-3 px-4 py-2">
+    <div className="flex h-full flex-col">
       {/* Action required */}
       {hasAction && (
-        <div className="flex items-center gap-2 rounded-xl bg-red-900/20 px-4 py-2.5 text-sm text-red-300 ring-1 ring-red-800 shrink-0">
-          <span>⚠️</span>
+        <div className="flex items-center gap-2 mx-4 mt-2 rounded-lg bg-red-950/30 px-4 py-2.5 text-sm text-red-400 ring-1 ring-red-900/50 shrink-0">
           <span>{actionRequired}</span>
         </div>
       )}
 
-      {/* Profile chips */}
+      {/* Profile menu */}
       {isReady && profileOptions.length > 1 && (
-        <div className="flex gap-1.5 shrink-0 overflow-x-auto">
-          {profileOptions.map((opt) => (
-            <button
-              key={opt}
-              onClick={() =>
-                selectOption(conn, `select.${prefix}_profile`, opt)
-              }
-              className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition active:scale-[0.96] ${
-                opt === selectedProfile
-                  ? "bg-coffee-600 text-coffee-50"
-                  : "bg-coffee-800/50 text-coffee-400 ring-1 ring-coffee-700"
-              }`}
-            >
-              {opt}
-            </button>
-          ))}
+        <div className="relative shrink-0 self-end mr-4 mt-2">
+          <button
+            onClick={() => setProfileOpen(!profileOpen)}
+            className="flex flex-col gap-[3px] p-2 rounded-lg hover:bg-neutral-800 transition"
+          >
+            <span className="block w-4 h-px bg-neutral-400" />
+            <span className="block w-4 h-px bg-neutral-400" />
+            <span className="block w-4 h-px bg-neutral-400" />
+          </button>
+          {profileOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setProfileOpen(false)} />
+              <div className="absolute right-0 top-full mt-1 z-20 min-w-[140px] rounded-lg bg-neutral-900 ring-1 ring-neutral-700 py-1 shadow-xl">
+                {profileOptions.map((opt) => (
+                  <button
+                    key={opt}
+                    onClick={() => {
+                      selectOption(conn, `select.${prefix}_profile`, opt);
+                      setProfileOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm transition ${
+                      opt === selectedProfile
+                        ? "text-white bg-neutral-800"
+                        : "text-neutral-400 hover:text-white hover:bg-neutral-800/60"
+                    }`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 
-      {/* Recipe grid — fills remaining space */}
+      {/* Recipe grid */}
       {isReady && recipeOptions.length > 0 && (
-        <div className="flex-1 min-h-0 relative" ref={gridRef}>
-          <div className="h-full grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 auto-rows-fr gap-2">
-            {recipeOptions.map((opt) => (
-              <button
-                key={opt}
-                data-recipe={opt}
-                onClick={() =>
-                  selectOption(conn, `select.${prefix}_recipe`, opt)
-                }
-                className={`aspect-square flex flex-col items-center justify-center gap-1 rounded-2xl p-1.5 transition active:scale-[0.95] ${
-                  opt === selectedRecipe
-                    ? "bg-coffee-600 ring-2 ring-coffee-400 shadow-lg shadow-coffee-400/20"
-                    : "bg-coffee-700/60 ring-1 ring-coffee-600/40 hover:bg-coffee-600/50 hover:ring-coffee-500/50"
-                }`}
-              >
-                <div style={{ filter: "drop-shadow(0 0 12px rgba(255,255,255,0.8)) drop-shadow(0 0 4px rgba(255,255,255,0.6))" }}>
-                <CoffeeIcon recipe={opt} size={80} />
-              </div>
-                <span
-                  className={`text-sm leading-snug text-center font-bold ${
-                    opt === selectedRecipe ? "text-coffee-50" : "text-coffee-300"
+        <div className="flex-1 min-h-0">
+          <div
+            className="h-full grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 auto-rows-fr"
+            style={{ gap: "1px", background: "rgba(255,255,255,0.06)" }}
+          >
+            {recipeOptions.map((opt) => {
+              const isSelected = opt === selectedRecipe;
+              return (
+                <button
+                  key={opt}
+                  onClick={() => {
+                    if (isSelected && getEntity(entities, prefix, "button", "brew")) {
+                      pressButton(conn, brewId);
+                    } else {
+                      selectOption(conn, `select.${prefix}_recipe`, opt);
+                    }
+                  }}
+                  className={`relative flex flex-col items-center justify-center p-2 transition active:scale-[0.97] ${
+                    isSelected
+                      ? "bg-neutral-900"
+                      : "bg-black hover:bg-neutral-950"
                   }`}
                 >
-                  {opt}
-                </span>
-              </button>
-            ))}
+                  <CoffeeIcon recipe={opt} size={120} />
+                  <span className={`absolute bottom-0 left-0 right-0 text-center text-xs font-semibold py-1.5 transition-all ${
+                    isSelected
+                      ? "bg-white text-black"
+                      : "bg-transparent text-neutral-500 font-medium"
+                  }`}>
+                    {isSelected ? `Brew ${opt}` : opt}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-
-          {/* Brew tooltip */}
-          {selectedRecipe && tooltipPos && (
-            <div
-              className="absolute z-10 transition-all duration-200"
-              style={{
-                left: tooltipPos.x,
-                top: tooltipPos.y,
-                transform: "translate(-50%, -100%)",
-              }}
-            >
-              <button
-                onClick={() => {
-                  if (getEntity(entities, prefix, "button", "brew")) {
-                    pressButton(conn, brewId);
-                  }
-                }}
-                className="flex items-center gap-2 rounded-2xl bg-coffee-400 px-8 py-4 text-lg font-bold text-coffee-950 shadow-xl shadow-coffee-400/30 transition hover:bg-coffee-300 active:scale-[0.95] whitespace-nowrap"
-              >
-                ☕ Brew
-              </button>
-              {/* Arrow */}
-              <div className="flex justify-center">
-                <div className="w-4 h-4 bg-coffee-400 rotate-45 -mt-2.5" />
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
