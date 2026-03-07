@@ -8,11 +8,11 @@ interface Props {
 }
 
 const STATE_COLORS: Record<string, string> = {
-  ready: "text-emerald-400",
-  brewing: "text-amber-400",
-  cleaning: "text-sky-400",
-  descaling: "text-sky-400",
-  busy: "text-amber-400",
+  ready: "text-neutral-400",
+  brewing: "text-white",
+  cleaning: "text-neutral-300",
+  descaling: "text-neutral-300",
+  busy: "text-neutral-300",
 };
 
 export function StatusBar({ entities, prefix, onDisconnect }: Props) {
@@ -28,7 +28,7 @@ export function StatusBar({ entities, prefix, onDisconnect }: Props) {
           <h1 className="text-base font-semibold text-white tracking-wide">Melitta Barista</h1>
           <div className="flex items-center gap-2 text-xs">
             <span
-              className={`h-1.5 w-1.5 rounded-full ${isConnected ? "bg-emerald-400" : "bg-red-400"}`}
+              className={`h-1.5 w-1.5 rounded-full ${isConnected ? "bg-white" : "bg-neutral-600"}`}
             />
             <span className={stateColor}>{machineState}</span>
           </div>
