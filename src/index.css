@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@theme {
+  --color-coffee-50: #fdf8f6;
+  --color-coffee-100: #f5ebe4;
+  --color-coffee-200: #ead5c5;
+  --color-coffee-300: #d4ad8c;
+  --color-coffee-400: #c08a5e;
+  --color-coffee-500: #a06b3e;
+  --color-coffee-600: #8b5a30;
+  --color-coffee-700: #6d4526;
+  --color-coffee-800: #4a2f1a;
+  --color-coffee-900: #2d1c10;
+  --color-coffee-950: #1a1210;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background: var(--color-coffee-950);
+  color: var(--color-coffee-50);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  overflow: hidden;
+}
