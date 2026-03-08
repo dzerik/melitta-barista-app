@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import type { Connection, HassEntities } from "home-assistant-js-websocket";
-import { getState, getOptions, getEntity } from "../lib/entities";
-import { selectOption, pressButton } from "../lib/ha";
+import { getState, getEntity, type RecipeDetails } from "../lib/entities";
+import { selectOption, pressButton, safeCall } from "../lib/ha";
+import { useRecipeCache } from "../hooks/useRecipeCache";
 import { CoffeeIcon } from "./CoffeeIcon";
 
 interface Props {
@@ -51,7 +52,7 @@ const INTENSITY_DOTS: Record<string, number> = {
 
 function TempIcon({ temp, className }: { temp: string; className?: string }) {
   const cls = className || "w-3.5 h-3.5";
-  if (temp === "low") {
+  if (temp === "cold" || temp === "low") {
     // Snowflake
     return (
       <svg viewBox="0 0 24 24" fill="currentColor" className={cls}>
@@ -70,19 +71,6 @@ function TempIcon({ temp, className }: { temp: string; className?: string }) {
   return null;
 }
 
-interface RecipeDetails {
-  c1_process: string;
-  c1_intensity: string;
-  c1_temperature: string;
-  c1_shots: number;
-  c1_portion_ml: number;
-  c2_process: string;
-  c2_intensity: string;
-  c2_temperature: string;
-  c2_shots: number;
-  c2_portion_ml: number;
-}
-
 function IntensityDots({ level }: { level: number }) {
   return (
     <span className="inline-flex gap-0.5">
@@ -98,7 +86,7 @@ function IntensityDots({ level }: { level: number }) {
   );
 }
 
-function RecipeInfo({ details, vertical }: { details: RecipeDetails; vertical?: boolean }) {
+function RecipeInfo({ details, vertical, animated }: { details: RecipeDetails; vertical?: boolean; animated?: boolean }) {
   const components: { process: string; intensity: string; temp: string; shots: number; ml: number }[] = [];
   if (details.c1_process && details.c1_process !== "none") {
     components.push({
@@ -125,7 +113,11 @@ function RecipeInfo({ details, vertical }: { details: RecipeDetails; vertical?: 
   return (
     <div className={vertical ? "flex flex-col gap-3 items-center" : "flex gap-6 justify-center"}>
       {components.map((c, i) => (
-        <div key={i} className={`flex flex-col gap-1 items-center text-sm ${textCls}`}>
+        <div
+          key={i}
+          className={`flex flex-col gap-1 items-center text-sm ${textCls} ${animated ? "recipe-item-enter" : ""}`}
+          style={animated ? { animationDelay: `${i * 80 + 100}ms` } : undefined}
+        >
           {/* Row 1: icon + volume + temperature */}
           <div className="flex items-center gap-2">
             <ProcessIcon process={c.process} className="w-5 h-5 shrink-0" />
@@ -205,15 +197,13 @@ export function BrewSection({ conn, entities, prefix }: Props) {
     ? Math.min(100, Math.max(0, parseFloat(progress)))
     : 0;
 
-  const profileOptions = getOptions(entities, prefix, "profile");
   const selectedProfile = getState(entities, prefix, "select", "profile");
-  const recipeOptions = getOptions(entities, prefix, "recipe");
   const selectedRecipe = getState(entities, prefix, "select", "recipe");
 
-  // Recipe details from entity attributes
-  const recipeEntity = getEntity(entities, prefix, "select", "recipe");
-  const recipeDetails = recipeEntity?.attributes as RecipeDetails | undefined;
-  const hasRecipeDetails = recipeDetails?.c1_process !== undefined;
+  // Recipe/profile data from cache (localStorage) — static, never changes at runtime
+  const { profileOptions, recipeOptions, allRecipes } = useRecipeCache(entities, prefix);
+  const selectedDetails = allRecipes[selectedRecipe || ""] as RecipeDetails | undefined;
+  const hasSelectedDetails = selectedDetails?.c1_process !== undefined;
 
   const brewId = `button.${prefix}_brew`;
   const cancelId = `button.${prefix}_cancel`;
@@ -230,9 +220,9 @@ export function BrewSection({ conn, entities, prefix }: Props) {
           {/* Recipe info card — blurred dark glass */}
           <div className="w-full rounded-2xl backdrop-blur-xl bg-white/[0.04] ring-1 ring-white/[0.08] px-5 py-4">
             <div className="text-lg font-light text-white tracking-wide text-center">{activity}</div>
-            {hasRecipeDetails && recipeDetails && (
+            {hasSelectedDetails && selectedDetails && (
               <div className="flex justify-center mt-2">
-                <RecipeInfo details={recipeDetails} />
+                <RecipeInfo details={selectedDetails} />
               </div>
             )}
             {progress && (
@@ -249,7 +239,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
           </div>
 
           <button
-            onClick={() => pressButton(conn, cancelId)}
+            onClick={() => safeCall(() => pressButton(conn, cancelId))}
             className="rounded-lg px-8 py-2.5 text-sm font-medium text-neutral-500 ring-1 ring-neutral-700 hover:bg-neutral-900 transition active:scale-[0.98]"
           >
             Cancel
@@ -350,7 +340,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
                   <button
                     key={opt}
                     onClick={() => {
-                      selectOption(conn, `select.${prefix}_profile`, opt);
+                      safeCall(() => selectOption(conn, `select.${prefix}_profile`, opt));
                       setProfileOpen(false);
                     }}
                     className={`w-full text-left px-4 py-2 text-sm transition ${
@@ -377,30 +367,34 @@ export function BrewSection({ conn, entities, prefix }: Props) {
           >
             {recipeOptions.map((opt) => {
               const isSelected = opt === selectedRecipe;
+              const details = isSelected ? allRecipes[opt] as RecipeDetails | undefined : undefined;
+              const hasDetails = details?.c1_process !== undefined;
               return (
                 <button
                   key={opt}
                   onClick={() => {
                     if (isSelected && getEntity(entities, prefix, "button", "brew")) {
-                      pressButton(conn, brewId);
+                      safeCall(() => pressButton(conn, brewId));
                     } else {
-                      selectOption(conn, `select.${prefix}_recipe`, opt);
+                      safeCall(() => selectOption(conn, `select.${prefix}_recipe`, opt));
                     }
                   }}
-                  className={`relative flex flex-col items-center justify-center p-2 transition active:scale-[0.97] ${
+                  className={`relative flex flex-col items-center justify-center p-2 transition-colors duration-300 active:scale-[0.97] overflow-hidden ${
                     isSelected
                       ? "bg-neutral-900"
                       : "bg-black hover:bg-neutral-950"
                   }`}
                 >
-                  <CoffeeIcon recipe={opt} size={120} />
-                  {/* Recipe details overlay on selected card */}
-                  {isSelected && hasRecipeDetails && recipeDetails && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center backdrop-blur-md bg-black/60 transition-all">
-                      <RecipeInfo details={recipeDetails} vertical />
+                  <div className={isSelected && hasDetails ? "recipe-icon-fade" : ""}>
+                    <CoffeeIcon recipe={opt} size={120} />
+                  </div>
+                  {/* Recipe details overlay — animated entrance */}
+                  {isSelected && hasDetails && details && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 recipe-overlay-enter">
+                      <RecipeInfo details={details} vertical animated />
                     </div>
                   )}
-                  <span className={`absolute bottom-0 left-0 right-0 text-center text-xs font-semibold py-1.5 transition-all z-10 ${
+                  <span className={`absolute bottom-0 left-0 right-0 text-center text-xs font-semibold py-1.5 transition-all duration-300 z-10 ${
                     isSelected
                       ? "bg-white text-black"
                       : "bg-transparent text-neutral-500 font-medium"

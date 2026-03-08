@@ -11,6 +11,23 @@ interface HAState {
   error: string | null;
 }
 
+/** Filter entities to only those matching the Melitta device prefix. */
+function filterMelittaEntities(
+  all: HassEntities,
+  prefix: string,
+): HassEntities {
+  const filtered: HassEntities = {};
+  const suffix = `${prefix}_`;
+  for (const [id, entity] of Object.entries(all)) {
+    // Match pattern: domain.prefix_* (e.g. sensor.melitta_state)
+    const dot = id.indexOf(".");
+    if (dot !== -1 && id.substring(dot + 1).startsWith(suffix)) {
+      filtered[id] = entity;
+    }
+  }
+  return filtered;
+}
+
 export function useHA() {
   const [state, setState] = useState<HAState>({
     status: "disconnected",
@@ -20,6 +37,7 @@ export function useHA() {
     error: null,
   });
   const unsubRef = useRef<(() => void) | null>(null);
+  const prefixRef = useRef<string | null>(null);
 
   const connect = useCallback(async (url: string, token: string) => {
     setState((s) => ({ ...s, status: "connecting", error: null }));
@@ -36,8 +54,18 @@ export function useHA() {
         setState((s) => ({ ...s, status: "connected" }));
       });
 
-      unsubRef.current = subscribeToEntities(conn, (entities) => {
-        const prefix = detectPrefix(entities);
+      unsubRef.current = subscribeToEntities(conn, (allEntities) => {
+        // Detect prefix once, then cache it
+        if (!prefixRef.current) {
+          prefixRef.current = detectPrefix(allEntities);
+        }
+        const prefix = prefixRef.current;
+
+        // Only pass Melitta-related entities to avoid unnecessary re-renders
+        const entities = prefix
+          ? filterMelittaEntities(allEntities, prefix)
+          : {};
+
         setState((s) => ({ ...s, entities, prefix, status: "connected" }));
       });
 
@@ -53,6 +81,7 @@ export function useHA() {
 
   const disconnect = useCallback(() => {
     unsubRef.current?.();
+    prefixRef.current = null;
     state.connection?.close();
     setState({
       status: "disconnected",

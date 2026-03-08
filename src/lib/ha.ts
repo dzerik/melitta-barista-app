@@ -84,7 +84,38 @@ export async function toggleSwitch(
   entityId: string,
   turnOn: boolean,
 ) {
-  await callService(conn, turnOn ? "switch" : "switch", turnOn ? "turn_on" : "turn_off", {
+  await callService(conn, "switch", turnOn ? "turn_on" : "turn_off", {
     entity_id: entityId,
+  });
+}
+
+/** Brew freestyle via dedicated HA service — all params in one call. */
+export async function brewFreestyle(
+  conn: Connection,
+  entityId: string,
+  params: {
+    name: string;
+    process1: string;
+    intensity1: string;
+    portion1_ml: number;
+    temperature1: string;
+    shots1: string;
+    process2: string;
+    intensity2: string;
+    portion2_ml: number;
+    temperature2: string;
+    shots2: string;
+  },
+) {
+  await callService(conn, "melitta_barista", "brew_freestyle", {
+    entity_id: entityId,
+    ...params,
+  });
+}
+
+/** Fire-and-forget wrapper with error logging. Returns true on success. */
+export function safeCall(fn: () => Promise<unknown>): void {
+  fn().catch((e) => {
+    console.error("[melitta] Service call failed:", e);
   });
 }

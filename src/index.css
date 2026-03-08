@@ -13,3 +13,92 @@ body {
   user-select: none;
   overflow: hidden;
 }
+
+/* Recipe overlay animations */
+@keyframes recipe-overlay-in {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(12px);
+  }
+}
+
+@keyframes recipe-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes recipe-icon-shrink {
+  from { transform: scale(1); opacity: 1; }
+  to   { transform: scale(0.85); opacity: 0.3; }
+}
+
+.recipe-overlay-enter {
+  animation: recipe-overlay-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.recipe-item-enter {
+  animation: recipe-item-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.recipe-icon-fade {
+  animation: recipe-icon-shrink 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Settings card staggered entrance */
+@keyframes settings-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.settings-card-enter {
+  animation: settings-card-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Settings apply bar slide up */
+@keyframes settings-bar-in {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.settings-bar-enter {
+  animation: settings-bar-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Settings section header fade */
+@keyframes settings-header-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.settings-header-enter {
+  animation: settings-header-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+

@@ -1,5 +1,19 @@
 import type { HassEntities, HassEntity } from "home-assistant-js-websocket";
 
+/** Recipe details as stored in HA entity attributes. */
+export interface RecipeDetails {
+  c1_process: string;
+  c1_intensity: string;
+  c1_temperature: string;
+  c1_shots: number;
+  c1_portion_ml: number;
+  c2_process: string;
+  c2_intensity: string;
+  c2_temperature: string;
+  c2_shots: number;
+  c2_portion_ml: number;
+}
+
 /** Detect Melitta device prefix from entity list */
 export function detectPrefix(entities: HassEntities): string | null {
   for (const id of Object.keys(entities)) {

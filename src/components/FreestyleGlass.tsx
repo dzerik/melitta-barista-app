@@ -20,6 +20,7 @@ function getProcessColor(process: string, intensity: string): string {
 }
 
 const TEMP_HEAT: Record<string, number> = {
+  cold: 0.2,
   low: 0.2,
   normal: 0.6,
   high: 1.0,
@@ -35,6 +36,7 @@ interface Props {
   temp2: string;
   portion2: number;
   size?: number;
+  hideVolume?: boolean;
 }
 
 export function FreestyleGlass({
@@ -47,6 +49,7 @@ export function FreestyleGlass({
   temp2,
   portion2,
   size = 300,
+  hideVolume = false,
 }: Props) {
   const vbW = 100;
   const vbH = 130;
@@ -338,7 +341,9 @@ export function FreestyleGlass({
         </g>
       </svg>
 
-      <span className="text-sm text-neutral-500 tabular-nums">{totalMl} ml</span>
+      {!hideVolume && (
+        <span className="text-sm text-neutral-500 tabular-nums">{totalMl} ml</span>
+      )}
     </div>
   );
 }
