@@ -257,11 +257,13 @@ export function FreestyleSection({ conn, entities, prefix }: Props) {
         name: fs.name,
         process1: fs.process1,
         intensity1: fs.intensity1,
+        aroma1: fs.aroma1,
         portion1_ml: fs.portion1,
         temperature1: fs.temperature1,
         shots1: fs.shots1,
         process2: fs.process2,
         intensity2: fs.intensity2,
+        aroma2: fs.aroma2,
         portion2_ml: fs.portion2,
         temperature2: fs.temperature2,
         shots2: fs.shots2,
@@ -297,6 +299,7 @@ export function FreestyleSection({ conn, entities, prefix }: Props) {
           <SegmentPicker options={opts.processOpts1} value={fs.process1} onChange={(v) => update("process1", v)} />
           <PortionSlider label={t("freestyle.portion")} value={fs.portion1} min={5} max={250} step={5} onChange={(v) => update("portion1", v)} />
           <SliderRow label={t("freestyle.intensity")} options={opts.intensityOpts1} value={fs.intensity1} onChange={(v) => update("intensity1", v)} disabled={fs.process1 !== "coffee"} />
+          <SliderRow label={t("freestyle.aroma")} options={opts.aromaOpts1} value={fs.aroma1} onChange={(v) => update("aroma1", v)} disabled={fs.process1 !== "coffee"} />
           <SliderRow label={t("freestyle.temperature")} options={opts.tempOpts1} value={fs.temperature1} onChange={(v) => update("temperature1", v)} />
           <SliderRow label={t("freestyle.shots")} options={opts.shotsOpts1} value={fs.shots1} onChange={(v) => update("shots1", v)} disabled={fs.process1 !== "coffee"} />
         </div>
@@ -372,6 +375,7 @@ export function FreestyleSection({ conn, entities, prefix }: Props) {
           <SegmentPicker options={opts.processOpts2} value={fs.process2} onChange={(v) => update("process2", v)} />
           <PortionSlider label={t("freestyle.portion")} value={fs.portion2} min={0} max={250} step={5} onChange={(v) => update("portion2", v)} disabled={fs.process2 === "none"} />
           <SliderRow label={t("freestyle.intensity")} options={opts.intensityOpts2} value={fs.intensity2} onChange={(v) => update("intensity2", v)} disabled={fs.process2 !== "coffee"} />
+          <SliderRow label={t("freestyle.aroma")} options={opts.aromaOpts2} value={fs.aroma2} onChange={(v) => update("aroma2", v)} disabled={fs.process2 !== "coffee"} />
           <SliderRow label={t("freestyle.temperature")} options={opts.tempOpts2} value={fs.temperature2} onChange={(v) => update("temperature2", v)} disabled={fs.process2 === "none"} />
           <SliderRow label={t("freestyle.shots")} options={opts.shotsOpts2} value={fs.shots2} onChange={(v) => update("shots2", v)} disabled={fs.process2 !== "coffee"} />
         </div>

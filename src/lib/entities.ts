@@ -4,11 +4,13 @@ import type { HassEntities, HassEntity } from "home-assistant-js-websocket";
 export interface RecipeDetails {
   c1_process: string;
   c1_intensity: string;
+  c1_aroma: string;
   c1_temperature: string;
   c1_shots: number;
   c1_portion_ml: number;
   c2_process: string;
   c2_intensity: string;
+  c2_aroma: string;
   c2_temperature: string;
   c2_shots: number;
   c2_portion_ml: number;
@@ -19,11 +21,13 @@ export interface DirectKeyRecipe {
   category: number;
   c1_process: string;
   c1_intensity: string;
+  c1_aroma: string;
   c1_temperature: string;
   c1_shots: number;
   c1_portion_ml: number;
   c2_process: string;
   c2_intensity: string;
+  c2_aroma: string;
   c2_temperature: string;
   c2_shots: number;
   c2_portion_ml: number;

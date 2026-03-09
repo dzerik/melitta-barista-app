@@ -10,18 +10,20 @@ import { BrewSection } from "./components/BrewSection";
 import { FreestyleSection } from "./components/FreestyleSection";
 import { SettingsSection } from "./components/SettingsSection";
 import { StatsSection } from "./components/StatsSection";
+import { MaintenanceSection } from "./components/MaintenanceSection";
 import { StatusOverlay } from "./components/StatusOverlay";
 import { PreferencesModal } from "./components/PreferencesModal";
 import type { TranslationKey } from "./lib/i18n";
 import iconBtConnect from "./assets/icons/bt_connect.png";
 
-const TABS = ["brew", "freestyle", "stats", "settings"] as const;
+const TABS = ["brew", "freestyle", "stats", "maintenance", "settings"] as const;
 type Tab = (typeof TABS)[number];
 
 const TAB_LABEL_KEYS: Record<Tab, TranslationKey> = {
   brew: "tab.brew",
   freestyle: "tab.freestyle",
   stats: "tab.stats",
+  maintenance: "tab.maintenance",
   settings: "tab.settings",
 };
 
@@ -137,6 +139,9 @@ export default function App() {
           </div>
           <div className="h-full" style={{ width: `${pageWidth}px` }}>
             <StatsSection entities={entities} prefix={prefix} />
+          </div>
+          <div className="h-full" style={{ width: `${pageWidth}px` }}>
+            <MaintenanceSection conn={connection} entities={entities} prefix={prefix} />
           </div>
           <div className="h-full" style={{ width: `${pageWidth}px` }}>
             <SettingsSection conn={connection} entities={entities} prefix={prefix} />

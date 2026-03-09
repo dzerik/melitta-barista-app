@@ -15,6 +15,7 @@ import iconNotConnected from "../assets/icons/not_connected.png";
 import iconService from "../assets/icons/service.png";
 import iconTwoCups from "../assets/icons/two_cups.png";
 import iconTwoCupsWhite from "../assets/icons/two_cups_white.png";
+import iconAroma from "../assets/icons/aroma.png";
 
 interface Props {
   conn: Connection;
@@ -213,6 +214,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
   const [editingDk, setEditingDk] = useState<{ category: DirectKeyCategory; recipe: DirectKeyRecipe } | null>(null);
   const [selectedDk, setSelectedDk] = useState<DirectKeyCategory | null>(null);
   const [twoCups, setTwoCups] = useState(false);
+  const [aromaIntense, setAromaIntense] = useState(false);
   const [editingProfileIdx, setEditingProfileIdx] = useState<number | null>(null);
   const [editingProfileName, setEditingProfileName] = useState("");
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -440,7 +442,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
       {isReady && hasDkRecipes && (
         <div className="shrink-0">
           <div
-            className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7"
+            className="grid grid-cols-8 sm:grid-cols-8 md:grid-cols-8"
             style={{ gap: "1px", background: "var(--section-divider)" }}
           >
             {DIRECTKEY_CATEGORIES.map((cat) => {
@@ -458,11 +460,11 @@ export function BrewSection({ conn, entities, prefix }: Props) {
                   onPointerUp={cancelDkLongPress}
                   onPointerLeave={cancelDkLongPress}
                   onContextMenu={(e) => e.preventDefault()}
-                  className="relative flex flex-col items-center justify-center p-2 pb-6 transition-colors duration-300 active:scale-[0.97] overflow-hidden"
+                  className="relative flex flex-col items-center justify-center p-1.5 pb-5 transition-colors duration-300 active:scale-[0.97] overflow-hidden"
                   style={{ background: isSelected ? "var(--recipe-selected-bg)" : "var(--dk-card-bg)" }}
                 >
                   <div className={isSelected && hasDetails ? "recipe-icon-fade" : ""}>
-                    <CoffeeIcon recipe={DK_RECIPE_ICON[cat]} size={80} />
+                    <CoffeeIcon recipe={DK_RECIPE_ICON[cat]} size={64} />
                   </div>
                   {isSelected && hasDetails && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center recipe-overlay-enter" style={{ background: "var(--overlay-bg)" }}>
@@ -486,17 +488,17 @@ export function BrewSection({ conn, entities, prefix }: Props) {
             {/* 2x toggle — brew two cups */}
             <button
               onClick={() => setTwoCups((v) => !v)}
-              className="relative flex flex-col items-center justify-center p-2 pb-6 transition-all duration-300 active:scale-[0.97] overflow-hidden"
+              className="relative flex flex-col items-center justify-center p-1.5 pb-5 transition-all duration-300 active:scale-[0.97] overflow-hidden"
               style={{ background: twoCups ? "var(--recipe-selected-bg)" : "var(--dk-card-bg)" }}
             >
-              <div className="flex items-center justify-center" style={{ width: 80, height: 80 }}>
+              <div className="flex items-center justify-center" style={{ width: 64, height: 64 }}>
                 <img
                   src={isDark ? iconTwoCupsWhite : iconTwoCups}
                   alt="2x"
                   className="object-contain transition-all duration-300"
                   style={{
-                    width: twoCups ? 64 : 56,
-                    height: twoCups ? 64 : 56,
+                    width: twoCups ? 52 : 44,
+                    height: twoCups ? 52 : 44,
                     opacity: twoCups ? 1 : 0.4,
                   }}
                   draggable={false}
@@ -511,6 +513,37 @@ export function BrewSection({ conn, entities, prefix }: Props) {
                 }
               >
                 {twoCups ? t("brew.two_cups_on") : t("brew.two_cups")}
+              </span>
+            </button>
+
+            {/* Aroma toggle — intense aroma */}
+            <button
+              onClick={() => setAromaIntense((v) => !v)}
+              className="relative flex flex-col items-center justify-center p-1.5 pb-5 transition-all duration-300 active:scale-[0.97] overflow-hidden"
+              style={{ background: aromaIntense ? "var(--recipe-selected-bg)" : "var(--dk-card-bg)" }}
+            >
+              <div className="flex items-center justify-center" style={{ width: 64, height: 64 }}>
+                <img
+                  src={iconAroma}
+                  alt="aroma"
+                  className="object-contain transition-all duration-300"
+                  style={{
+                    width: aromaIntense ? 52 : 44,
+                    height: aromaIntense ? 52 : 44,
+                    opacity: aromaIntense ? 1 : 0.4,
+                  }}
+                  draggable={false}
+                />
+              </div>
+              <span
+                className="absolute bottom-0 left-0 right-0 text-center text-[10px] py-1.5 transition-all duration-300 z-10 truncate"
+                style={
+                  aromaIntense
+                    ? { background: "var(--recipe-label-bg)", color: "var(--recipe-label-text)", fontWeight: 600 }
+                    : { background: "transparent", color: "var(--text-tertiary)", fontWeight: 500 }
+                }
+              >
+                {aromaIntense ? t("brew.aroma_on") : t("brew.aroma")}
               </span>
             </button>
           </div>

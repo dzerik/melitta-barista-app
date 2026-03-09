@@ -97,11 +97,13 @@ export async function brewFreestyle(
     name: string;
     process1: string;
     intensity1: string;
+    aroma1: string;
     portion1_ml: number;
     temperature1: string;
     shots1: string;
     process2: string;
     intensity2: string;
+    aroma2: string;
     portion2_ml: number;
     temperature2: string;
     shots2: string;
@@ -136,11 +138,13 @@ export async function saveDirectkey(
     profile_id?: number;
     process1: string;
     intensity1: string;
+    aroma1: string;
     portion1_ml: number;
     temperature1: string;
     shots1: string;
     process2: string;
     intensity2: string;
+    aroma2: string;
     portion2_ml: number;
     temperature2: string;
     shots2: string;

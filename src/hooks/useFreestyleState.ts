@@ -8,11 +8,13 @@ export interface FreestyleState {
   name: string;
   process1: string;
   intensity1: string;
+  aroma1: string;
   temperature1: string;
   shots1: string;
   portion1: number;
   process2: string;
   intensity2: string;
+  aroma2: string;
   temperature2: string;
   shots2: string;
   portion2: number;
@@ -21,10 +23,12 @@ export interface FreestyleState {
 export interface FreestyleOptions {
   processOpts1: string[];
   intensityOpts1: string[];
+  aromaOpts1: string[];
   tempOpts1: string[];
   shotsOpts1: string[];
   processOpts2: string[];
   intensityOpts2: string[];
+  aromaOpts2: string[];
   tempOpts2: string[];
   shotsOpts2: string[];
 }
@@ -33,11 +37,13 @@ const DEFAULTS: FreestyleState = {
   name: "Custom",
   process1: "coffee",
   intensity1: "medium",
+  aroma1: "standard",
   temperature1: "normal",
   shots1: "one",
   portion1: 40,
   process2: "none",
   intensity2: "medium",
+  aroma2: "standard",
   temperature2: "normal",
   shots2: "one",
   portion2: 0,
@@ -69,11 +75,13 @@ function readFromBackend(entities: HassEntities, prefix: string): FreestyleState
     name: getState(entities, prefix, "text", "freestyle_name") || DEFAULTS.name,
     process1: getState(entities, prefix, "select", "freestyle_process_1") || DEFAULTS.process1,
     intensity1: getState(entities, prefix, "select", "freestyle_intensity_1") || DEFAULTS.intensity1,
+    aroma1: getState(entities, prefix, "select", "freestyle_aroma_1") || DEFAULTS.aroma1,
     temperature1: getState(entities, prefix, "select", "freestyle_temperature_1") || DEFAULTS.temperature1,
     shots1: getState(entities, prefix, "select", "freestyle_shots_1") || DEFAULTS.shots1,
     portion1: parseInt(getState(entities, prefix, "number", "freestyle_portion_1") || String(DEFAULTS.portion1)),
     process2: getState(entities, prefix, "select", "freestyle_process_2") || DEFAULTS.process2,
     intensity2: getState(entities, prefix, "select", "freestyle_intensity_2") || DEFAULTS.intensity2,
+    aroma2: getState(entities, prefix, "select", "freestyle_aroma_2") || DEFAULTS.aroma2,
     temperature2: getState(entities, prefix, "select", "freestyle_temperature_2") || DEFAULTS.temperature2,
     shots2: getState(entities, prefix, "select", "freestyle_shots_2") || DEFAULTS.shots2,
     portion2: parseInt(getState(entities, prefix, "number", "freestyle_portion_2") || String(DEFAULTS.portion2)),
@@ -84,10 +92,12 @@ function readOptions(entities: HassEntities, prefix: string): FreestyleOptions {
   return {
     processOpts1: getOptions(entities, prefix, "freestyle_process_1"),
     intensityOpts1: getOptions(entities, prefix, "freestyle_intensity_1"),
+    aromaOpts1: getOptions(entities, prefix, "freestyle_aroma_1"),
     tempOpts1: getOptions(entities, prefix, "freestyle_temperature_1"),
     shotsOpts1: getOptions(entities, prefix, "freestyle_shots_1"),
     processOpts2: getOptions(entities, prefix, "freestyle_process_2"),
     intensityOpts2: getOptions(entities, prefix, "freestyle_intensity_2"),
+    aromaOpts2: getOptions(entities, prefix, "freestyle_aroma_2"),
     tempOpts2: getOptions(entities, prefix, "freestyle_temperature_2"),
     shotsOpts2: getOptions(entities, prefix, "freestyle_shots_2"),
   };
@@ -141,11 +151,13 @@ export function useFreestyleState(entities: HassEntities, prefix: string) {
       name,
       process1: recipe.c1_process || DEFAULTS.process1,
       intensity1: recipe.c1_intensity || DEFAULTS.intensity1,
+      aroma1: recipe.c1_aroma || DEFAULTS.aroma1,
       temperature1: recipe.c1_temperature || DEFAULTS.temperature1,
       shots1: shotsToString(recipe.c1_shots),
       portion1: recipe.c1_portion_ml || DEFAULTS.portion1,
       process2: recipe.c2_process || DEFAULTS.process2,
       intensity2: recipe.c2_intensity || DEFAULTS.intensity2,
+      aroma2: recipe.c2_aroma || DEFAULTS.aroma2,
       temperature2: recipe.c2_temperature || DEFAULTS.temperature2,
       shots2: shotsToString(recipe.c2_shots),
       portion2: recipe.c2_portion_ml ?? DEFAULTS.portion2,

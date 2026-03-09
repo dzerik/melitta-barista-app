@@ -20,6 +20,7 @@ const PROCESS_IMG_ICONS: Record<string, string> = {
 const PROCESS_OPTIONS_1 = ["coffee", "milk", "water"];
 const PROCESS_OPTIONS_2 = ["none", "coffee", "milk", "water"];
 const INTENSITY_OPTIONS = ["very_mild", "mild", "medium", "strong", "very_strong"];
+const AROMA_OPTIONS = ["standard", "intense"];
 const TEMPERATURE_OPTIONS = ["cold", "normal", "high"];
 const SHOTS_OPTIONS = ["none", "one", "two", "three"];
 
@@ -28,11 +29,13 @@ const SHOTS_TO_STRING: Record<number, string> = { 0: "none", 1: "one", 2: "two",
 interface EditState {
   process1: string;
   intensity1: string;
+  aroma1: string;
   temperature1: string;
   shots1: string;
   portion1: number;
   process2: string;
   intensity2: string;
+  aroma2: string;
   temperature2: string;
   shots2: string;
   portion2: number;
@@ -42,11 +45,13 @@ function fromRecipe(r: DirectKeyRecipe): EditState {
   return {
     process1: r.c1_process || "coffee",
     intensity1: r.c1_intensity || "medium",
+    aroma1: r.c1_aroma || "standard",
     temperature1: r.c1_temperature || "normal",
     shots1: SHOTS_TO_STRING[r.c1_shots] || "one",
     portion1: r.c1_portion_ml || 40,
     process2: r.c2_process || "none",
     intensity2: r.c2_intensity || "medium",
+    aroma2: r.c2_aroma || "standard",
     temperature2: r.c2_temperature || "normal",
     shots2: SHOTS_TO_STRING[r.c2_shots] || "none",
     portion2: r.c2_portion_ml || 0,
@@ -219,11 +224,13 @@ export function RecipeEditModal({ conn, brewEntityId, category, categoryLabel, r
         profile_id: profileId,
         process1: state.process1,
         intensity1: state.intensity1,
+        aroma1: state.aroma1,
         portion1_ml: state.portion1,
         temperature1: state.temperature1,
         shots1: state.shots1,
         process2: state.process2,
         intensity2: state.intensity2,
+        aroma2: state.aroma2,
         portion2_ml: state.portion2,
         temperature2: state.temperature2,
         shots2: state.shots2,
@@ -271,6 +278,7 @@ export function RecipeEditModal({ conn, brewEntityId, category, categoryLabel, r
               <SegmentPicker options={PROCESS_OPTIONS_1} value={state.process1} onChange={(v) => update("process1", v)} />
               <PortionSlider label={t("freestyle.portion")} value={state.portion1} min={5} max={250} step={5} onChange={(v) => update("portion1", v)} />
               <SliderRow label={t("freestyle.intensity")} options={INTENSITY_OPTIONS} value={state.intensity1} onChange={(v) => update("intensity1", v)} disabled={state.process1 !== "coffee"} />
+              <SliderRow label={t("freestyle.aroma")} options={AROMA_OPTIONS} value={state.aroma1} onChange={(v) => update("aroma1", v)} disabled={state.process1 !== "coffee"} />
               <SliderRow label={t("freestyle.temperature")} options={TEMPERATURE_OPTIONS} value={state.temperature1} onChange={(v) => update("temperature1", v)} />
               <SliderRow label={t("freestyle.shots")} options={SHOTS_OPTIONS} value={state.shots1} onChange={(v) => update("shots1", v)} disabled={state.process1 !== "coffee"} />
             </div>
@@ -302,6 +310,7 @@ export function RecipeEditModal({ conn, brewEntityId, category, categoryLabel, r
               <SegmentPicker options={PROCESS_OPTIONS_2} value={state.process2} onChange={(v) => update("process2", v)} />
               <PortionSlider label={t("freestyle.portion")} value={state.portion2} min={0} max={250} step={5} onChange={(v) => update("portion2", v)} disabled={state.process2 === "none"} />
               <SliderRow label={t("freestyle.intensity")} options={INTENSITY_OPTIONS} value={state.intensity2} onChange={(v) => update("intensity2", v)} disabled={state.process2 !== "coffee"} />
+              <SliderRow label={t("freestyle.aroma")} options={AROMA_OPTIONS} value={state.aroma2} onChange={(v) => update("aroma2", v)} disabled={state.process2 !== "coffee"} />
               <SliderRow label={t("freestyle.temperature")} options={TEMPERATURE_OPTIONS} value={state.temperature2} onChange={(v) => update("temperature2", v)} disabled={state.process2 === "none"} />
               <SliderRow label={t("freestyle.shots")} options={SHOTS_OPTIONS} value={state.shots2} onChange={(v) => update("shots2", v)} disabled={state.process2 !== "coffee"} />
             </div>
