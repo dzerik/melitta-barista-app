@@ -4,7 +4,7 @@ import { usePreferences } from "../lib/preferences";
 import iconNotConnected from "../assets/icons/not_connected.png";
 
 const MIN_WIDTH = 1024;
-const MIN_HEIGHT = 768;
+const MIN_HEIGHT = 690;
 
 export function ResolutionGuard() {
   const { t } = usePreferences();
