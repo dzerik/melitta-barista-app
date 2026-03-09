@@ -14,6 +14,7 @@ import iconWater from "../assets/icons/water.png";
 import iconNotConnected from "../assets/icons/not_connected.png";
 import iconService from "../assets/icons/service.png";
 import iconTwoCups from "../assets/icons/two_cups.png";
+import iconTwoCupsWhite from "../assets/icons/two_cups_white.png";
 
 interface Props {
   conn: Connection;
@@ -190,7 +191,8 @@ const DK_RECIPE_ICON: Record<DirectKeyCategory, string> = {
 };
 
 export function BrewSection({ conn, entities, prefix }: Props) {
-  const { t } = usePreferences();
+  const { t, theme } = usePreferences();
+  const isDark = theme === "dark";
   const machineState = getState(entities, prefix, "sensor", "state");
   const isReady = machineState === "Ready";
   const isBrewing = machineState === "Brewing";
@@ -489,14 +491,13 @@ export function BrewSection({ conn, entities, prefix }: Props) {
             >
               <div className="flex items-center justify-center" style={{ width: 80, height: 80 }}>
                 <img
-                  src={iconTwoCups}
+                  src={isDark ? iconTwoCupsWhite : iconTwoCups}
                   alt="2x"
                   className="object-contain transition-all duration-300"
                   style={{
                     width: twoCups ? 64 : 56,
                     height: twoCups ? 64 : 56,
                     opacity: twoCups ? 1 : 0.4,
-                    filter: "var(--icon-invert)",
                   }}
                   draggable={false}
                 />
