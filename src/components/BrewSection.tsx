@@ -376,9 +376,9 @@ export function BrewSection({ conn, entities, prefix }: Props) {
         </div>
       )}
 
-      {/* Profile tab bar */}
+      {/* Profile tab bar — always dark */}
       {isReady && profileOptions.length > 1 && (
-        <div className="shrink-0" style={{ background: "var(--profile-bar-bg, #0a0a0a)" }}>
+        <div className="shrink-0" style={{ background: "var(--profile-bar-bg)" }}>
           <div className="flex overflow-x-auto">
             {profileOptions.map((opt, idx) => {
               const isActive = opt === selectedProfile;
@@ -392,10 +392,8 @@ export function BrewSection({ conn, entities, prefix }: Props) {
                   onPointerUp={cancelLongPress}
                   onPointerLeave={cancelLongPress}
                   onContextMenu={(e) => e.preventDefault()}
-                  className={`relative flex-1 min-w-[80px] px-4 py-3 text-[11px] tracking-widest uppercase font-medium transition-colors whitespace-nowrap ${
-                    isActive ? "text-primary" : "text-tertiary hover:text-secondary"
-                  }`}
-                  style={{ letterSpacing: "0.12em" }}
+                  className="relative flex-1 min-w-[80px] px-4 py-3 text-[11px] tracking-widest uppercase font-medium transition-opacity whitespace-nowrap"
+                  style={{ letterSpacing: "0.12em", color: isActive ? "#ffffff" : "rgba(255,255,255,0.4)" }}
                 >
                   {isEditing ? (
                     <input
@@ -410,7 +408,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
                       }}
                       onClick={(e) => e.stopPropagation()}
                       className="w-full text-center text-[11px] tracking-widest uppercase font-medium outline-none bg-transparent border-b"
-                      style={{ color: "var(--text-primary)", borderColor: "var(--accent)" }}
+                      style={{ color: "#ffffff", borderColor: "rgba(255,255,255,0.5)" }}
                     />
                   ) : (
                     opt
@@ -418,7 +416,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
                   {isActive && (
                     <span
                       className="absolute bottom-0 left-3 right-3 h-px"
-                      style={{ background: "linear-gradient(90deg, transparent, var(--text-secondary), transparent)" }}
+                      style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent)" }}
                     />
                   )}
                 </button>
@@ -430,55 +428,52 @@ export function BrewSection({ conn, entities, prefix }: Props) {
 
       {/* DirectKey recipe grid */}
       {isReady && hasDkRecipes && (
-        <>
-          <div className="shrink-0 h-px" style={{ background: "linear-gradient(90deg, transparent 5%, var(--recipe-grid-gap) 50%, transparent 95%)" }} />
-          <div className="shrink-0">
-            <div
-              className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7"
-              style={{ gap: "1px", background: "var(--recipe-grid-gap)" }}
-            >
-              {DIRECTKEY_CATEGORIES.map((cat) => {
-                const recipe = activeProfileRecipes[cat];
-                if (!recipe) return null;
-                const label = t(DK_LABEL_KEYS[cat]);
-                const isSelected = selectedDk === cat;
-                const hasDetails = recipe.c1_process !== undefined && recipe.c1_process !== "none";
-                return (
-                  <button
-                    key={cat}
-                    onClick={() => handleDkClick(cat)}
-                    onDoubleClick={() => handleDkDoubleClick(cat, recipe)}
-                    onPointerDown={() => startDkLongPress(cat, recipe)}
-                    onPointerUp={cancelDkLongPress}
-                    onPointerLeave={cancelDkLongPress}
-                    onContextMenu={(e) => e.preventDefault()}
-                    className="relative flex flex-col items-center justify-center p-2 transition-colors duration-300 active:scale-[0.97] overflow-hidden"
-                    style={{ background: isSelected ? "var(--recipe-selected-bg)" : "var(--bg)" }}
-                  >
-                    <div className={isSelected && hasDetails ? "recipe-icon-fade" : ""}>
-                      <CoffeeIcon recipe={label} size={80} />
+        <div className="shrink-0">
+          <div
+            className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7"
+            style={{ gap: "1px", background: "var(--section-divider)" }}
+          >
+            {DIRECTKEY_CATEGORIES.map((cat) => {
+              const recipe = activeProfileRecipes[cat];
+              if (!recipe) return null;
+              const label = t(DK_LABEL_KEYS[cat]);
+              const isSelected = selectedDk === cat;
+              const hasDetails = recipe.c1_process !== undefined && recipe.c1_process !== "none";
+              return (
+                <button
+                  key={cat}
+                  onClick={() => handleDkClick(cat)}
+                  onDoubleClick={() => handleDkDoubleClick(cat, recipe)}
+                  onPointerDown={() => startDkLongPress(cat, recipe)}
+                  onPointerUp={cancelDkLongPress}
+                  onPointerLeave={cancelDkLongPress}
+                  onContextMenu={(e) => e.preventDefault()}
+                  className="relative flex flex-col items-center justify-center p-2 transition-colors duration-300 active:scale-[0.97] overflow-hidden"
+                  style={{ background: isSelected ? "var(--recipe-selected-bg)" : "var(--dk-card-bg)" }}
+                >
+                  <div className={isSelected && hasDetails ? "recipe-icon-fade" : ""}>
+                    <CoffeeIcon recipe={label} size={80} />
+                  </div>
+                  {isSelected && hasDetails && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center recipe-overlay-enter" style={{ background: "var(--overlay-bg)" }}>
+                      <RecipeInfo details={recipe} compact animated t={t} />
                     </div>
-                    {isSelected && hasDetails && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center recipe-overlay-enter" style={{ background: "var(--overlay-bg)" }}>
-                        <RecipeInfo details={recipe} compact animated t={t} />
-                      </div>
-                    )}
-                    <span
-                      className="absolute bottom-0 left-0 right-0 text-center text-[10px] py-1 transition-all duration-300 z-10"
-                      style={
-                        isSelected
-                          ? { background: "var(--recipe-label-bg)", color: "var(--recipe-label-text)", fontWeight: 600 }
-                          : { background: "transparent", color: "var(--text-tertiary)", fontWeight: 500 }
-                      }
-                    >
-                      {isSelected ? `${t("brew.brew")} ${label}` : label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+                  )}
+                  <span
+                    className="absolute bottom-0 left-0 right-0 text-center text-[10px] py-1 transition-all duration-300 z-10"
+                    style={
+                      isSelected
+                        ? { background: "var(--recipe-label-bg)", color: "var(--recipe-label-text)", fontWeight: 600 }
+                        : { background: "transparent", color: "var(--text-tertiary)", fontWeight: 500 }
+                    }
+                  >
+                    {isSelected ? `${t("brew.brew")} ${label}` : label}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-        </>
+        </div>
       )}
 
       {editingDk && (
@@ -496,12 +491,12 @@ export function BrewSection({ conn, entities, prefix }: Props) {
       {isReady && recipeOptions.length > 0 && (
         <div className="flex-1 min-h-0 flex flex-col">
           {hasDkRecipes && (
-            <div className="shrink-0 flex items-center gap-3 px-4 py-2" style={{ background: "var(--bg)" }}>
-              <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, var(--recipe-grid-gap), transparent)" }} />
-              <span className="text-[9px] tracking-[0.2em] uppercase text-tertiary font-medium" style={{ opacity: 0.4 }}>
+            <div className="shrink-0 flex items-center gap-3 px-5 py-1.5" style={{ background: "var(--bg)" }}>
+              <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, var(--section-divider), transparent)" }} />
+              <span className="text-[9px] tracking-[0.2em] uppercase font-medium" style={{ color: "var(--text-secondary)", opacity: 0.6 }}>
                 {t("brew.all_recipes")}
               </span>
-              <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, transparent, var(--recipe-grid-gap))" }} />
+              <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, transparent, var(--section-divider))" }} />
             </div>
           )}
           <div
