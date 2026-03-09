@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import type { Connection, HassEntities } from "home-assistant-js-websocket";
 import { getState, getEntity, type RecipeDetails, type DirectKeyRecipe, type DirectKeyCategory, DIRECTKEY_CATEGORIES } from "../lib/entities";
 import { selectOption, pressButton, brewDirectkey, setTextValue, safeCall } from "../lib/ha";
@@ -46,7 +46,7 @@ const INTENSITY_DOTS: Record<string, number> = {
 
 function TempIcon({ temp, className }: { temp: string; className?: string }) {
   const size = className?.includes("w-4") ? 16 : 14;
-  if (temp === "cold" || temp === "low") {
+  if (temp === "low") {
     return <Snowflake size={size} className={className} />;
   }
   if (temp === "high") {
@@ -141,11 +141,11 @@ function RecipeInfo({ details, vertical, animated, compact, t }: {
                 <IntensityDots level={INTENSITY_DOTS[c.intensity] || 3} />
                 {c.shots > 0 && <span className="text-secondary font-medium">{c.shots}x</span>}
               </>
-            ) : (
+            ) : c.temp === "high" ? (
               <span className="text-tertiary text-xs">
-                {c.process === "milk" ? t("process.steamed") : t("process.hot_water")}
+                {t("process.high")}
               </span>
-            )}
+            ) : null}
           </div>
         </div>
       ))}

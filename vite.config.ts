@@ -4,6 +4,13 @@ import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  base: "/melitta/",
+  server: {
+    host: "0.0.0.0",
+  },
+  preview: {
+    host: "0.0.0.0",
+  },
   plugins: [
     react(),
     tailwindcss(),

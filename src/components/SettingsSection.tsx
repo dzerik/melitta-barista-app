@@ -173,7 +173,7 @@ export function SettingsSection({ conn, entities, prefix }: Props) {
   let cardIndex = 0;
 
   return (
-    <div className="flex h-full flex-col px-5 py-5 overflow-y-auto">
+    <div className="flex h-full flex-col px-5 py-5 overflow-y-auto max-w-2xl mx-auto w-full">
       <div
         className="settings-header-enter text-[10px] font-medium text-tertiary uppercase tracking-[0.2em] mb-3"
       >

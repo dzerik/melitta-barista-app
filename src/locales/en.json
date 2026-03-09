@@ -3,6 +3,10 @@
   "app.disconnect": "Disconnect",
   "app.looking": "Looking for Melitta machine...",
   "app.integration_hint": "Make sure the integration is set up in Home Assistant",
+  "app.resolution_title": "Screen Too Small",
+  "app.resolution_desc": "This application requires a minimum screen resolution to function properly. Please use a tablet, desktop, or rotate your device to landscape.",
+  "app.resolution_min": "Minimum",
+  "app.resolution_current": "Current",
 
   "tab.brew": "Brew",
   "tab.freestyle": "Freestyle",

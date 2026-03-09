@@ -3,6 +3,10 @@
   "app.disconnect": "Trennen",
   "app.looking": "Suche nach Melitta-Maschine...",
   "app.integration_hint": "Stellen Sie sicher, dass die Integration in Home Assistant eingerichtet ist",
+  "app.resolution_title": "Bildschirm zu klein",
+  "app.resolution_desc": "Diese Anwendung erfordert eine Mindestbildschirmauflösung. Bitte verwenden Sie ein Tablet, einen Desktop oder drehen Sie Ihr Gerät ins Querformat.",
+  "app.resolution_min": "Minimum",
+  "app.resolution_current": "Aktuell",
 
   "tab.brew": "Rezepte",
   "tab.freestyle": "Freestyle",

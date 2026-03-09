@@ -140,7 +140,6 @@ export function FreestyleGlass({
   const total = portion1 + portion2;
   const rawFill = total > 0 ? total / capacityMl : 0;
   const fillScale = rawFill > maxFill ? maxFill / rawFill : 1;
-  const totalFill = Math.min(rawFill, maxFill);
   const frac1 = total > 0 ? (portion1 / capacityMl) * fillScale : 0;
   const frac2 = total > 0 ? (portion2 / capacityMl) * fillScale : 0;
 

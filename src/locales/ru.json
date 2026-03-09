@@ -3,6 +3,10 @@
   "app.disconnect": "Отключить",
   "app.looking": "Поиск кофемашины Melitta...",
   "app.integration_hint": "Убедитесь, что интеграция настроена в Home Assistant",
+  "app.resolution_title": "Экран слишком мал",
+  "app.resolution_desc": "Для работы приложения необходимо минимальное разрешение экрана. Используйте планшет, компьютер или поверните устройство горизонтально.",
+  "app.resolution_min": "Минимум",
+  "app.resolution_current": "Текущее",
 
   "tab.brew": "Рецепты",
   "tab.freestyle": "Свой рецепт",

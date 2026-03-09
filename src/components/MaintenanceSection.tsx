@@ -225,7 +225,7 @@ export function MaintenanceSection({ conn, entities, prefix }: Props) {
 
   return (
     <div
-      className="flex h-full flex-col px-5 py-5 overflow-y-auto"
+      className="flex h-full flex-col px-5 py-5 overflow-y-auto max-w-2xl mx-auto w-full"
       onClick={handleContainerClick}
     >
       {!isConnected && (

@@ -13,6 +13,7 @@ import { StatsSection } from "./components/StatsSection";
 import { MaintenanceSection } from "./components/MaintenanceSection";
 import { StatusOverlay } from "./components/StatusOverlay";
 import { PreferencesModal } from "./components/PreferencesModal";
+import { ResolutionGuard } from "./components/ResolutionGuard";
 import type { TranslationKey } from "./lib/i18n";
 import iconBtConnect from "./assets/icons/bt_connect.png";
 
@@ -69,34 +70,40 @@ export default function App() {
 
   if (status === "disconnected" || status === "error" || !connection) {
     return (
-      <ConnectScreen
-        onConnect={connect}
-        error={error}
-        connecting={status === "connecting"}
-      />
+      <>
+        <ConnectScreen
+          onConnect={connect}
+          error={error}
+          connecting={status === "connecting"}
+        />
+        <ResolutionGuard />
+      </>
     );
   }
 
   if (!prefix) {
     return (
-      <div className="flex h-full items-center justify-center p-6">
-        <div className="flex flex-col items-center text-center space-y-4">
-          <img src={iconBtConnect} alt="" className="w-20 h-20 object-contain opacity-50" draggable={false} />
-          <p className="text-secondary">{t("app.looking")}</p>
-          <p className="text-sm text-tertiary">
-            {t("app.integration_hint")}
-          </p>
-          <button
-            onClick={() => {
-              clearConfig();
-              disconnect();
-            }}
-            className="mt-4 rounded-lg px-4 py-2 text-sm text-secondary ring-1 ring-border hover:ring-border-hover transition"
-          >
-            {t("app.disconnect")}
-          </button>
+      <>
+        <div className="flex h-full items-center justify-center p-6">
+          <div className="flex flex-col items-center text-center space-y-4">
+            <img src={iconBtConnect} alt="" className="w-20 h-20 object-contain opacity-50" draggable={false} />
+            <p className="text-secondary">{t("app.looking")}</p>
+            <p className="text-sm text-tertiary">
+              {t("app.integration_hint")}
+            </p>
+            <button
+              onClick={() => {
+                clearConfig();
+                disconnect();
+              }}
+              className="mt-4 rounded-lg px-4 py-2 text-sm text-secondary ring-1 ring-border hover:ring-border-hover transition"
+            >
+              {t("app.disconnect")}
+            </button>
+          </div>
         </div>
-      </div>
+        <ResolutionGuard />
+      </>
     );
   }
 
@@ -183,6 +190,7 @@ export default function App() {
 
       <StatusOverlay conn={connection} entities={entities} prefix={prefix} />
       {prefsOpen && <PreferencesModal onClose={() => setPrefsOpen(false)} />}
+      <ResolutionGuard />
     </div>
   );
 }

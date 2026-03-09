@@ -53,15 +53,15 @@ export function StatsSection({ entities, prefix }: Props) {
         </span>
       </div>
 
-      <div className="flex-1 p-4">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+      <div className="flex-1 p-4 max-w-3xl mx-auto w-full">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {counters.map(({ name, count }, i) => {
             const fraction = count / maxCount;
             const isTop = i === 0;
             return (
               <div
                 key={name}
-                className="relative flex flex-col items-center rounded-xl overflow-hidden transition ring-1"
+                className="relative flex flex-col items-center rounded-xl overflow-hidden transition ring-1 aspect-square"
                 style={{
                   "--tw-ring-color": isTop ? "var(--border-hover)" : "var(--border)",
                   background: isTop ? "var(--surface-card-active)" : "var(--surface-card)",
@@ -69,7 +69,7 @@ export function StatsSection({ entities, prefix }: Props) {
               >
                 <div
                   className="absolute bottom-0 left-0 right-0 transition-all duration-700"
-                  style={{ height: `${fraction * 100}%`, background: "var(--surface-card)" }}
+                  style={{ height: `${fraction * 100}%`, background: "var(--accent)", opacity: 0.08 + fraction * 0.12 }}
                 />
                 <div className="relative z-10 flex flex-col items-center px-3 pt-3 pb-2.5 w-full">
                   <CoffeeIcon recipe={name} size={64} />
