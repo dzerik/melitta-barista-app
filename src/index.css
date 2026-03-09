@@ -47,6 +47,7 @@
   --profile-bar-bg: #080808;
   --dk-card-bg: #0a0a0a;
   --section-divider: rgba(255,255,255,0.06);
+  --icon-invert: invert(1);
 }
 
 [data-theme="light"] {
@@ -94,6 +95,7 @@
   --profile-bar-bg: #2c1e14;
   --dk-card-bg: #faf7f4;
   --section-divider: rgba(0,0,0,0.12);
+  --icon-invert: invert(0);
 }
 
 /* ═══ Utility classes using tokens ═══ */

@@ -13,6 +13,7 @@ import iconMilk from "../assets/icons/milk.png";
 import iconWater from "../assets/icons/water.png";
 import iconNotConnected from "../assets/icons/not_connected.png";
 import iconService from "../assets/icons/service.png";
+import iconTwoCups from "../assets/icons/two_cups.png";
 
 interface Props {
   conn: Connection;
@@ -487,16 +488,18 @@ export function BrewSection({ conn, entities, prefix }: Props) {
               style={{ background: twoCups ? "var(--recipe-selected-bg)" : "var(--dk-card-bg)" }}
             >
               <div className="flex items-center justify-center" style={{ width: 80, height: 80 }}>
-                <span
-                  className="font-black tracking-tight transition-all duration-300"
+                <img
+                  src={iconTwoCups}
+                  alt="2x"
+                  className="object-contain transition-all duration-300"
                   style={{
-                    fontSize: twoCups ? 40 : 36,
-                    color: twoCups ? "var(--btn-primary-bg)" : "var(--text-tertiary)",
-                    opacity: twoCups ? 1 : 0.5,
+                    width: twoCups ? 64 : 56,
+                    height: twoCups ? 64 : 56,
+                    opacity: twoCups ? 1 : 0.4,
+                    filter: "var(--icon-invert)",
                   }}
-                >
-                  2x
-                </span>
+                  draggable={false}
+                />
               </div>
               <span
                 className="absolute bottom-0 left-0 right-0 text-center text-[10px] py-1.5 transition-all duration-300 z-10 truncate"
