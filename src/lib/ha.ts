@@ -155,12 +155,19 @@ export async function saveDirectkey(
 /** Fetch melitta_barista integration version from HA. */
 export async function getIntegrationVersion(conn: Connection): Promise<string | null> {
   try {
+    // HA WS returns { custom_components: [{domain, version, ...}] }
     const result = await conn.sendMessagePromise<
-      Array<{ domain: string; version: string | null }>
+      Record<string, unknown>
     >({ type: "custom_components" });
-    const melitta = result.find((c) => c.domain === "melitta_barista");
+    const list = (
+      Array.isArray(result) ? result : Array.isArray((result as Record<string, unknown>)?.custom_components)
+        ? (result as Record<string, unknown>).custom_components
+        : []
+    ) as Array<{ domain: string; version: string | null }>;
+    const melitta = list.find((c) => c.domain === "melitta_barista");
     return melitta?.version ?? null;
-  } catch {
+  } catch (e) {
+    console.warn("[melitta] Failed to fetch integration version:", e);
     return null;
   }
 }

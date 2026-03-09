@@ -311,11 +311,11 @@ export function SettingsSection({ conn, entities, prefix }: Props) {
         </div>
       )}
 
-      {integrationVersion && (
-        <div className="mt-auto pt-6 pb-2 text-center text-[10px] text-tertiary opacity-50">
-          Melitta Barista HA v{integrationVersion}
-        </div>
-      )}
+      <div className="mt-auto pt-6 pb-2 text-center text-[10px] text-tertiary opacity-50">
+        {integrationVersion
+          ? `Melitta Barista HA v${integrationVersion}`
+          : "Melitta Barista"}
+      </div>
     </div>
   );
 }
