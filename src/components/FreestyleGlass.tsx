@@ -134,10 +134,15 @@ export function FreestyleGlass({
   };
 
   // Calculate fill fractions
-  const maxMl = 250;
-  const total = Math.min(portion1 + portion2, maxMl);
-  const frac1 = total > 0 ? (portion1 / maxMl) * 0.85 : 0;
-  const frac2 = total > 0 ? (portion2 / maxMl) * 0.85 : 0;
+  // Glass fills up to maxFill; once full — proportions redistribute within the glass
+  const maxFill = 0.93;
+  const capacityMl = 250;
+  const total = portion1 + portion2;
+  const rawFill = total > 0 ? total / capacityMl : 0;
+  const fillScale = rawFill > maxFill ? maxFill / rawFill : 1;
+  const totalFill = Math.min(rawFill, maxFill);
+  const frac1 = total > 0 ? (portion1 / capacityMl) * fillScale : 0;
+  const frac2 = total > 0 ? (portion2 / capacityMl) * fillScale : 0;
 
   // Build layers bottom-up: component 1 on bottom, component 2 on top
   const layers: { color: string; frac: number; process: string; intensity: string }[] = [];
@@ -153,6 +158,7 @@ export function FreestyleGlass({
   let topLayerProcess = "";
   let topLayerIntensity = "medium";
   let topLayerY = ciBot;
+  let topLayerH = 0;
 
   for (let i = 0; i < layers.length; i++) {
     const { color, frac, process, intensity } = layers[i];
@@ -165,6 +171,7 @@ export function FreestyleGlass({
       topLayerProcess = process;
       topLayerIntensity = intensity;
       topLayerY = y0;
+      topLayerH = lh;
     }
 
     const x0L = lerpX(y0, true);
@@ -214,10 +221,13 @@ export function FreestyleGlass({
     }
   }
 
-  // Crema layer for coffee on top
-  const cremaH = 3.5;
+  // Foam/crema on top — scales with top layer height, max 4px
+  const foamH = Math.min(4, topLayerH * 0.15);
   const hasCoffeeOnTop = topLayerProcess === "coffee" && topLayerY < ciBot;
+  const hasMilkOnTop = topLayerProcess === "milk" && topLayerY < ciBot;
+  const hasFoam = hasCoffeeOnTop || hasMilkOnTop;
   const cremaColor = getCoffeeCremaColor(topLayerIntensity);
+  const milkFoamColor = "#F5EDE3"; // warm white foam
 
   // Has any liquid?
   const hasLiquid = layers.length > 0;
@@ -338,16 +348,19 @@ export function FreestyleGlass({
             <rect x="0" y={cupBot + 2} width={vbW + 20} height={cupH * 0.3} fill="url(#fs-rfade)" />
           </mask>
 
-          {/* Crema gradient */}
-          {hasCoffeeOnTop && (
-            <linearGradient id="fs-crema" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor={cremaColor} stopOpacity="0.5" />
-              <stop offset="20%" stopColor={cremaColor} stopOpacity="0.9" />
-              <stop offset="50%" stopColor={cremaColor} stopOpacity="1" />
-              <stop offset="80%" stopColor={cremaColor} stopOpacity="0.9" />
-              <stop offset="100%" stopColor={cremaColor} stopOpacity="0.5" />
-            </linearGradient>
-          )}
+          {/* Foam/crema gradient */}
+          {hasFoam && (() => {
+            const color = hasCoffeeOnTop ? cremaColor : milkFoamColor;
+            return (
+              <linearGradient id="fs-foam" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor={color} stopOpacity="0.5" />
+                <stop offset="20%" stopColor={color} stopOpacity="0.9" />
+                <stop offset="50%" stopColor={color} stopOpacity="1" />
+                <stop offset="80%" stopColor={color} stopOpacity="0.9" />
+                <stop offset="100%" stopColor={color} stopOpacity="0.5" />
+              </linearGradient>
+            );
+          })()}
 
           {/* Shadow ellipse gradient */}
           <radialGradient id="fs-shadow" cx="50%" cy="50%" r="50%">
@@ -491,30 +504,33 @@ export function FreestyleGlass({
           </g>
         )}
 
-        {/* Crema layer on top of coffee */}
-        {hasCoffeeOnTop && (
+        {/* Foam layer on top — crema for coffee, milk foam for milk */}
+        {hasFoam && (
           <g clipPath="url(#fs-clip)">
             {(() => {
-              const cy0 = topLayerY - 1;
-              const cy1 = topLayerY + cremaH;
-              const cx0L = lerpX(cy0, true);
-              const cx0R = lerpX(cy0, false);
-              const cx1L = lerpX(cy1, true);
-              const cx1R = lerpX(cy1, false);
+              const surfaceY = Math.max(topLayerY, ciTop);
+              const fy0 = surfaceY;
+              const fy1 = surfaceY + foamH;
+              const fx0L = lerpX(fy0, true);
+              const fx0R = lerpX(fy0, false);
+              const fx1L = lerpX(fy1, true);
+              const fx1R = lerpX(fy1, false);
+              const highlightColor = hasCoffeeOnTop ? cremaColor : "#FFFFFF";
+              const highlightOpacity = hasCoffeeOnTop ? 0.4 : 0.3;
               return (
                 <>
                   <path
-                    d={`M ${cx0L} ${cy0} L ${cx1L} ${cy1} L ${cx1R} ${cy1} L ${cx0R} ${cy0} Z`}
-                    fill="url(#fs-crema)"
+                    d={`M ${fx0L} ${fy0} L ${fx1L} ${fy1} L ${fx1R} ${fy1} L ${fx0R} ${fy0} Z`}
+                    fill="url(#fs-foam)"
                   />
-                  {/* Crema highlight — lighter center */}
+                  {/* Foam highlight — lighter center */}
                   <ellipse
                     cx={cx}
-                    cy={(cy0 + cy1) / 2}
-                    rx={(cx0R - cx0L) * 0.25}
-                    ry={cremaH * 0.35}
-                    fill={cremaColor}
-                    opacity={0.4}
+                    cy={(fy0 + fy1) / 2}
+                    rx={(fx0R - fx0L) * 0.25}
+                    ry={foamH * 0.35}
+                    fill={highlightColor}
+                    opacity={highlightOpacity}
                   />
                 </>
               );
