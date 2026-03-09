@@ -277,8 +277,8 @@ export function FreestyleGlass({
         {/* Glass body */}
         <path
           d={glassPath}
-          fill="rgba(255,255,255,0.05)"
-          stroke="rgba(255,255,255,0.4)"
+          fill="var(--glass-fill)"
+          stroke="var(--glass-stroke)"
           strokeWidth={1.2}
           strokeLinejoin="round"
         />
@@ -318,7 +318,7 @@ export function FreestyleGlass({
         {/* Handle */}
         <path
           d={`M ${topR} ${cupTop + cupH * 0.18} C ${topR + 11} ${cupTop + cupH * 0.16}, ${topR + 11} ${cupTop + cupH * 0.67}, ${topR} ${cupTop + cupH * 0.65}`}
-          stroke="rgba(255,255,255,0.4)"
+          stroke="var(--glass-stroke)"
           strokeWidth={1.2}
           fill="none"
           strokeLinecap="round"

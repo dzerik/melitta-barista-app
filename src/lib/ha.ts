@@ -113,6 +113,43 @@ export async function brewFreestyle(
   });
 }
 
+/** Brew a DirectKey recipe for the active profile. */
+export async function brewDirectkey(
+  conn: Connection,
+  entityId: string,
+  category: string,
+) {
+  await callService(conn, "melitta_barista", "brew_directkey", {
+    entity_id: entityId,
+    category,
+  });
+}
+
+/** Save a customized DirectKey recipe for a profile. */
+export async function saveDirectkey(
+  conn: Connection,
+  entityId: string,
+  params: {
+    category: string;
+    profile_id?: number;
+    process1: string;
+    intensity1: string;
+    portion1_ml: number;
+    temperature1: string;
+    shots1: string;
+    process2: string;
+    intensity2: string;
+    portion2_ml: number;
+    temperature2: string;
+    shots2: string;
+  },
+) {
+  await callService(conn, "melitta_barista", "save_directkey", {
+    entity_id: entityId,
+    ...params,
+  });
+}
+
 /** Fire-and-forget wrapper with error logging. Returns true on success. */
 export function safeCall(fn: () => Promise<unknown>): void {
   fn().catch((e) => {

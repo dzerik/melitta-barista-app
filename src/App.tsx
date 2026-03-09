@@ -3,21 +3,25 @@ import { useHA } from "./hooks/useHA";
 import { useSwipePager } from "./hooks/useSwipe";
 import { clearConfig } from "./lib/ha";
 import { getState } from "./lib/entities";
+import { usePreferences } from "./lib/preferences";
 import { ConnectScreen } from "./components/ConnectScreen";
 import { StatusBar } from "./components/StatusBar";
 import { BrewSection } from "./components/BrewSection";
 import { FreestyleSection } from "./components/FreestyleSection";
 import { SettingsSection } from "./components/SettingsSection";
 import { StatsSection } from "./components/StatsSection";
+import { StatusOverlay } from "./components/StatusOverlay";
+import { PreferencesModal } from "./components/PreferencesModal";
+import type { TranslationKey } from "./lib/i18n";
 
 const TABS = ["brew", "freestyle", "stats", "settings"] as const;
 type Tab = (typeof TABS)[number];
 
-const TAB_LABELS: Record<Tab, string> = {
-  brew: "Brew",
-  freestyle: "Freestyle",
-  stats: "Stats",
-  settings: "Settings",
+const TAB_LABEL_KEYS: Record<Tab, TranslationKey> = {
+  brew: "tab.brew",
+  freestyle: "tab.freestyle",
+  stats: "tab.stats",
+  settings: "tab.settings",
 };
 
 function useWindowWidth() {
@@ -34,12 +38,16 @@ export default function App() {
   const { status, connection, entities, prefix, error, connect, disconnect } =
     useHA();
   const [tabIndex, setTabIndex] = useState(0);
+  const [prefsOpen, setPrefsOpen] = useState(false);
   const pageWidth = useWindowWidth();
+  const { t } = usePreferences();
 
   const hasAction = (() => {
     if (!entities || !prefix) return false;
     const ar = getState(entities, prefix, "sensor", "action_required");
-    return !!ar && ar !== "None";
+    if (ar && ar !== "None") return true;
+    const ms = (getState(entities, prefix, "sensor", "state") || "ready").toLowerCase();
+    return ms !== "ready";
   })();
 
   const onPageChange = useCallback(
@@ -70,18 +78,18 @@ export default function App() {
     return (
       <div className="flex h-full items-center justify-center p-6">
         <div className="text-center space-y-3">
-          <p className="text-neutral-400">Looking for Melitta machine...</p>
-          <p className="text-sm text-neutral-600">
-            Make sure the integration is set up in Home Assistant
+          <p className="text-secondary">{t("app.looking")}</p>
+          <p className="text-sm text-tertiary">
+            {t("app.integration_hint")}
           </p>
           <button
             onClick={() => {
               clearConfig();
               disconnect();
             }}
-            className="mt-4 rounded-lg px-4 py-2 text-sm text-neutral-500 ring-1 ring-neutral-700 hover:bg-neutral-800 transition"
+            className="mt-4 rounded-lg px-4 py-2 text-sm text-secondary ring-1 ring-border hover:ring-border-hover transition"
           >
-            Disconnect
+            {t("app.disconnect")}
           </button>
         </div>
       </div>
@@ -96,11 +104,12 @@ export default function App() {
   const tab = TABS[tabIndex];
 
   return (
-    <div className="flex h-full flex-col bg-black">
+    <div className="flex h-full flex-col bg-page">
       <StatusBar
         entities={entities}
         prefix={prefix}
         onDisconnect={handleDisconnect}
+        onOpenPrefs={() => setPrefsOpen(true)}
       />
 
       {/* Swipe pager */}
@@ -134,35 +143,39 @@ export default function App() {
       </div>
 
       {/* Tab bar */}
-      <div className="relative flex border-t border-neutral-800/60">
-        {/* Sliding indicator — follows both tap and swipe */}
+      <div className="relative flex border-t border-border">
+        {/* Sliding indicator */}
         <div
-          className="absolute top-0 h-px bg-white"
+          className="absolute top-0 h-px"
           style={{
             width: `${100 / TABS.length}%`,
             transform: `translateX(${(-pager.offsetPx / pageWidth) * 100}%)`,
             transition: pager.dragging
               ? "none"
               : "transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
+            background: "var(--accent)",
           }}
         />
-        {TABS.map((t, i) => (
+        {TABS.map((tt, i) => (
           <button
-            key={t}
+            key={tt}
             onClick={() => onPageChange(i)}
-            disabled={hasAction && t !== tab}
+            disabled={hasAction && tt !== tab}
             className={`flex-1 py-3 text-xs font-medium tracking-wider uppercase transition ${
-              hasAction && t !== tab
-                ? "text-neutral-800 cursor-not-allowed"
-                : t === tab
-                  ? "text-white"
-                  : "text-neutral-600 hover:text-neutral-400"
+              hasAction && tt !== tab
+                ? "text-tertiary cursor-not-allowed opacity-30"
+                : tt === tab
+                  ? "text-primary"
+                  : "text-secondary hover:text-primary"
             }`}
           >
-            {TAB_LABELS[t]}
+            {t(TAB_LABEL_KEYS[tt])}
           </button>
         ))}
       </div>
+
+      <StatusOverlay conn={connection} entities={entities} prefix={prefix} />
+      {prefsOpen && <PreferencesModal onClose={() => setPrefsOpen(false)} />}
     </div>
   );
 }

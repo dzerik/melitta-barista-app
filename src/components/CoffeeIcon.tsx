@@ -359,8 +359,8 @@ export function CoffeeIcon({ recipe, size = 80 }: Props) {
       {/* Glass body — transparent with outline */}
       <path
         d={glassPath}
-        fill="rgba(255,255,255,0.06)"
-        stroke="rgba(255,255,255,0.45)"
+        fill="var(--glass-fill)"
+        stroke="var(--glass-stroke)"
         strokeWidth={1.5}
         strokeLinejoin="round"
       />
@@ -414,7 +414,7 @@ export function CoffeeIcon({ recipe, size = 80 }: Props) {
       {/* Handle */}
       <path
         d={`M ${handleX} ${hTop} C ${handleX + hOut} ${hTop - 2}, ${handleX + hOut} ${hBot + 2}, ${handleX} ${hBot}`}
-        stroke="rgba(255,255,255,0.45)"
+        stroke="var(--glass-stroke)"
         strokeWidth={1.5}
         fill="none"
         strokeLinecap="round"

@@ -14,6 +14,52 @@ export interface RecipeDetails {
   c2_portion_ml: number;
 }
 
+/** DirectKey recipe details per category, per profile. */
+export interface DirectKeyRecipe {
+  category: number;
+  c1_process: string;
+  c1_intensity: string;
+  c1_temperature: string;
+  c1_shots: number;
+  c1_portion_ml: number;
+  c2_process: string;
+  c2_intensity: string;
+  c2_temperature: string;
+  c2_shots: number;
+  c2_portion_ml: number;
+}
+
+/** All DirectKey data from profile select entity attributes. */
+export interface DirectKeyData {
+  activeProfile: number;
+  /** profile_id → category_name → recipe */
+  profiles: Record<number, Record<string, DirectKeyRecipe>>;
+}
+
+/** DirectKey category identifiers (match HA service values). */
+export const DIRECTKEY_CATEGORIES = [
+  "espresso",
+  "cafe_creme",
+  "cappuccino",
+  "latte_macchiato",
+  "milk_froth",
+  "milk",
+  "water",
+] as const;
+
+export type DirectKeyCategory = (typeof DIRECTKEY_CATEGORIES)[number];
+
+/** Map display names (from HA attributes) to service category values. */
+export const DIRECTKEY_DISPLAY_TO_KEY: Record<string, DirectKeyCategory> = {
+  "Espresso": "espresso",
+  "Café Crème": "cafe_creme",
+  "Cappuccino": "cappuccino",
+  "Latte Macchiato": "latte_macchiato",
+  "Milk Froth": "milk_froth",
+  "Milk": "milk",
+  "Hot Water": "water",
+};
+
 /** Detect Melitta device prefix from entity list */
 export function detectPrefix(entities: HassEntities): string | null {
   for (const id of Object.keys(entities)) {

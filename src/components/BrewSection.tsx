@@ -1,9 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import type { Connection, HassEntities } from "home-assistant-js-websocket";
-import { getState, getEntity, type RecipeDetails } from "../lib/entities";
-import { selectOption, pressButton, safeCall } from "../lib/ha";
+import { getState, getEntity, type RecipeDetails, type DirectKeyRecipe, type DirectKeyCategory, DIRECTKEY_CATEGORIES } from "../lib/entities";
+import { selectOption, pressButton, brewDirectkey, setTextValue, safeCall } from "../lib/ha";
 import { useRecipeCache } from "../hooks/useRecipeCache";
+import { usePreferences } from "../lib/preferences";
 import { CoffeeIcon } from "./CoffeeIcon";
+import { RecipeEditModal } from "./RecipeEditModal";
+import { Bean, Milk, Droplets, Snowflake, Flame } from "lucide-react";
+import type { TranslationKey } from "../lib/i18n";
 
 interface Props {
   conn: Connection;
@@ -11,35 +15,17 @@ interface Props {
   prefix: string;
 }
 
-/** Monochrome SVG pictograms for process types */
+const PROCESS_ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+  coffee: Bean,
+  milk: Milk,
+  water: Droplets,
+};
+
 function ProcessIcon({ process, className }: { process: string; className?: string }) {
-  const cls = className || "w-4 h-4";
-  if (process === "coffee") {
-    // Coffee bean
-    return (
-      <svg viewBox="0 0 24 24" fill="currentColor" className={cls}>
-        <path d="M12 2C9.5 2 7.1 3.3 5.8 5.5c-1.7 2.9-1.4 6.6.8 9.1C8.4 16.6 10.1 18 12 18s3.6-1.4 5.4-3.4c2.2-2.5 2.5-6.2.8-9.1C16.9 3.3 14.5 2 12 2zm0 14c-1.3 0-2.7-1-4.2-2.8-1.8-2-2-4.9-.7-7.2C8.2 4.2 10 3.2 12 3.2S15.8 4.2 16.9 6c1.3 2.3 1.1 5.2-.7 7.2C14.7 15 13.3 16 12 16z" />
-        <path d="M12 5c-1.1 0-2.1.6-2.7 1.5-.8 1.2-.8 2.8.1 4C10.3 11.7 11.1 12.5 12 12.5s1.7-.8 2.6-2c.9-1.2.9-2.8.1-4C14.1 5.6 13.1 5 12 5z" />
-      </svg>
-    );
-  }
-  if (process === "milk") {
-    // Milk drop
-    return (
-      <svg viewBox="0 0 24 24" fill="currentColor" className={cls}>
-        <path d="M12 2.5c-.3 0-.5.1-.7.3C9.5 5 7 8.5 7 12c0 2.8 2.2 5 5 5s5-2.2 5-5c0-3.5-2.5-7-4.3-9.2-.2-.2-.4-.3-.7-.3zM12 16c-2.2 0-4-1.8-4-4 0-2.8 2-5.8 4-8.2 2 2.4 4 5.4 4 8.2 0 2.2-1.8 4-4 4z" />
-      </svg>
-    );
-  }
-  if (process === "water") {
-    // Water droplet
-    return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={cls}>
-        <path d="M12 3L7 11.5C5.8 13.6 6.5 16.3 8.5 17.7 9.5 18.4 10.7 18.8 12 18.8s2.5-.4 3.5-1.1c2-1.4 2.7-4.1 1.5-6.2L12 3z" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
-  }
-  return null;
+  const Icon = PROCESS_ICONS[process];
+  if (!Icon) return null;
+  const size = className?.includes("w-5") ? 20 : 16;
+  return <Icon size={size} className={className} />;
 }
 
 const INTENSITY_DOTS: Record<string, number> = {
@@ -51,22 +37,12 @@ const INTENSITY_DOTS: Record<string, number> = {
 };
 
 function TempIcon({ temp, className }: { temp: string; className?: string }) {
-  const cls = className || "w-3.5 h-3.5";
+  const size = className?.includes("w-4") ? 16 : 14;
   if (temp === "cold" || temp === "low") {
-    // Snowflake
-    return (
-      <svg viewBox="0 0 24 24" fill="currentColor" className={cls}>
-        <path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1M12 2l-2 3h4l-2-3zM12 22l2-3h-4l2 3zM2 12l3 2v-4l-3 2zM22 12l-3-2v4l3-2z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
+    return <Snowflake size={size} className={className} />;
   }
   if (temp === "high") {
-    // Flame
-    return (
-      <svg viewBox="0 0 24 24" fill="currentColor" className={cls}>
-        <path d="M12 2c0 4-4 6-4 10a4 4 0 008 0c0-4-4-6-4-10zm0 14a2 2 0 01-2-2c0-1.5 2-3 2-5 0 2 2 3.5 2 5a2 2 0 01-2 2z" />
-      </svg>
-    );
+    return <Flame size={size} className={className} />;
   }
   return null;
 }
@@ -77,16 +53,21 @@ function IntensityDots({ level }: { level: number }) {
       {[1, 2, 3, 4, 5].map((n) => (
         <span
           key={n}
-          className={`inline-block w-2 h-2 rounded-full ${
-            n <= level ? "bg-white" : "bg-neutral-600"
-          }`}
+          className="inline-block w-2 h-2 rounded-full"
+          style={{ background: n <= level ? "var(--text-primary)" : "var(--text-tertiary)" }}
         />
       ))}
     </span>
   );
 }
 
-function RecipeInfo({ details, vertical, animated }: { details: RecipeDetails; vertical?: boolean; animated?: boolean }) {
+function RecipeInfo({ details, vertical, animated, compact, t }: {
+  details: RecipeDetails;
+  vertical?: boolean;
+  animated?: boolean;
+  compact?: boolean;
+  t: (key: TranslationKey) => string;
+}) {
   const components: { process: string; intensity: string; temp: string; shots: number; ml: number }[] = [];
   if (details.c1_process && details.c1_process !== "none") {
     components.push({
@@ -108,32 +89,53 @@ function RecipeInfo({ details, vertical, animated }: { details: RecipeDetails; v
   }
   if (components.length === 0) return null;
 
-  const textCls = vertical ? "text-neutral-200" : "text-neutral-400";
+  if (compact) {
+    return (
+      <div className="flex flex-col gap-1 items-center">
+        {components.map((c, i) => (
+          <div
+            key={i}
+            className={`flex items-center gap-1.5 text-[11px] ${animated ? "recipe-item-enter" : ""}`}
+            style={animated ? { animationDelay: `${i * 60 + 80}ms` } : undefined}
+          >
+            <ProcessIcon process={c.process} className="w-3.5 h-3.5 shrink-0" />
+            <span className="font-semibold tabular-nums text-primary">
+              {c.ml}<span className="text-tertiary text-[9px] font-normal">ml</span>
+            </span>
+            {c.process === "coffee" && (
+              <IntensityDots level={INTENSITY_DOTS[c.intensity] || 3} />
+            )}
+            <TempIcon temp={c.temp} className="w-3 h-3 shrink-0" />
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className={vertical ? "flex flex-col gap-3 items-center" : "flex gap-6 justify-center"}>
       {components.map((c, i) => (
         <div
           key={i}
-          className={`flex flex-col gap-1 items-center text-sm ${textCls} ${animated ? "recipe-item-enter" : ""}`}
+          className={`flex flex-col gap-1 items-center text-sm ${animated ? "recipe-item-enter" : ""}`}
           style={animated ? { animationDelay: `${i * 80 + 100}ms` } : undefined}
         >
-          {/* Row 1: icon + volume + temperature */}
           <div className="flex items-center gap-2">
             <ProcessIcon process={c.process} className="w-5 h-5 shrink-0" />
-            <span className="font-semibold tabular-nums text-white">{c.ml}<span className="text-neutral-500 text-xs font-normal">ml</span></span>
+            <span className="font-semibold tabular-nums text-primary">
+              {c.ml}<span className="text-tertiary text-xs font-normal">ml</span>
+            </span>
             <TempIcon temp={c.temp} className="w-4 h-4 shrink-0" />
           </div>
-          {/* Row 2: intensity + shots (coffee) or type label */}
           <div className="flex items-center gap-2">
             {c.process === "coffee" ? (
               <>
                 <IntensityDots level={INTENSITY_DOTS[c.intensity] || 3} />
-                {c.shots > 0 && <span className="text-neutral-400 font-medium">×{c.shots}</span>}
+                {c.shots > 0 && <span className="text-secondary font-medium">{c.shots}x</span>}
               </>
             ) : (
-              <span className="text-neutral-500 text-xs">
-                {c.process === "milk" ? "steamed" : "hot water"}
+              <span className="text-tertiary text-xs">
+                {c.process === "milk" ? t("process.steamed") : t("process.hot_water")}
               </span>
             )}
           </div>
@@ -143,49 +145,36 @@ function RecipeInfo({ details, vertical, animated }: { details: RecipeDetails; v
   );
 }
 
-const SERVICE_ICONS: Record<string, { icon: React.ReactElement; label: string; sub: string }> = {
-  "Cleaning": {
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-16 h-16 text-neutral-400"><path d="M12 3v18M8 7l-3 3 3 3M16 7l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" /><circle cx="12" cy="12" r="9" /></svg>,
-    label: "Cleaning",
-    sub: "Machine is running a cleaning cycle",
-  },
-  "Easy Clean": {
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-16 h-16 text-neutral-400"><path d="M12 3v18M8 7l-3 3 3 3M16 7l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" /><circle cx="12" cy="12" r="9" /></svg>,
-    label: "Easy Clean",
-    sub: "Quick rinse cycle in progress",
-  },
-  "Intensive Clean": {
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-16 h-16 text-neutral-400"><path d="M12 3v18M8 7l-3 3 3 3M16 7l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" /><circle cx="12" cy="12" r="9" /></svg>,
-    label: "Intensive Clean",
-    sub: "Deep cleaning cycle in progress",
-  },
-  "Descaling": {
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-16 h-16 text-neutral-400"><path d="M12 3L7 11.5C5.8 13.6 6.5 16.3 8.5 17.7 9.5 18.4 10.7 18.8 12 18.8s2.5-.4 3.5-1.1c2-1.4 2.7-4.1 1.5-6.2L12 3z" strokeLinecap="round" strokeLinejoin="round" /></svg>,
-    label: "Descaling",
-    sub: "Descaling cycle in progress",
-  },
-  "Evaporating": {
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-16 h-16 text-neutral-400"><path d="M8 16c0-4 4-6 4-10s4 6 4 10a4 4 0 01-8 0z" /><path d="M6 20h12" strokeLinecap="round" /></svg>,
-    label: "Evaporating",
-    sub: "Steam system purging",
-  },
-  "Busy": {
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-16 h-16 text-neutral-400"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" strokeLinecap="round" strokeLinejoin="round" /></svg>,
-    label: "Busy",
-    sub: "Machine is processing",
-  },
+const SERVICE_KEYS: Record<string, { labelKey: TranslationKey; subKey: TranslationKey }> = {
+  Cleaning: { labelKey: "service.cleaning", subKey: "service.cleaning_sub" },
+  "Easy Clean": { labelKey: "service.easy_clean", subKey: "service.easy_clean_sub" },
+  "Intensive Clean": { labelKey: "service.intensive_clean", subKey: "service.intensive_clean_sub" },
+  Descaling: { labelKey: "service.descaling", subKey: "service.descaling_sub" },
+  Evaporating: { labelKey: "service.evaporating", subKey: "service.evaporating_sub" },
+  Busy: { labelKey: "service.busy", subKey: "service.busy_sub" },
 };
 
-const ACTION_ICONS: Record<string, string> = {
-  "Brew Unit Removed": "Insert the brew unit",
-  "Trays Missing": "Insert the drip tray",
-  "Empty Trays": "Empty the drip tray and grounds container",
-  "Fill Water": "Refill the water tank",
-  "Close Powder Lid": "Close the powder chute lid",
-  "Fill Powder": "Add ground coffee to the powder chute",
+const ACTION_KEYS: Record<string, TranslationKey> = {
+  "Brew Unit Removed": "action.brew_unit_removed",
+  "Trays Missing": "action.trays_missing",
+  "Empty Trays": "action.empty_trays",
+  "Fill Water": "action.fill_water",
+  "Close Powder Lid": "action.close_powder_lid",
+  "Fill Powder": "action.fill_powder",
+};
+
+const DK_LABEL_KEYS: Record<DirectKeyCategory, TranslationKey> = {
+  espresso: "brew.dk_espresso",
+  cafe_creme: "brew.dk_cafe_creme",
+  cappuccino: "brew.dk_cappuccino",
+  latte_macchiato: "brew.dk_latte_macchiato",
+  milk_froth: "brew.dk_milk_froth",
+  milk: "brew.dk_milk",
+  water: "brew.dk_water",
 };
 
 export function BrewSection({ conn, entities, prefix }: Props) {
+  const { t } = usePreferences();
   const machineState = getState(entities, prefix, "sensor", "state");
   const isReady = machineState === "Ready";
   const isBrewing = machineState === "Brewing";
@@ -193,214 +182,245 @@ export function BrewSection({ conn, entities, prefix }: Props) {
   const progress = getState(entities, prefix, "sensor", "progress");
   const actionRequired = getState(entities, prefix, "sensor", "action_required");
   const hasAction = actionRequired && actionRequired !== "None";
-  const progressNum = progress
-    ? Math.min(100, Math.max(0, parseFloat(progress)))
-    : 0;
+  const progressNum = progress ? Math.min(100, Math.max(0, parseFloat(progress))) : 0;
 
   const selectedProfile = getState(entities, prefix, "select", "profile");
   const selectedRecipe = getState(entities, prefix, "select", "recipe");
-
-  // Recipe/profile data from cache (localStorage) — static, never changes at runtime
-  const { profileOptions, recipeOptions, allRecipes } = useRecipeCache(entities, prefix);
+  const { profileOptions, recipeOptions, allRecipes, directKey } = useRecipeCache(entities, prefix);
   const selectedDetails = allRecipes[selectedRecipe || ""] as RecipeDetails | undefined;
   const hasSelectedDetails = selectedDetails?.c1_process !== undefined;
 
   const brewId = `button.${prefix}_brew`;
   const cancelId = `button.${prefix}_cancel`;
+  const [editingDk, setEditingDk] = useState<{ category: DirectKeyCategory; recipe: DirectKeyRecipe } | null>(null);
+  const [selectedDk, setSelectedDk] = useState<DirectKeyCategory | null>(null);
+  const [editingProfileIdx, setEditingProfileIdx] = useState<number | null>(null);
+  const [editingProfileName, setEditingProfileName] = useState("");
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressTriggered = useRef(false);
+  const dkLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dkLongPressTriggered = useRef(false);
+  const profileNameInputRef = useRef<HTMLInputElement>(null);
 
-  const [profileOpen, setProfileOpen] = useState(false);
+  const activeProfileId = directKey?.activeProfile ?? 0;
+  const activeProfileRecipes = directKey?.profiles[activeProfileId] ?? {};
+  const hasDkRecipes = Object.keys(activeProfileRecipes).length > 0;
 
-  // Brewing state
+  const startDkLongPress = useCallback((cat: DirectKeyCategory, recipe: DirectKeyRecipe) => {
+    dkLongPressTriggered.current = false;
+    dkLongPressTimer.current = setTimeout(() => {
+      dkLongPressTriggered.current = true;
+      setEditingDk({ category: cat, recipe });
+    }, 500);
+  }, []);
+
+  const cancelDkLongPress = useCallback(() => {
+    if (dkLongPressTimer.current) {
+      clearTimeout(dkLongPressTimer.current);
+      dkLongPressTimer.current = null;
+    }
+  }, []);
+
+  const handleDkClick = useCallback((cat: DirectKeyCategory) => {
+    if (dkLongPressTriggered.current) return;
+    if (selectedDk === cat) {
+      safeCall(() => brewDirectkey(conn, brewId, cat));
+    } else {
+      setSelectedDk(cat);
+    }
+  }, [conn, brewId, selectedDk]);
+
+  const handleDkDoubleClick = useCallback((cat: DirectKeyCategory, recipe: DirectKeyRecipe) => {
+    setEditingDk({ category: cat, recipe });
+  }, []);
+
+  const startLongPress = useCallback((idx: number, name: string) => {
+    longPressTriggered.current = false;
+    longPressTimer.current = setTimeout(() => {
+      longPressTriggered.current = true;
+      if (idx > 0) {
+        setEditingProfileIdx(idx);
+        setEditingProfileName(name);
+        setTimeout(() => profileNameInputRef.current?.focus(), 50);
+      }
+    }, 500);
+  }, []);
+
+  const cancelLongPress = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
+
+  const handleProfileClick = useCallback((_idx: number, opt: string) => {
+    if (longPressTriggered.current) return;
+    if (editingProfileIdx !== null) return;
+    if (opt === selectedProfile) return;
+    safeCall(() => selectOption(conn, `select.${prefix}_profile`, opt));
+  }, [conn, prefix, editingProfileIdx, selectedProfile]);
+
+  const handleProfileDoubleClick = useCallback((idx: number, name: string) => {
+    if (idx > 0) {
+      setEditingProfileIdx(idx);
+      setEditingProfileName(name);
+      setTimeout(() => profileNameInputRef.current?.focus(), 50);
+    }
+  }, []);
+
+  const commitProfileName = useCallback(() => {
+    if (editingProfileIdx !== null && editingProfileName.trim()) {
+      const entityId = `text.${prefix}_profile_${editingProfileIdx}_name`;
+      safeCall(() => setTextValue(conn, entityId, editingProfileName.trim()));
+    }
+    setEditingProfileIdx(null);
+  }, [editingProfileIdx, editingProfileName, conn, prefix]);
+
   if (isBrewing) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-8 px-6">
         <CoffeeIcon recipe={activity || "Espresso"} size={260} />
-
         <div className="flex flex-col items-center gap-4 w-full max-w-xs">
-          {/* Recipe info card — blurred dark glass */}
-          <div className="w-full rounded-2xl backdrop-blur-xl bg-white/[0.04] ring-1 ring-white/[0.08] px-5 py-4">
-            <div className="text-lg font-light text-white tracking-wide text-center">{activity}</div>
+          <div className="w-full rounded-2xl backdrop-blur-xl ring-1 ring-border px-5 py-4" style={{ background: "var(--surface-card)" }}>
+            <div className="text-lg font-light text-primary tracking-wide text-center">{activity}</div>
             {hasSelectedDetails && selectedDetails && (
               <div className="flex justify-center mt-2">
-                <RecipeInfo details={selectedDetails} />
+                <RecipeInfo details={selectedDetails} t={t} />
               </div>
             )}
             {progress && (
               <div className="mt-3 flex items-center gap-3">
-                <div className="flex-1 h-px bg-neutral-800 overflow-hidden rounded-full">
+                <div className="flex-1 h-px overflow-hidden rounded-full" style={{ background: "var(--slider-track)" }}>
                   <div
-                    className="h-full bg-white transition-all duration-500"
-                    style={{ width: `${progressNum}%` }}
+                    className="h-full transition-all duration-500"
+                    style={{ width: `${progressNum}%`, background: "var(--accent)" }}
                   />
                 </div>
-                <span className="text-neutral-500 text-xs tabular-nums w-8 text-right">{progressNum}%</span>
+                <span className="text-tertiary text-xs tabular-nums w-8 text-right">{progressNum}%</span>
               </div>
             )}
           </div>
-
           <button
             onClick={() => safeCall(() => pressButton(conn, cancelId))}
-            className="rounded-lg px-8 py-2.5 text-sm font-medium text-neutral-500 ring-1 ring-neutral-700 hover:bg-neutral-900 transition active:scale-[0.98]"
+            className="rounded-lg px-8 py-2.5 text-sm font-medium text-secondary ring-1 ring-border hover:ring-border-hover transition active:scale-[0.98]"
           >
-            Cancel
+            {t("brew.cancel")}
           </button>
         </div>
       </div>
     );
   }
 
-  // Offline / disconnected
   if (!machineState || machineState === "Off" || machineState === "offline") {
     return (
       <div className="flex h-full flex-col items-center justify-center px-8">
         <div className="flex flex-col items-center gap-6 max-w-sm">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" className="w-20 h-20 text-neutral-700">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" className="w-20 h-20 text-tertiary">
             <circle cx="12" cy="12" r="10" />
             <path d="M12 7v1M12 16v1M7.5 9.5l.7.7M15.8 13.8l.7.7M7 12h1M16 12h1M7.5 14.5l.7-.7M15.8 10.2l.7-.7" strokeLinecap="round" />
           </svg>
           <div className="text-center">
-            <div className="text-xl font-light text-neutral-300 tracking-wide">Machine Offline</div>
-            <div className="text-sm text-neutral-600 mt-2 leading-relaxed">
-              The coffee machine is powered off or out of range.
-              Turn it on and wait for the Bluetooth connection.
-            </div>
+            <div className="text-xl font-light text-primary tracking-wide">{t("brew.offline_title")}</div>
+            <div className="text-sm text-tertiary mt-2 leading-relaxed">{t("brew.offline_desc")}</div>
           </div>
-          <div className="w-12 h-px bg-neutral-800" />
+          <div className="w-12 h-px" style={{ background: "var(--border)" }} />
         </div>
       </div>
     );
   }
 
-  // Service states (cleaning, descaling, etc.)
-  const serviceInfo = machineState ? SERVICE_ICONS[machineState] : null;
-  if (serviceInfo && !isReady && !isBrewing) {
+  const serviceKeys = machineState ? SERVICE_KEYS[machineState] : null;
+  if (serviceKeys && !isReady && !isBrewing) {
     return (
       <div className="flex h-full flex-col items-center justify-center px-8">
         <div className="flex flex-col items-center gap-6 max-w-sm">
-          {serviceInfo.icon}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-16 h-16 text-secondary">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 7v5l3 3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
           <div className="text-center">
-            <div className="text-xl font-light text-white tracking-wide">{serviceInfo.label}</div>
-            <div className="text-sm text-neutral-500 mt-2 leading-relaxed">{serviceInfo.sub}</div>
+            <div className="text-xl font-light text-primary tracking-wide">{t(serviceKeys.labelKey)}</div>
+            <div className="text-sm text-tertiary mt-2 leading-relaxed">{t(serviceKeys.subKey)}</div>
           </div>
           {progress && (
             <div className="w-48 flex items-center gap-3">
-              <div className="flex-1 h-px bg-neutral-800 overflow-hidden rounded-full">
-                <div
-                  className="h-full bg-neutral-400 transition-all duration-500"
-                  style={{ width: `${progressNum}%` }}
-                />
+              <div className="flex-1 h-px overflow-hidden rounded-full" style={{ background: "var(--slider-track)" }}>
+                <div className="h-full transition-all duration-500" style={{ width: `${progressNum}%`, background: "var(--text-secondary)" }} />
               </div>
-              <span className="text-neutral-600 text-xs tabular-nums">{progressNum}%</span>
+              <span className="text-tertiary text-xs tabular-nums">{progressNum}%</span>
             </div>
           )}
-          <div className="w-12 h-px bg-neutral-800" />
+          <div className="w-12 h-px" style={{ background: "var(--border)" }} />
         </div>
       </div>
     );
   }
 
-  const actionHint = ACTION_ICONS[actionRequired || ""] || "";
+  const actionKey = ACTION_KEYS[actionRequired || ""];
+  const actionHint = actionKey ? t(actionKey) : "";
 
   return (
     <div className="relative flex h-full flex-col">
-      {/* Action required — modal overlay with blur */}
       {hasAction && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center backdrop-blur-sm bg-black/50">
-          <div className="flex flex-col items-center gap-5 max-w-xs rounded-2xl bg-neutral-900/90 ring-1 ring-white/[0.08] px-8 py-8">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" className="w-14 h-14 text-neutral-400">
+        <div className="absolute inset-0 z-30 flex items-center justify-center backdrop-blur-sm" style={{ background: "var(--overlay-bg)" }}>
+          <div className="flex flex-col items-center gap-5 max-w-xs rounded-2xl ring-1 ring-border px-8 py-8" style={{ background: "var(--surface)" }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" className="w-14 h-14 text-secondary">
               <circle cx="12" cy="12" r="10" />
               <path d="M12 8v5M12 16v.5" strokeLinecap="round" strokeWidth="1.5" />
             </svg>
             <div className="text-center">
-              <div className="text-lg font-light text-white tracking-wide">{actionRequired}</div>
-              {actionHint && (
-                <div className="text-sm text-neutral-500 mt-2 leading-relaxed">{actionHint}</div>
-              )}
+              <div className="text-lg font-light text-primary tracking-wide">{actionRequired}</div>
+              {actionHint && <div className="text-sm text-tertiary mt-2 leading-relaxed">{actionHint}</div>}
             </div>
           </div>
         </div>
       )}
 
-      {/* Profile menu */}
+      {/* Profile tab bar */}
       {isReady && profileOptions.length > 1 && (
-        <div className="relative shrink-0 self-end mr-4 mt-2">
-          <button
-            onClick={() => setProfileOpen(!profileOpen)}
-            className="flex flex-col gap-[3px] p-2 rounded-lg hover:bg-neutral-800 transition"
-          >
-            <span className="block w-4 h-px bg-neutral-400" />
-            <span className="block w-4 h-px bg-neutral-400" />
-            <span className="block w-4 h-px bg-neutral-400" />
-          </button>
-          {profileOpen && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setProfileOpen(false)} />
-              <div className="absolute right-0 top-full mt-1 z-20 min-w-[140px] rounded-lg bg-neutral-900 ring-1 ring-neutral-700 py-1 shadow-xl">
-                {profileOptions.map((opt) => (
-                  <button
-                    key={opt}
-                    onClick={() => {
-                      safeCall(() => selectOption(conn, `select.${prefix}_profile`, opt));
-                      setProfileOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-2 text-sm transition ${
-                      opt === selectedProfile
-                        ? "text-white bg-neutral-800"
-                        : "text-neutral-400 hover:text-white hover:bg-neutral-800/60"
-                    }`}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Recipe grid */}
-      {isReady && recipeOptions.length > 0 && (
-        <div className="flex-1 min-h-0">
-          <div
-            className="h-full grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 auto-rows-fr"
-            style={{ gap: "1px", background: "rgba(255,255,255,0.06)" }}
-          >
-            {recipeOptions.map((opt) => {
-              const isSelected = opt === selectedRecipe;
-              const details = isSelected ? allRecipes[opt] as RecipeDetails | undefined : undefined;
-              const hasDetails = details?.c1_process !== undefined;
+        <div className="shrink-0" style={{ background: "var(--profile-bar-bg, #0a0a0a)" }}>
+          <div className="flex overflow-x-auto">
+            {profileOptions.map((opt, idx) => {
+              const isActive = opt === selectedProfile;
+              const isEditing = editingProfileIdx === idx;
               return (
                 <button
-                  key={opt}
-                  onClick={() => {
-                    if (isSelected && getEntity(entities, prefix, "button", "brew")) {
-                      safeCall(() => pressButton(conn, brewId));
-                    } else {
-                      safeCall(() => selectOption(conn, `select.${prefix}_recipe`, opt));
-                    }
-                  }}
-                  className={`relative flex flex-col items-center justify-center p-2 transition-colors duration-300 active:scale-[0.97] overflow-hidden ${
-                    isSelected
-                      ? "bg-neutral-900"
-                      : "bg-black hover:bg-neutral-950"
+                  key={idx}
+                  onClick={() => handleProfileClick(idx, opt)}
+                  onDoubleClick={() => handleProfileDoubleClick(idx, opt)}
+                  onPointerDown={() => startLongPress(idx, opt)}
+                  onPointerUp={cancelLongPress}
+                  onPointerLeave={cancelLongPress}
+                  onContextMenu={(e) => e.preventDefault()}
+                  className={`relative flex-1 min-w-[80px] px-4 py-3 text-[11px] tracking-widest uppercase font-medium transition-colors whitespace-nowrap ${
+                    isActive ? "text-primary" : "text-tertiary hover:text-secondary"
                   }`}
+                  style={{ letterSpacing: "0.12em" }}
                 >
-                  <div className={isSelected && hasDetails ? "recipe-icon-fade" : ""}>
-                    <CoffeeIcon recipe={opt} size={120} />
-                  </div>
-                  {/* Recipe details overlay — animated entrance */}
-                  {isSelected && hasDetails && details && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 recipe-overlay-enter">
-                      <RecipeInfo details={details} vertical animated />
-                    </div>
+                  {isEditing ? (
+                    <input
+                      ref={profileNameInputRef}
+                      type="text"
+                      value={editingProfileName}
+                      onChange={(e) => setEditingProfileName(e.target.value)}
+                      onBlur={commitProfileName}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitProfileName();
+                        if (e.key === "Escape") setEditingProfileIdx(null);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-full text-center text-[11px] tracking-widest uppercase font-medium outline-none bg-transparent border-b"
+                      style={{ color: "var(--text-primary)", borderColor: "var(--accent)" }}
+                    />
+                  ) : (
+                    opt
                   )}
-                  <span className={`absolute bottom-0 left-0 right-0 text-center text-xs font-semibold py-1.5 transition-all duration-300 z-10 ${
-                    isSelected
-                      ? "bg-white text-black"
-                      : "bg-transparent text-neutral-500 font-medium"
-                  }`}>
-                    {isSelected ? `Brew ${opt}` : opt}
-                  </span>
+                  {isActive && (
+                    <span
+                      className="absolute bottom-0 left-3 right-3 h-px"
+                      style={{ background: "linear-gradient(90deg, transparent, var(--text-secondary), transparent)" }}
+                    />
+                  )}
                 </button>
               );
             })}
@@ -408,6 +428,128 @@ export function BrewSection({ conn, entities, prefix }: Props) {
         </div>
       )}
 
+      {/* DirectKey recipe grid */}
+      {isReady && hasDkRecipes && (
+        <>
+          <div className="shrink-0 h-px" style={{ background: "linear-gradient(90deg, transparent 5%, var(--recipe-grid-gap) 50%, transparent 95%)" }} />
+          <div className="shrink-0">
+            <div
+              className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7"
+              style={{ gap: "1px", background: "var(--recipe-grid-gap)" }}
+            >
+              {DIRECTKEY_CATEGORIES.map((cat) => {
+                const recipe = activeProfileRecipes[cat];
+                if (!recipe) return null;
+                const label = t(DK_LABEL_KEYS[cat]);
+                const isSelected = selectedDk === cat;
+                const hasDetails = recipe.c1_process !== undefined && recipe.c1_process !== "none";
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => handleDkClick(cat)}
+                    onDoubleClick={() => handleDkDoubleClick(cat, recipe)}
+                    onPointerDown={() => startDkLongPress(cat, recipe)}
+                    onPointerUp={cancelDkLongPress}
+                    onPointerLeave={cancelDkLongPress}
+                    onContextMenu={(e) => e.preventDefault()}
+                    className="relative flex flex-col items-center justify-center p-2 transition-colors duration-300 active:scale-[0.97] overflow-hidden"
+                    style={{ background: isSelected ? "var(--recipe-selected-bg)" : "var(--bg)" }}
+                  >
+                    <div className={isSelected && hasDetails ? "recipe-icon-fade" : ""}>
+                      <CoffeeIcon recipe={label} size={80} />
+                    </div>
+                    {isSelected && hasDetails && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center recipe-overlay-enter" style={{ background: "var(--overlay-bg)" }}>
+                        <RecipeInfo details={recipe} compact animated t={t} />
+                      </div>
+                    )}
+                    <span
+                      className="absolute bottom-0 left-0 right-0 text-center text-[10px] py-1 transition-all duration-300 z-10"
+                      style={
+                        isSelected
+                          ? { background: "var(--recipe-label-bg)", color: "var(--recipe-label-text)", fontWeight: 600 }
+                          : { background: "transparent", color: "var(--text-tertiary)", fontWeight: 500 }
+                      }
+                    >
+                      {isSelected ? `${t("brew.brew")} ${label}` : label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
+      {editingDk && (
+        <RecipeEditModal
+          conn={conn}
+          brewEntityId={brewId}
+          category={editingDk.category}
+          categoryLabel={t(DK_LABEL_KEYS[editingDk.category])}
+          recipe={editingDk.recipe}
+          profileId={activeProfileId}
+          onClose={() => setEditingDk(null)}
+        />
+      )}
+
+      {isReady && recipeOptions.length > 0 && (
+        <div className="flex-1 min-h-0 flex flex-col">
+          {hasDkRecipes && (
+            <div className="shrink-0 flex items-center gap-3 px-4 py-2" style={{ background: "var(--bg)" }}>
+              <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, var(--recipe-grid-gap), transparent)" }} />
+              <span className="text-[9px] tracking-[0.2em] uppercase text-tertiary font-medium" style={{ opacity: 0.4 }}>
+                {t("brew.all_recipes")}
+              </span>
+              <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, transparent, var(--recipe-grid-gap))" }} />
+            </div>
+          )}
+          <div
+            className="flex-1 min-h-0 grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 auto-rows-fr"
+            style={{ gap: "1px", background: "var(--recipe-grid-gap)" }}
+          >
+            {recipeOptions.map((opt) => {
+              const isSelected = opt === selectedRecipe && !selectedDk;
+              const details = isSelected ? allRecipes[opt] as RecipeDetails | undefined : undefined;
+              const hasDetails = details?.c1_process !== undefined;
+              return (
+                <button
+                  key={opt}
+                  onClick={() => {
+                    setSelectedDk(null);
+                    if (opt === selectedRecipe && !selectedDk && getEntity(entities, prefix, "button", "brew")) {
+                      safeCall(() => pressButton(conn, brewId));
+                    } else {
+                      safeCall(() => selectOption(conn, `select.${prefix}_recipe`, opt));
+                    }
+                  }}
+                  className="relative flex flex-col items-center justify-center p-2 transition-colors duration-300 active:scale-[0.97] overflow-hidden"
+                  style={{ background: isSelected ? "var(--recipe-selected-bg)" : "var(--bg)" }}
+                >
+                  <div className={isSelected && hasDetails ? "recipe-icon-fade" : ""}>
+                    <CoffeeIcon recipe={opt} size={120} />
+                  </div>
+                  {isSelected && hasDetails && details && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center recipe-overlay-enter" style={{ background: "var(--overlay-bg)" }}>
+                      <RecipeInfo details={details} vertical animated t={t} />
+                    </div>
+                  )}
+                  <span
+                    className="absolute bottom-0 left-0 right-0 text-center text-xs py-1.5 transition-all duration-300 z-10"
+                    style={
+                      isSelected
+                        ? { background: "var(--recipe-label-bg)", color: "var(--recipe-label-text)", fontWeight: 600 }
+                        : { background: "transparent", color: "var(--text-tertiary)", fontWeight: 500 }
+                    }
+                  >
+                    {isSelected ? `${t("brew.brew")} ${opt}` : opt}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

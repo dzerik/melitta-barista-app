@@ -1,5 +1,112 @@
 @import "tailwindcss";
 
+/* ═══ Theme tokens ═══ */
+:root,
+[data-theme="dark"] {
+  --bg: #000000;
+  --bg-elevated: #0a0a0a;
+  --surface: #171717;
+  --surface-card: rgba(255,255,255,0.03);
+  --surface-card-active: rgba(255,255,255,0.06);
+  --surface-elevated: rgba(255,255,255,0.08);
+  --border: rgba(255,255,255,0.06);
+  --border-hover: rgba(255,255,255,0.12);
+  --border-active: rgba(255,255,255,0.15);
+  --text-primary: #ffffff;
+  --text-secondary: #a3a3a3;
+  --text-tertiary: #FFFFFF;
+  --text-inverse: #000000;
+  --accent: #ffffff;
+  --accent-muted: rgba(255,255,255,0.12);
+  --btn-primary-bg: #ffffff;
+  --btn-primary-text: #000000;
+  --btn-primary-hover: #e5e5e5;
+  --btn-secondary-bg: #262626;
+  --btn-secondary-text: #d4d4d4;
+  --btn-secondary-hover: #404040;
+  --toggle-on-bg: #ffffff;
+  --toggle-on-knob: #000000;
+  --toggle-off-bg: #404040;
+  --toggle-off-knob: #a3a3a3;
+  --slider-track: #262626;
+  --slider-thumb: #ffffff;
+  --input-bg: rgba(255,255,255,0.04);
+  --input-border: #404040;
+  --input-focus: #737373;
+  --error-bg: rgba(127,29,29,0.4);
+  --error-text: #f87171;
+  --error-border: #7f1d1d;
+  --overlay-bg: rgba(0,0,0,0.80);
+  --glass-stroke: rgba(255,255,255,0.45);
+  --glass-fill: rgba(255,255,255,0.06);
+  --glass-reflection: rgba(255,255,255,0.18);
+  --recipe-grid-gap: rgba(255,255,255,0.06);
+  --recipe-selected-bg: #171717;
+  --recipe-label-bg: #ffffff;
+  --recipe-label-text: #000000;
+  --profile-bar-bg: #080808;
+}
+
+[data-theme="light"] {
+  --bg: #f5f0eb;
+  --bg-elevated: #faf7f4;
+  --surface: #ffffff;
+  --surface-card: rgba(0,0,0,0.03);
+  --surface-card-active: rgba(0,0,0,0.06);
+  --surface-elevated: rgba(0,0,0,0.05);
+  --border: rgba(0,0,0,0.08);
+  --border-hover: rgba(0,0,0,0.15);
+  --border-active: rgba(0,0,0,0.20);
+  --text-primary: #1a1a1a;
+  --text-secondary: #6b6b6b;
+  --text-tertiary: #a3a3a3;
+  --text-inverse: #ffffff;
+  --accent: #6b4c3b;
+  --accent-muted: rgba(107,76,59,0.12);
+  --btn-primary-bg: #3d2b1f;
+  --btn-primary-text: #ffffff;
+  --btn-primary-hover: #5a3e2e;
+  --btn-secondary-bg: #e8e0d8;
+  --btn-secondary-text: #4a4a4a;
+  --btn-secondary-hover: #d9cfc5;
+  --toggle-on-bg: #6b4c3b;
+  --toggle-on-knob: #ffffff;
+  --toggle-off-bg: #d4cdc6;
+  --toggle-off-knob: #ffffff;
+  --slider-track: #e0d8d0;
+  --slider-thumb: #6b4c3b;
+  --input-bg: rgba(0,0,0,0.03);
+  --input-border: #d4cdc6;
+  --input-focus: #6b4c3b;
+  --error-bg: rgba(254,226,226,0.6);
+  --error-text: #dc2626;
+  --error-border: #fca5a5;
+  --overlay-bg: rgba(245,240,235,0.85);
+  --glass-stroke: rgba(0,0,0,0.25);
+  --glass-fill: rgba(0,0,0,0.04);
+  --glass-reflection: rgba(255,255,255,0.35);
+  --recipe-grid-gap: rgba(0,0,0,0.06);
+  --recipe-selected-bg: #faf7f4;
+  --recipe-label-bg: #3d2b1f;
+  --recipe-label-text: #ffffff;
+  --profile-bar-bg: #1a1410;
+}
+
+/* ═══ Utility classes using tokens ═══ */
+.text-primary { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-tertiary { color: var(--text-tertiary); }
+.text-accent { color: var(--accent); }
+.bg-page { background: var(--bg); }
+.surface { background: var(--surface); }
+.surface-card { background: var(--surface-card); }
+.surface-elevated { background: var(--surface-elevated); }
+.ring-border { --tw-ring-color: var(--border); }
+.ring-border-hover { --tw-ring-color: var(--border-hover); }
+.ring-border-active { --tw-ring-color: var(--border-active); }
+.ring-accent { --tw-ring-color: var(--accent); }
+.border-border { border-color: var(--border); }
+
 html, body, #root {
   height: 100%;
   margin: 0;
@@ -7,11 +114,16 @@ html, body, #root {
 
 body {
   font-family: "Inter", system-ui, -apple-system, sans-serif;
-  background: #000;
-  color: #e5e5e5;
+  background: var(--bg);
+  color: var(--text-primary);
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   overflow: hidden;
+}
+
+/* Range slider thumb — theme-aware */
+input[type="range"]::-webkit-slider-thumb {
+  background: var(--slider-thumb) !important;
 }
 
 /* Recipe overlay animations */
@@ -22,7 +134,7 @@ body {
   }
   to {
     opacity: 1;
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(1px);
   }
 }
 
@@ -100,5 +212,45 @@ body {
 
 .settings-header-enter {
   animation: settings-header-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Status overlay animations */
+@keyframes status-overlay-in {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(12px);
+  }
+}
+
+@keyframes status-content-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes status-icon-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.08); opacity: 0.7; }
+}
+
+.status-overlay-enter {
+  animation: status-overlay-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.status-content-enter {
+  animation: status-content-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+
+.status-icon-pulse {
+  animation: status-icon-pulse 2s ease-in-out infinite;
 }
 

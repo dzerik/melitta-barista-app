@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import type { HassEntities } from "home-assistant-js-websocket";
-import { getEntity, getOptions, type RecipeDetails } from "../lib/entities";
+import { getEntity, getOptions, type RecipeDetails, type DirectKeyData, type DirectKeyRecipe, DIRECTKEY_DISPLAY_TO_KEY } from "../lib/entities";
 
 const STORAGE_KEY = "melitta_recipes";
 
@@ -8,17 +8,20 @@ export interface RecipeCache {
   profileOptions: string[];
   recipeOptions: string[];
   allRecipes: Record<string, RecipeDetails>;
+  directKey: DirectKeyData | null;
 }
 
-function loadCache(): RecipeCache | null {
+const EMPTY: RecipeCache = { profileOptions: [], recipeOptions: [], allRecipes: {}, directKey: null };
+
+function loadCache(): RecipeCache {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
+    if (!raw) return EMPTY;
     const parsed = JSON.parse(raw) as RecipeCache;
     if (parsed.recipeOptions?.length > 0) return parsed;
-    return null;
+    return EMPTY;
   } catch {
-    return null;
+    return EMPTY;
   }
 }
 
@@ -26,37 +29,54 @@ function saveCache(data: RecipeCache): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
+function buildFromEntities(entities: HassEntities, prefix: string): RecipeCache | null {
+  const recipeOpts = getOptions(entities, prefix, "recipe");
+  if (recipeOpts.length === 0) return null;
+
+  const recipeEntity = getEntity(entities, prefix, "select", "recipe");
+  const recipes = (recipeEntity?.attributes?.recipes || {}) as Record<string, RecipeDetails>;
+  const profileOpts = getOptions(entities, prefix, "profile");
+
+  // Read DirectKey data from profile select entity attributes
+  const profileEntity = getEntity(entities, prefix, "select", "profile");
+  let directKey: DirectKeyData | null = null;
+  if (profileEntity?.attributes) {
+    const rawDk = profileEntity.attributes.directkey_recipes as
+      Record<number, Record<string, DirectKeyRecipe>> | undefined;
+    const activeProfile = (profileEntity.attributes.active_profile as number) ?? 0;
+    if (rawDk) {
+      const profiles: DirectKeyData["profiles"] = {};
+      for (const [pidStr, categories] of Object.entries(rawDk)) {
+        const pid = Number(pidStr);
+        profiles[pid] = {};
+        for (const [displayName, recipe] of Object.entries(categories)) {
+          const key = DIRECTKEY_DISPLAY_TO_KEY[displayName] || displayName;
+          profiles[pid][key] = recipe;
+        }
+      }
+      directKey = { activeProfile, profiles };
+    }
+  }
+
+  return { profileOptions: profileOpts, recipeOptions: recipeOpts, allRecipes: recipes, directKey };
+}
+
 /**
- * Caches recipe metadata (options lists + details) in localStorage.
- *
- * Recipe data is hardcoded in the HA integration config and never changes
- * at runtime, so we cache it on first successful load and serve from cache
- * on subsequent app starts — instant recipe grid without waiting for WebSocket.
+ * Caches recipe metadata in localStorage for instant startup.
+ * Uses useState so profile/DirectKey changes trigger re-renders immediately.
  */
 export function useRecipeCache(entities: HassEntities, prefix: string | null): RecipeCache {
-  const cachedRef = useRef<RecipeCache | null>(loadCache());
+  const [cache, setCache] = useState<RecipeCache>(loadCache);
 
   useEffect(() => {
     if (!prefix) return;
 
-    const recipeOpts = getOptions(entities, prefix, "recipe");
-    if (recipeOpts.length === 0) return;
+    const fresh = buildFromEntities(entities, prefix);
+    if (!fresh) return;
 
-    const recipeEntity = getEntity(entities, prefix, "select", "recipe");
-    const recipes = (recipeEntity?.attributes?.recipes || {}) as Record<string, RecipeDetails>;
-    const profileOpts = getOptions(entities, prefix, "profile");
-
-    const fresh: RecipeCache = {
-      profileOptions: profileOpts,
-      recipeOptions: recipeOpts,
-      allRecipes: recipes,
-    };
-
-    cachedRef.current = fresh;
+    setCache(fresh);
     saveCache(fresh);
   }, [entities, prefix]);
 
-  if (cachedRef.current) return cachedRef.current;
-
-  return { profileOptions: [], recipeOptions: [], allRecipes: {} };
+  return cache;
 }

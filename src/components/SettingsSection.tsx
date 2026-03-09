@@ -2,7 +2,9 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import type { Connection, HassEntities } from "home-assistant-js-websocket";
 import { getEntity, getState } from "../lib/entities";
 import { toggleSwitch, setNumber, safeCall } from "../lib/ha";
+import { usePreferences } from "../lib/preferences";
 import { Zap, Bean, Droplets, Clock, Thermometer, ShieldOff, Check, RotateCcw } from "lucide-react";
+import type { TranslationKey } from "../lib/i18n";
 
 interface Props {
   conn: Connection;
@@ -12,41 +14,41 @@ interface Props {
 
 interface SwitchDef {
   suffix: string;
-  label: string;
-  desc: string;
+  labelKey: TranslationKey;
+  descKey: TranslationKey;
   icon: React.ReactNode;
 }
 
 const SWITCHES: SwitchDef[] = [
   {
     suffix: "energy_saving",
-    label: "Energy Saving",
-    desc: "Reduce power consumption when idle",
+    labelKey: "settings.energy_saving",
+    descKey: "settings.energy_saving_desc",
     icon: <Zap className="w-5 h-5" />,
   },
   {
     suffix: "auto_bean_select",
-    label: "Auto Bean Select",
-    desc: "Automatically choose bean hopper",
+    labelKey: "settings.auto_bean",
+    descKey: "settings.auto_bean_desc",
     icon: <Bean className="w-5 h-5" />,
   },
   {
     suffix: "rinsing_disabled",
-    label: "Rinsing Disabled",
-    desc: "Skip automatic rinsing cycle",
+    labelKey: "settings.rinsing",
+    descKey: "settings.rinsing_desc",
     icon: <ShieldOff className="w-5 h-5" />,
   },
 ];
 
-const LEVEL_LABELS: Record<string, Record<number, string>> = {
-  water_hardness: { 1: "Soft", 2: "Medium", 3: "Hard", 4: "Very Hard" },
-  brew_temperature: { 0: "Low", 1: "Normal", 2: "High" },
+const LEVEL_LABELS: Record<string, Record<number, TranslationKey>> = {
+  water_hardness: { 1: "level.soft", 2: "level.medium", 3: "level.hard", 4: "level.very_hard" },
+  brew_temperature: { 0: "level.low", 1: "level.normal", 2: "level.high" },
 };
 
 interface NumberDef {
   suffix: string;
-  label: string;
-  desc: string;
+  labelKey: TranslationKey;
+  descKey: TranslationKey;
   format: "level" | "minutes";
   icon: React.ReactNode;
 }
@@ -54,38 +56,26 @@ interface NumberDef {
 const NUMBERS: NumberDef[] = [
   {
     suffix: "water_hardness",
-    label: "Water Hardness",
-    desc: "Calibrate for your water type",
+    labelKey: "settings.water_hardness",
+    descKey: "settings.water_hardness_desc",
     format: "level",
     icon: <Droplets className="w-5 h-5" />,
   },
   {
     suffix: "auto_off_after",
-    label: "Auto Off",
-    desc: "Minutes until automatic shutdown",
+    labelKey: "settings.auto_off",
+    descKey: "settings.auto_off_desc",
     format: "minutes",
     icon: <Clock className="w-5 h-5" />,
   },
   {
     suffix: "brew_temperature",
-    label: "Brew Temperature",
-    desc: "Brewing water temperature",
+    labelKey: "settings.brew_temp",
+    descKey: "settings.brew_temp_desc",
     format: "level",
     icon: <Thermometer className="w-5 h-5" />,
   },
 ];
-
-const SLIDER_CLASS =
-  "w-full h-1.5 appearance-none bg-neutral-800 rounded-full accent-white cursor-pointer " +
-  "[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 " +
-  "[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg";
-
-function formatValue(suffix: string, value: number, format: "level" | "minutes"): string {
-  if (format === "level") {
-    return LEVEL_LABELS[suffix]?.[value] ?? String(value);
-  }
-  return `${value} min`;
-}
 
 function readBackendState(entities: HassEntities, prefix: string) {
   const switches: Record<string, boolean> = {};
@@ -93,26 +83,24 @@ function readBackendState(entities: HassEntities, prefix: string) {
     const e = getEntity(entities, prefix, "switch", s.suffix);
     if (e) switches[s.suffix] = e.state === "on";
   }
-
   const numbers: Record<string, number> = {};
   for (const n of NUMBERS) {
     const raw = getState(entities, prefix, "number", n.suffix);
     if (raw !== undefined) numbers[n.suffix] = parseFloat(raw || "0");
   }
-
   return { switches, numbers };
 }
 
-/** Stagger delay for card entrance animations. */
 const stagger = (index: number) => ({ animationDelay: `${index * 60}ms` });
 
 export function SettingsSection({ conn, entities, prefix }: Props) {
+  const { t } = usePreferences();
   const backend = useMemo(() => readBackendState(entities, prefix), [entities, prefix]);
 
   const [localSwitches, setLocalSwitches] = useState(backend.switches);
   const [localNumbers, setLocalNumbers] = useState(backend.numbers);
-
   const [dirty, setDirty] = useState(false);
+
   useEffect(() => {
     if (!dirty) {
       setLocalSwitches(backend.switches);
@@ -143,16 +131,12 @@ export function SettingsSection({ conn, entities, prefix }: Props) {
   const handleApply = useCallback(() => {
     for (const s of SWITCHES) {
       if (localSwitches[s.suffix] !== backend.switches[s.suffix]) {
-        safeCall(() =>
-          toggleSwitch(conn, `switch.${prefix}_${s.suffix}`, localSwitches[s.suffix]),
-        );
+        safeCall(() => toggleSwitch(conn, `switch.${prefix}_${s.suffix}`, localSwitches[s.suffix]));
       }
     }
     for (const n of NUMBERS) {
       if (localNumbers[n.suffix] !== backend.numbers[n.suffix]) {
-        safeCall(() =>
-          setNumber(conn, `number.${prefix}_${n.suffix}`, localNumbers[n.suffix]),
-        );
+        safeCall(() => setNumber(conn, `number.${prefix}_${n.suffix}`, localNumbers[n.suffix]));
       }
     }
     setDirty(false);
@@ -164,18 +148,25 @@ export function SettingsSection({ conn, entities, prefix }: Props) {
     setDirty(false);
   }, [backend]);
 
+  function formatValue(suffix: string, value: number, format: "level" | "minutes"): string {
+    if (format === "level") {
+      const key = LEVEL_LABELS[suffix]?.[value];
+      return key ? t(key) : String(value);
+    }
+    return `${value} min`;
+  }
+
   let cardIndex = 0;
 
   return (
     <div className="flex h-full flex-col px-5 py-5 overflow-y-auto">
-      {/* Toggles header */}
       <div
-        className="settings-header-enter text-[10px] font-medium text-neutral-600 uppercase tracking-[0.2em] mb-3"
+        className="settings-header-enter text-[10px] font-medium text-tertiary uppercase tracking-[0.2em] mb-3"
       >
-        Toggles
+        {t("settings.toggles")}
       </div>
       <div className="space-y-2 mb-6">
-        {SWITCHES.map(({ suffix, label, desc, icon }) => {
+        {SWITCHES.map(({ suffix, labelKey, descKey, icon }) => {
           const exists = getEntity(entities, prefix, "switch", suffix);
           if (!exists) return null;
           const isOn = localSwitches[suffix] ?? false;
@@ -184,40 +175,37 @@ export function SettingsSection({ conn, entities, prefix }: Props) {
           return (
             <div
               key={suffix}
-              className={`settings-card-enter flex items-center gap-3 rounded-2xl p-4 transition-all duration-200 ${
-                changed
-                  ? "bg-white/[0.06] ring-1 ring-white/[0.15]"
-                  : "bg-white/[0.03] ring-1 ring-white/[0.06]"
-              }`}
-              style={stagger(idx)}
+              className="settings-card-enter flex items-center gap-3 rounded-2xl p-4 transition-all duration-200 ring-1"
+              style={{
+                ...stagger(idx),
+                background: changed ? "var(--surface-card-active)" : "var(--surface-card)",
+                "--tw-ring-color": changed ? "var(--border-active)" : "var(--border)",
+              } as React.CSSProperties}
             >
               <div
-                className={`flex items-center justify-center w-9 h-9 rounded-xl shrink-0 transition-colors duration-200 ${
-                  isOn
-                    ? "bg-white/[0.12] text-white"
-                    : "bg-white/[0.06] text-neutral-500"
-                }`}
+                className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0 transition-colors duration-200"
+                style={{
+                  background: isOn ? "var(--accent-muted)" : "var(--surface-card)",
+                  color: isOn ? "var(--accent)" : "var(--text-tertiary)",
+                }}
               >
                 {icon}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-white">{label}</div>
-                <div className="text-[11px] text-neutral-600 leading-tight mt-0.5">
-                  {desc}
-                </div>
+                <div className="text-sm font-medium text-primary">{t(labelKey)}</div>
+                <div className="text-[11px] text-tertiary leading-tight mt-0.5">{t(descKey)}</div>
               </div>
               <button
                 onClick={() => toggleLocal(suffix)}
-                className={`relative h-7 w-12 rounded-full transition-colors duration-200 shrink-0 ${
-                  isOn ? "bg-white" : "bg-neutral-700"
-                }`}
+                className="relative h-7 w-12 rounded-full transition-colors duration-200 shrink-0"
+                style={{ background: isOn ? "var(--toggle-on-bg)" : "var(--toggle-off-bg)" }}
               >
                 <span
-                  className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full shadow-md transition-transform duration-200 ${
-                    isOn
-                      ? "translate-x-5 bg-black"
-                      : "translate-x-0 bg-neutral-400"
-                  }`}
+                  className="absolute top-0.5 left-0.5 h-6 w-6 rounded-full shadow-md transition-transform duration-200"
+                  style={{
+                    transform: isOn ? "translateX(1.25rem)" : "translateX(0)",
+                    background: isOn ? "var(--toggle-on-knob)" : "var(--toggle-off-knob)",
+                  }}
                 />
               </button>
             </div>
@@ -225,15 +213,14 @@ export function SettingsSection({ conn, entities, prefix }: Props) {
         })}
       </div>
 
-      {/* Adjustments header */}
       <div
-        className="settings-header-enter text-[10px] font-medium text-neutral-600 uppercase tracking-[0.2em] mb-3"
+        className="settings-header-enter text-[10px] font-medium text-tertiary uppercase tracking-[0.2em] mb-3"
         style={stagger(cardIndex)}
       >
-        Adjustments
+        {t("settings.adjustments")}
       </div>
       <div className="space-y-2">
-        {NUMBERS.map(({ suffix, label, desc, format, icon }) => {
+        {NUMBERS.map(({ suffix, labelKey, descKey, format, icon }) => {
           const entity = getEntity(entities, prefix, "number", suffix);
           if (!entity) return null;
           const min = entity.attributes?.min ?? 0;
@@ -247,24 +234,25 @@ export function SettingsSection({ conn, entities, prefix }: Props) {
           return (
             <div
               key={suffix}
-              className={`settings-card-enter rounded-2xl p-4 space-y-3 transition-all duration-200 ${
-                changed
-                  ? "bg-white/[0.06] ring-1 ring-white/[0.15]"
-                  : "bg-white/[0.03] ring-1 ring-white/[0.06]"
-              }`}
-              style={stagger(idx)}
+              className="settings-card-enter rounded-2xl p-4 space-y-3 transition-all duration-200 ring-1"
+              style={{
+                ...stagger(idx),
+                background: changed ? "var(--surface-card-active)" : "var(--surface-card)",
+                "--tw-ring-color": changed ? "var(--border-active)" : "var(--border)",
+              } as React.CSSProperties}
             >
               <div className="flex items-start gap-3">
-                <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/[0.06] text-neutral-400 shrink-0">
+                <div
+                  className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
+                  style={{ background: "var(--surface-card)", color: "var(--text-secondary)" }}
+                >
                   {icon}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-white">{label}</div>
-                  <div className="text-[11px] text-neutral-600 leading-tight mt-0.5">
-                    {desc}
-                  </div>
+                  <div className="text-sm font-medium text-primary">{t(labelKey)}</div>
+                  <div className="text-[11px] text-tertiary leading-tight mt-0.5">{t(descKey)}</div>
                 </div>
-                <span className="text-sm font-semibold text-white tabular-nums whitespace-nowrap">
+                <span className="text-sm font-semibold text-primary tabular-nums whitespace-nowrap">
                   {displayValue}
                 </span>
               </div>
@@ -275,29 +263,36 @@ export function SettingsSection({ conn, entities, prefix }: Props) {
                 step={step}
                 value={value}
                 onChange={(e) => setLocalNumber(suffix, parseFloat(e.target.value))}
-                className={SLIDER_CLASS}
+                className="w-full h-1.5 appearance-none rounded-full cursor-pointer
+                  [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
+                  [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
+                style={{
+                  background: "var(--slider-track)",
+                  accentColor: "var(--slider-thumb)",
+                }}
               />
             </div>
           );
         })}
       </div>
 
-      {/* Apply / Reset bar — slides up */}
       {hasChanges && (
         <div className="settings-bar-enter sticky bottom-0 mt-4 flex gap-2">
           <button
             onClick={handleReset}
-            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-neutral-800 py-3 text-sm font-medium text-neutral-300 transition hover:bg-neutral-700 active:scale-[0.97]"
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium transition active:scale-[0.97]"
+            style={{ background: "var(--btn-secondary-bg)", color: "var(--btn-secondary-text)" }}
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            Reset
+            {t("settings.reset")}
           </button>
           <button
             onClick={handleApply}
-            className="flex-[2] flex items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-black transition hover:bg-neutral-200 active:scale-[0.97]"
+            className="flex-[2] flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition active:scale-[0.97]"
+            style={{ background: "var(--btn-primary-bg)", color: "var(--btn-primary-text)" }}
           >
             <Check className="w-4 h-4" />
-            Apply Changes
+            {t("settings.apply")}
           </button>
         </div>
       )}
