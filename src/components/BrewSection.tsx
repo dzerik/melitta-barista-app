@@ -6,8 +6,13 @@ import { useRecipeCache } from "../hooks/useRecipeCache";
 import { usePreferences } from "../lib/preferences";
 import { CoffeeIcon } from "./CoffeeIcon";
 import { RecipeEditModal } from "./RecipeEditModal";
-import { Bean, Milk, Droplets, Snowflake, Flame } from "lucide-react";
+import { Snowflake, Flame } from "lucide-react";
 import type { TranslationKey } from "../lib/i18n";
+import iconBean from "../assets/icons/bean.png";
+import iconMilk from "../assets/icons/milk.png";
+import iconWater from "../assets/icons/water.png";
+import iconNotConnected from "../assets/icons/not_connected.png";
+import iconService from "../assets/icons/service.png";
 
 interface Props {
   conn: Connection;
@@ -15,17 +20,17 @@ interface Props {
   prefix: string;
 }
 
-const PROCESS_ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
-  coffee: Bean,
-  milk: Milk,
-  water: Droplets,
+const PROCESS_IMG: Record<string, string> = {
+  coffee: iconBean,
+  milk: iconMilk,
+  water: iconWater,
 };
 
 function ProcessIcon({ process, className }: { process: string; className?: string }) {
-  const Icon = PROCESS_ICONS[process];
-  if (!Icon) return null;
-  const size = className?.includes("w-5") ? 20 : 16;
-  return <Icon size={size} className={className} />;
+  const src = PROCESS_IMG[process];
+  if (!src) return null;
+  const size = className?.includes("w-5") ? "w-5 h-5" : "w-4 h-4";
+  return <img src={src} alt={process} className={`${size} object-contain ${className || ""}`} draggable={false} />;
 }
 
 const INTENSITY_DOTS: Record<string, number> = {
@@ -169,8 +174,18 @@ const DK_LABEL_KEYS: Record<DirectKeyCategory, TranslationKey> = {
   cappuccino: "brew.dk_cappuccino",
   latte_macchiato: "brew.dk_latte_macchiato",
   milk_froth: "brew.dk_milk_froth",
-  milk: "brew.dk_milk",
+  // milk: "brew.dk_milk",  // no physical button on Barista TS Smart
   water: "brew.dk_water",
+};
+
+const DK_RECIPE_ICON: Record<DirectKeyCategory, string> = {
+  espresso: "Espresso",
+  cafe_creme: "Café Crème",
+  cappuccino: "Cappuccino",
+  latte_macchiato: "Latte Macchiato",
+  milk_froth: "Milk Froth",
+  // milk: "Milk",  // no physical button on Barista TS Smart
+  water: "Hot Water",
 };
 
 export function BrewSection({ conn, entities, prefix }: Props) {
@@ -315,10 +330,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
     return (
       <div className="flex h-full flex-col items-center justify-center px-8">
         <div className="flex flex-col items-center gap-6 max-w-sm">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" className="w-20 h-20 text-tertiary">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 7v1M12 16v1M7.5 9.5l.7.7M15.8 13.8l.7.7M7 12h1M16 12h1M7.5 14.5l.7-.7M15.8 10.2l.7-.7" strokeLinecap="round" />
-          </svg>
+          <img src={iconNotConnected} alt="offline" className="w-24 h-24 object-contain opacity-60" draggable={false} />
           <div className="text-center">
             <div className="text-xl font-light text-primary tracking-wide">{t("brew.offline_title")}</div>
             <div className="text-sm text-tertiary mt-2 leading-relaxed">{t("brew.offline_desc")}</div>
@@ -334,10 +346,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
     return (
       <div className="flex h-full flex-col items-center justify-center px-8">
         <div className="flex flex-col items-center gap-6 max-w-sm">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-16 h-16 text-secondary">
-            <circle cx="12" cy="12" r="9" />
-            <path d="M12 7v5l3 3" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <img src={iconService} alt="service" className="w-20 h-20 object-contain opacity-70" draggable={false} />
           <div className="text-center">
             <div className="text-xl font-light text-primary tracking-wide">{t(serviceKeys.labelKey)}</div>
             <div className="text-sm text-tertiary mt-2 leading-relaxed">{t(serviceKeys.subKey)}</div>
@@ -364,10 +373,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
       {hasAction && (
         <div className="absolute inset-0 z-30 flex items-center justify-center backdrop-blur-sm" style={{ background: "var(--overlay-bg)" }}>
           <div className="flex flex-col items-center gap-5 max-w-xs rounded-2xl ring-1 ring-border px-8 py-8" style={{ background: "var(--surface)" }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" className="w-14 h-14 text-secondary">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 8v5M12 16v.5" strokeLinecap="round" strokeWidth="1.5" />
-            </svg>
+            <img src={iconNotConnected} alt="action required" className="w-20 h-20 object-contain" draggable={false} />
             <div className="text-center">
               <div className="text-lg font-light text-primary tracking-wide">{actionRequired}</div>
               {actionHint && <div className="text-sm text-tertiary mt-2 leading-relaxed">{actionHint}</div>}
@@ -448,11 +454,11 @@ export function BrewSection({ conn, entities, prefix }: Props) {
                   onPointerUp={cancelDkLongPress}
                   onPointerLeave={cancelDkLongPress}
                   onContextMenu={(e) => e.preventDefault()}
-                  className="relative flex flex-col items-center justify-center p-2 transition-colors duration-300 active:scale-[0.97] overflow-hidden"
+                  className="relative flex flex-col items-center justify-center p-2 pb-6 transition-colors duration-300 active:scale-[0.97] overflow-hidden"
                   style={{ background: isSelected ? "var(--recipe-selected-bg)" : "var(--dk-card-bg)" }}
                 >
                   <div className={isSelected && hasDetails ? "recipe-icon-fade" : ""}>
-                    <CoffeeIcon recipe={label} size={80} />
+                    <CoffeeIcon recipe={DK_RECIPE_ICON[cat]} size={80} />
                   </div>
                   {isSelected && hasDetails && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center recipe-overlay-enter" style={{ background: "var(--overlay-bg)" }}>
@@ -460,7 +466,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
                     </div>
                   )}
                   <span
-                    className="absolute bottom-0 left-0 right-0 text-center text-[10px] py-1 transition-all duration-300 z-10"
+                    className="absolute bottom-0 left-0 right-0 text-center text-[10px] py-1.5 transition-all duration-300 z-10 truncate"
                     style={
                       isSelected
                         ? { background: "var(--recipe-label-bg)", color: "var(--recipe-label-text)", fontWeight: 600 }
@@ -518,7 +524,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
                       safeCall(() => selectOption(conn, `select.${prefix}_recipe`, opt));
                     }
                   }}
-                  className="relative flex flex-col items-center justify-center p-2 transition-colors duration-300 active:scale-[0.97] overflow-hidden"
+                  className="relative flex flex-col items-center justify-center p-2 pb-6 transition-colors duration-300 active:scale-[0.97] overflow-hidden"
                   style={{ background: isSelected ? "var(--recipe-selected-bg)" : "var(--bg)" }}
                 >
                   <div className={isSelected && hasDetails ? "recipe-icon-fade" : ""}>

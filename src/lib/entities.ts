@@ -43,7 +43,7 @@ export const DIRECTKEY_CATEGORIES = [
   "cappuccino",
   "latte_macchiato",
   "milk_froth",
-  "milk",
+  // "milk",  // no physical button on Barista TS Smart
   "water",
 ] as const;
 
@@ -56,7 +56,7 @@ export const DIRECTKEY_DISPLAY_TO_KEY: Record<string, DirectKeyCategory> = {
   "Cappuccino": "cappuccino",
   "Latte Macchiato": "latte_macchiato",
   "Milk Froth": "milk_froth",
-  "Milk": "milk",
+  // "Milk": "milk",  // no physical button on Barista TS Smart
   "Hot Water": "water",
 };
 
