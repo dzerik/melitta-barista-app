@@ -152,6 +152,19 @@ export async function saveDirectkey(
   });
 }
 
+/** Fetch melitta_barista integration version from HA. */
+export async function getIntegrationVersion(conn: Connection): Promise<string | null> {
+  try {
+    const result = await conn.sendMessagePromise<
+      Array<{ domain: string; version: string | null }>
+    >({ type: "custom_components" });
+    const melitta = result.find((c) => c.domain === "melitta_barista");
+    return melitta?.version ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Fire-and-forget wrapper with error logging. Returns true on success. */
 export function safeCall(fn: () => Promise<unknown>): void {
   fn().catch((e) => {

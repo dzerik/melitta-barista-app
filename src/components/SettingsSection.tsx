@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import type { Connection, HassEntities } from "home-assistant-js-websocket";
 import { getEntity, getState } from "../lib/entities";
-import { toggleSwitch, setNumber, safeCall } from "../lib/ha";
+import { toggleSwitch, setNumber, safeCall, getIntegrationVersion } from "../lib/ha";
 import { usePreferences } from "../lib/preferences";
 import { Check, RotateCcw } from "lucide-react";
 import type { TranslationKey } from "../lib/i18n";
@@ -105,6 +105,11 @@ const stagger = (index: number) => ({ animationDelay: `${index * 60}ms` });
 export function SettingsSection({ conn, entities, prefix }: Props) {
   const { t } = usePreferences();
   const backend = useMemo(() => readBackendState(entities, prefix), [entities, prefix]);
+
+  const [integrationVersion, setIntegrationVersion] = useState<string | null>(null);
+  useEffect(() => {
+    getIntegrationVersion(conn).then(setIntegrationVersion);
+  }, [conn]);
 
   const [localSwitches, setLocalSwitches] = useState(backend.switches);
   const [localNumbers, setLocalNumbers] = useState(backend.numbers);
@@ -303,6 +308,12 @@ export function SettingsSection({ conn, entities, prefix }: Props) {
             <Check className="w-4 h-4" />
             {t("settings.apply")}
           </button>
+        </div>
+      )}
+
+      {integrationVersion && (
+        <div className="mt-auto pt-6 pb-2 text-center text-[10px] text-tertiary opacity-50">
+          Melitta Barista HA v{integrationVersion}
         </div>
       )}
     </div>
