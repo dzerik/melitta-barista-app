@@ -9,15 +9,17 @@ import { useRecipeCache } from "../hooks/useRecipeCache";
 import { usePreferences } from "../lib/preferences";
 import { FreestyleGlass } from "./FreestyleGlass";
 import { CoffeeIcon } from "./CoffeeIcon";
-import { Bean, Milk, Droplets, Ban } from "lucide-react";
+import { Ban } from "lucide-react";
 import type { TranslationKey } from "../lib/i18n";
-import type { ComponentType } from "react";
+import iconBean from "../assets/icons/bean.png";
+import iconMilk from "../assets/icons/milk.png";
+import iconWater from "../assets/icons/water.png";
+import iconNotConnected from "../assets/icons/not_connected.png";
 
-const PROCESS_ICONS: Record<string, ComponentType<{ size?: number; className?: string }>> = {
-  none: Ban,
-  coffee: Bean,
-  milk: Milk,
-  water: Droplets,
+const PROCESS_IMG_ICONS: Record<string, string> = {
+  coffee: iconBean,
+  milk: iconMilk,
+  water: iconWater,
 };
 
 interface Props {
@@ -119,7 +121,7 @@ function SegmentPicker({
   return (
     <div className="flex rounded-xl overflow-hidden ring-1 ring-border">
       {options.map((opt) => {
-        const Icon = PROCESS_ICONS[opt];
+        const imgSrc = PROCESS_IMG_ICONS[opt];
         return (
           <button
             key={opt}
@@ -131,7 +133,11 @@ function SegmentPicker({
                 : { background: "var(--surface)", color: "var(--text-tertiary)" }
             }
           >
-            {Icon && <Icon size={14} />}
+            {imgSrc ? (
+              <img src={imgSrc} alt={opt} className="w-3.5 h-3.5 object-contain" draggable={false} />
+            ) : (
+              <Ban size={14} />
+            )}
             {displayName(opt)}
           </button>
         );
@@ -267,10 +273,7 @@ export function FreestyleSection({ conn, entities, prefix }: Props) {
     return (
       <div className="flex h-full flex-col items-center justify-center px-8">
         <div className="flex flex-col items-center gap-6 max-w-sm">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" className="w-16 h-16 text-tertiary">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 8v5M12 16v.5" strokeLinecap="round" strokeWidth="1.5" />
-          </svg>
+          <img src={iconNotConnected} alt="not ready" className="w-20 h-20 object-contain opacity-60" draggable={false} />
           <div className="text-center">
             <div className="text-lg font-light text-primary tracking-wide">
               {machineState || "Offline"}

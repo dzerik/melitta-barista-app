@@ -13,6 +13,7 @@ import { StatsSection } from "./components/StatsSection";
 import { StatusOverlay } from "./components/StatusOverlay";
 import { PreferencesModal } from "./components/PreferencesModal";
 import type { TranslationKey } from "./lib/i18n";
+import iconBtConnect from "./assets/icons/bt_connect.png";
 
 const TABS = ["brew", "freestyle", "stats", "settings"] as const;
 type Tab = (typeof TABS)[number];
@@ -77,7 +78,8 @@ export default function App() {
   if (!prefix) {
     return (
       <div className="flex h-full items-center justify-center p-6">
-        <div className="text-center space-y-3">
+        <div className="flex flex-col items-center text-center space-y-4">
+          <img src={iconBtConnect} alt="" className="w-20 h-20 object-contain opacity-50" draggable={false} />
           <p className="text-secondary">{t("app.looking")}</p>
           <p className="text-sm text-tertiary">
             {t("app.integration_hint")}

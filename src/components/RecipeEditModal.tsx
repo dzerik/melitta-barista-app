@@ -4,16 +4,17 @@ import type { Connection } from "home-assistant-js-websocket";
 import type { DirectKeyRecipe, DirectKeyCategory } from "../lib/entities";
 import { saveDirectkey, safeCall } from "../lib/ha";
 import { usePreferences } from "../lib/preferences";
-import { Bean, Milk, Droplets, Ban } from "lucide-react";
+import { Ban } from "lucide-react";
 import { FreestyleGlass } from "./FreestyleGlass";
 import type { TranslationKey } from "../lib/i18n";
-import type { ComponentType } from "react";
+import iconBean from "../assets/icons/bean.png";
+import iconMilk from "../assets/icons/milk.png";
+import iconWater from "../assets/icons/water.png";
 
-const PROCESS_ICONS: Record<string, ComponentType<{ size?: number; className?: string }>> = {
-  none: Ban,
-  coffee: Bean,
-  milk: Milk,
-  water: Droplets,
+const PROCESS_IMG_ICONS: Record<string, string> = {
+  coffee: iconBean,
+  milk: iconMilk,
+  water: iconWater,
 };
 
 const PROCESS_OPTIONS_1 = ["coffee", "milk", "water"];
@@ -72,7 +73,7 @@ function SegmentPicker({
   return (
     <div className="flex rounded-xl overflow-hidden ring-1 ring-border">
       {options.map((opt) => {
-        const Icon = PROCESS_ICONS[opt];
+        const imgSrc = PROCESS_IMG_ICONS[opt];
         return (
           <button
             key={opt}
@@ -84,7 +85,11 @@ function SegmentPicker({
                 : { background: "var(--surface)", color: "var(--text-tertiary)" }
             }
           >
-            {Icon && <Icon size={14} />}
+            {imgSrc ? (
+              <img src={imgSrc} alt={opt} className="w-3.5 h-3.5 object-contain" draggable={false} />
+            ) : (
+              <Ban size={14} />
+            )}
             {displayName(opt)}
           </button>
         );

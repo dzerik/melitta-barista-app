@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { getSavedConfig, saveConfig } from "../lib/ha";
 import { usePreferences } from "../lib/preferences";
+import logoMelitta from "../assets/logo_melitta.png";
+import machineImg from "../assets/machine.png";
 
 interface Props {
   onConnect: (url: string, token: string) => void;
@@ -27,9 +29,10 @@ export function ConnectScreen({ onConnect, error, connecting }: Props) {
         onSubmit={handleSubmit}
         className="w-full max-w-md space-y-6 rounded-2xl p-8 surface ring-1 ring-border backdrop-blur-sm"
       >
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold text-primary tracking-wide">{t("connect.title")}</h1>
-          <p className="mt-1 text-sm text-tertiary">
+        <div className="flex flex-col items-center gap-4">
+          <img src={logoMelitta} alt="Melitta" className="h-12 object-contain" draggable={false} />
+          <img src={machineImg} alt="Barista Smart" className="h-28 object-contain opacity-80" draggable={false} />
+          <p className="text-sm text-tertiary">
             {t("connect.subtitle")}
           </p>
         </div>

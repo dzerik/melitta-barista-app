@@ -209,6 +209,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
   const cancelId = `button.${prefix}_cancel`;
   const [editingDk, setEditingDk] = useState<{ category: DirectKeyCategory; recipe: DirectKeyRecipe } | null>(null);
   const [selectedDk, setSelectedDk] = useState<DirectKeyCategory | null>(null);
+  const [twoCups, setTwoCups] = useState(false);
   const [editingProfileIdx, setEditingProfileIdx] = useState<number | null>(null);
   const [editingProfileName, setEditingProfileName] = useState("");
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -239,11 +240,11 @@ export function BrewSection({ conn, entities, prefix }: Props) {
   const handleDkClick = useCallback((cat: DirectKeyCategory) => {
     if (dkLongPressTriggered.current) return;
     if (selectedDk === cat) {
-      safeCall(() => brewDirectkey(conn, brewId, cat));
+      safeCall(() => brewDirectkey(conn, brewId, cat, twoCups));
     } else {
       setSelectedDk(cat);
     }
-  }, [conn, brewId, selectedDk]);
+  }, [conn, brewId, selectedDk, twoCups]);
 
   const handleDkDoubleClick = useCallback((cat: DirectKeyCategory, recipe: DirectKeyRecipe) => {
     setEditingDk({ category: cat, recipe });
@@ -478,6 +479,36 @@ export function BrewSection({ conn, entities, prefix }: Props) {
                 </button>
               );
             })}
+
+            {/* 2x toggle — brew two cups */}
+            <button
+              onClick={() => setTwoCups((v) => !v)}
+              className="relative flex flex-col items-center justify-center p-2 pb-6 transition-all duration-300 active:scale-[0.97] overflow-hidden"
+              style={{ background: twoCups ? "var(--recipe-selected-bg)" : "var(--dk-card-bg)" }}
+            >
+              <div className="flex items-center justify-center" style={{ width: 80, height: 80 }}>
+                <span
+                  className="font-black tracking-tight transition-all duration-300"
+                  style={{
+                    fontSize: twoCups ? 40 : 36,
+                    color: twoCups ? "var(--btn-primary-bg)" : "var(--text-tertiary)",
+                    opacity: twoCups ? 1 : 0.5,
+                  }}
+                >
+                  2x
+                </span>
+              </div>
+              <span
+                className="absolute bottom-0 left-0 right-0 text-center text-[10px] py-1.5 transition-all duration-300 z-10 truncate"
+                style={
+                  twoCups
+                    ? { background: "var(--recipe-label-bg)", color: "var(--recipe-label-text)", fontWeight: 600 }
+                    : { background: "transparent", color: "var(--text-tertiary)", fontWeight: 500 }
+                }
+              >
+                {twoCups ? t("brew.two_cups_on") : t("brew.two_cups")}
+              </span>
+            </button>
           </div>
         </div>
       )}

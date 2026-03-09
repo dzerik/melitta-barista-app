@@ -118,10 +118,12 @@ export async function brewDirectkey(
   conn: Connection,
   entityId: string,
   category: string,
+  twoCups: boolean = false,
 ) {
   await callService(conn, "melitta_barista", "brew_directkey", {
     entity_id: entityId,
     category,
+    two_cups: twoCups,
   });
 }
 

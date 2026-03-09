@@ -3,17 +3,13 @@ import type { Connection, HassEntities } from "home-assistant-js-websocket";
 import { getState } from "../lib/entities";
 import { pressButton, safeCall } from "../lib/ha";
 import { usePreferences } from "../lib/preferences";
-import {
-  Coffee,
-  Droplets,
-  Sparkles,
-  Power,
-  Loader,
-  AlertTriangle,
-  X,
-} from "lucide-react";
-import type { ComponentType } from "react";
+import { X } from "lucide-react";
 import type { TranslationKey } from "../lib/i18n";
+import iconBrewCup from "../assets/icons/brew_cup.png";
+import iconMaintenance from "../assets/icons/maintenance.png";
+import iconMachineBt from "../assets/icons/machine_bt.png";
+import iconBusy from "../assets/icons/busy.png";
+import iconBtError from "../assets/icons/bt_error.png";
 
 interface Props {
   entities: HassEntities;
@@ -22,46 +18,40 @@ interface Props {
 }
 
 interface StatusConfig {
-  icon: ComponentType<{ size?: number; className?: string }>;
+  imgSrc: string;
   labelKey: TranslationKey;
   descKey: TranslationKey;
-  color: string;
   pulse?: boolean;
 }
 
 const STATUS_MAP: Record<string, StatusConfig> = {
   brewing: {
-    icon: Coffee,
+    imgSrc: iconBrewCup,
     labelKey: "status.brewing",
     descKey: "status.brewing_desc",
-    color: "text-amber-400",
     pulse: true,
   },
   cleaning: {
-    icon: Droplets,
+    imgSrc: iconMaintenance,
     labelKey: "status.cleaning",
     descKey: "status.cleaning_desc",
-    color: "text-sky-400",
     pulse: true,
   },
   descaling: {
-    icon: Sparkles,
+    imgSrc: iconMaintenance,
     labelKey: "status.descaling",
     descKey: "status.descaling_desc",
-    color: "text-sky-400",
     pulse: true,
   },
   off: {
-    icon: Power,
+    imgSrc: iconMachineBt,
     labelKey: "status.off",
     descKey: "status.off_desc",
-    color: "text-[var(--text-tertiary)]",
   },
   busy: {
-    icon: Loader,
+    imgSrc: iconBusy,
     labelKey: "status.busy",
     descKey: "status.busy_desc",
-    color: "text-amber-400",
     pulse: true,
   },
 };
@@ -89,14 +79,12 @@ export function StatusOverlay({ entities, prefix, conn }: Props) {
 
   const statusConfig: StatusConfig = hasAction
     ? {
-        icon: AlertTriangle,
+        imgSrc: iconBtError,
         labelKey: "status.action_required",
         descKey: "status.check_machine",
-        color: "text-red-400",
       }
     : config!;
 
-  const Icon = statusConfig.icon;
   const isBrewing = machineState === "brewing";
   const progressNum = progress ? parseInt(progress, 10) : null;
   const description = hasAction
@@ -115,9 +103,12 @@ export function StatusOverlay({ entities, prefix, conn }: Props) {
       onClick={stop}
     >
       <div className="status-content-enter flex flex-col items-center gap-6 px-8">
-        <div className={`${statusConfig.color} ${statusConfig.pulse ? "status-icon-pulse" : ""}`}>
-          <Icon size={64} />
-        </div>
+        <img
+          src={statusConfig.imgSrc}
+          alt=""
+          className={`w-20 h-20 object-contain ${statusConfig.pulse ? "status-icon-pulse" : ""}`}
+          draggable={false}
+        />
 
         <h2 className="text-xl font-semibold text-primary tracking-wide">
           {t(statusConfig.labelKey)}

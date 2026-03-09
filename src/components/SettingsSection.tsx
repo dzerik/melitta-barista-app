@@ -3,8 +3,17 @@ import type { Connection, HassEntities } from "home-assistant-js-websocket";
 import { getEntity, getState } from "../lib/entities";
 import { toggleSwitch, setNumber, safeCall } from "../lib/ha";
 import { usePreferences } from "../lib/preferences";
-import { Zap, Bean, Droplets, Clock, Thermometer, ShieldOff, Check, RotateCcw } from "lucide-react";
+import { Check, RotateCcw } from "lucide-react";
 import type { TranslationKey } from "../lib/i18n";
+import iconBean from "../assets/icons/bean.png";
+import iconWater from "../assets/icons/water.png";
+import iconTemperature from "../assets/icons/temperature.png";
+import iconMaintenance from "../assets/icons/maintenance.png";
+import iconSettings from "../assets/icons/settings.png";
+
+function MelittaIcon({ src, alt }: { src: string; alt: string }) {
+  return <img src={src} alt={alt} className="w-5 h-5 object-contain" draggable={false} />;
+}
 
 interface Props {
   conn: Connection;
@@ -24,19 +33,19 @@ const SWITCHES: SwitchDef[] = [
     suffix: "energy_saving",
     labelKey: "settings.energy_saving",
     descKey: "settings.energy_saving_desc",
-    icon: <Zap className="w-5 h-5" />,
+    icon: <MelittaIcon src={iconSettings} alt="energy" />,
   },
   {
     suffix: "auto_bean_select",
     labelKey: "settings.auto_bean",
     descKey: "settings.auto_bean_desc",
-    icon: <Bean className="w-5 h-5" />,
+    icon: <MelittaIcon src={iconBean} alt="bean" />,
   },
   {
     suffix: "rinsing_disabled",
     labelKey: "settings.rinsing",
     descKey: "settings.rinsing_desc",
-    icon: <ShieldOff className="w-5 h-5" />,
+    icon: <MelittaIcon src={iconMaintenance} alt="rinsing" />,
   },
 ];
 
@@ -59,21 +68,21 @@ const NUMBERS: NumberDef[] = [
     labelKey: "settings.water_hardness",
     descKey: "settings.water_hardness_desc",
     format: "level",
-    icon: <Droplets className="w-5 h-5" />,
+    icon: <MelittaIcon src={iconWater} alt="water" />,
   },
   {
     suffix: "auto_off_after",
     labelKey: "settings.auto_off",
     descKey: "settings.auto_off_desc",
     format: "minutes",
-    icon: <Clock className="w-5 h-5" />,
+    icon: <MelittaIcon src={iconSettings} alt="auto-off" />,
   },
   {
     suffix: "brew_temperature",
     labelKey: "settings.brew_temp",
     descKey: "settings.brew_temp_desc",
     format: "level",
-    icon: <Thermometer className="w-5 h-5" />,
+    icon: <MelittaIcon src={iconTemperature} alt="temp" />,
   },
 ];
 

@@ -2,6 +2,9 @@ import { createPortal } from "react-dom";
 import { usePreferences, type Theme } from "../lib/preferences";
 import type { Locale } from "../lib/i18n";
 import { Moon, Sun, X } from "lucide-react";
+import flagEn from "../assets/flags/en.png";
+import flagRu from "../assets/flags/ru.png";
+import flagDe from "../assets/flags/de.png";
 
 interface Props {
   onClose: () => void;
@@ -13,9 +16,9 @@ const THEMES: { value: Theme; labelKey: "prefs.theme_dark" | "prefs.theme_light"
 ];
 
 const LOCALES: { value: Locale; labelKey: "prefs.lang_en" | "prefs.lang_ru" | "prefs.lang_de"; flag: string }[] = [
-  { value: "en", labelKey: "prefs.lang_en", flag: "EN" },
-  { value: "ru", labelKey: "prefs.lang_ru", flag: "RU" },
-  { value: "de", labelKey: "prefs.lang_de", flag: "DE" },
+  { value: "en", labelKey: "prefs.lang_en", flag: flagEn },
+  { value: "ru", labelKey: "prefs.lang_ru", flag: flagRu },
+  { value: "de", labelKey: "prefs.lang_de", flag: flagDe },
 ];
 
 const stopTouch = (e: React.TouchEvent) => e.stopPropagation();
@@ -101,11 +104,12 @@ export function PreferencesModal({ onClose }: Props) {
                         : "surface-card ring-1 ring-border hover:ring-border-hover"
                     }`}
                   >
-                    <span
-                      className={`text-base font-bold tracking-wider ${active ? "text-accent" : "text-tertiary"}`}
-                    >
-                      {flag}
-                    </span>
+                    <img
+                      src={flag}
+                      alt={value}
+                      className="h-5 w-auto rounded-sm object-contain"
+                      draggable={false}
+                    />
                     <span
                       className={`text-[11px] font-medium ${active ? "text-primary" : "text-secondary"}`}
                     >
