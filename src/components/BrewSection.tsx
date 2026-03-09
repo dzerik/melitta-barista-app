@@ -228,12 +228,13 @@ export function BrewSection({ conn, entities, prefix }: Props) {
   const hasDkRecipes = Object.keys(activeProfileRecipes).length > 0;
 
   const startDkLongPress = useCallback((cat: DirectKeyCategory, recipe: DirectKeyRecipe) => {
+    if (activeProfileId === 0) return;
     dkLongPressTriggered.current = false;
     dkLongPressTimer.current = setTimeout(() => {
       dkLongPressTriggered.current = true;
       setEditingDk({ category: cat, recipe });
     }, 500);
-  }, []);
+  }, [activeProfileId]);
 
   const cancelDkLongPress = useCallback(() => {
     if (dkLongPressTimer.current) {
@@ -252,8 +253,9 @@ export function BrewSection({ conn, entities, prefix }: Props) {
   }, [conn, brewId, selectedDk, twoCups]);
 
   const handleDkDoubleClick = useCallback((cat: DirectKeyCategory, recipe: DirectKeyRecipe) => {
+    if (activeProfileId === 0) return;
     setEditingDk({ category: cat, recipe });
-  }, []);
+  }, [activeProfileId]);
 
   const startLongPress = useCallback((idx: number, name: string) => {
     longPressTriggered.current = false;
