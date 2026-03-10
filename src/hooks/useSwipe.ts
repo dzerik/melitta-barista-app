@@ -45,6 +45,7 @@ export function useSwipePager({
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     const target = e.target as HTMLElement;
     if (target.closest("input[type=range]")) return;
+    if (target.closest("[data-embla-carousel]")) return;
 
     const touch = e.touches[0];
     startX.current = touch.clientX;

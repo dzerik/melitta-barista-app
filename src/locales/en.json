@@ -42,6 +42,9 @@
   "brew.aroma": "Aroma",
   "brew.aroma_on": "Aroma+",
   "brew.all_recipes": "All Recipes",
+  "brew.view_grid": "Grid",
+  "brew.view_list": "List",
+  "brew.view_carousel": "Carousel",
 
   "freestyle.component1": "Component 1",
   "freestyle.component2": "Component 2",

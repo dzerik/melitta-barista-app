@@ -6,6 +6,8 @@ import { useRecipeCache } from "../hooks/useRecipeCache";
 import { usePreferences } from "../lib/preferences";
 import { CoffeeIcon } from "./CoffeeIcon";
 import { RecipeEditModal } from "./RecipeEditModal";
+import { RecipeCarousel } from "./RecipeCarousel";
+import { ViewModeToggle } from "./ViewModeToggle";
 import { Snowflake, Flame } from "lucide-react";
 import type { TranslationKey } from "../lib/i18n";
 import iconBean from "../assets/icons/bean.png";
@@ -192,7 +194,7 @@ const DK_RECIPE_ICON: Record<DirectKeyCategory, string> = {
 };
 
 export function BrewSection({ conn, entities, prefix }: Props) {
-  const { t, theme } = usePreferences();
+  const { t, theme, viewMode } = usePreferences();
   const isDark = theme === "dark";
   const machineState = getState(entities, prefix, "sensor", "state");
   const isReady = machineState === "Ready";
@@ -566,59 +568,132 @@ export function BrewSection({ conn, entities, prefix }: Props) {
 
       {isReady && recipeOptions.length > 0 && (
         <div className="flex-1 min-h-0 flex flex-col">
-          {hasDkRecipes && (
-            <div className="shrink-0 flex items-center gap-3 px-5 py-1.5" style={{ background: "var(--bg)" }}>
-              <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, var(--section-divider), transparent)" }} />
+          {/* Divider with view mode toggle */}
+          <div className="shrink-0 flex items-center gap-3 px-5 py-1.5" style={{ background: "var(--bg)" }}>
+            <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, var(--section-divider), transparent)" }} />
+            {hasDkRecipes && (
               <span className="text-[9px] tracking-[0.2em] uppercase font-medium" style={{ color: "var(--text-secondary)", opacity: 0.6 }}>
                 {t("brew.all_recipes")}
               </span>
-              <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, transparent, var(--section-divider))" }} />
+            )}
+            <ViewModeToggle />
+            <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, transparent, var(--section-divider))" }} />
+          </div>
+
+          {/* Grid view */}
+          {viewMode === "grid" && (
+            <div
+              className="flex-1 min-h-0 grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 auto-rows-fr"
+              style={{ gap: "1px", background: "var(--recipe-grid-gap)" }}
+            >
+              {recipeOptions.map((opt) => {
+                const isSelected = opt === selectedRecipe && !selectedDk;
+                const details = isSelected ? allRecipes[opt] as RecipeDetails | undefined : undefined;
+                const hasDetails = details?.c1_process !== undefined;
+                return (
+                  <button
+                    key={opt}
+                    onClick={() => {
+                      setSelectedDk(null);
+                      if (opt === selectedRecipe && !selectedDk && getEntity(entities, prefix, "button", "brew")) {
+                        safeCall(() => pressButton(conn, brewId));
+                      } else {
+                        safeCall(() => selectOption(conn, `select.${prefix}_recipe`, opt));
+                      }
+                    }}
+                    className="relative flex flex-col items-center justify-center p-2 pb-6 transition-colors duration-300 active:scale-[0.97] overflow-hidden"
+                    style={{ background: isSelected ? "var(--recipe-selected-bg)" : "var(--bg)" }}
+                  >
+                    <div className={isSelected && hasDetails ? "recipe-icon-fade" : ""}>
+                      <CoffeeIcon recipe={opt} size={120} />
+                    </div>
+                    {isSelected && hasDetails && details && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center recipe-overlay-enter" style={{ background: "var(--overlay-bg)" }}>
+                        <RecipeInfo details={details} vertical animated t={t} />
+                      </div>
+                    )}
+                    <span
+                      className="absolute bottom-0 left-0 right-0 text-center text-xs py-1.5 transition-all duration-300 z-10"
+                      style={
+                        isSelected
+                          ? { background: "var(--recipe-label-bg)", color: "var(--recipe-label-text)", fontWeight: 600 }
+                          : { background: "transparent", color: "var(--text-tertiary)", fontWeight: 500 }
+                      }
+                    >
+                      {isSelected ? `${t("brew.brew")} ${opt}` : opt}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           )}
-          <div
-            className="flex-1 min-h-0 grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 auto-rows-fr"
-            style={{ gap: "1px", background: "var(--recipe-grid-gap)" }}
-          >
-            {recipeOptions.map((opt) => {
-              const isSelected = opt === selectedRecipe && !selectedDk;
-              const details = isSelected ? allRecipes[opt] as RecipeDetails | undefined : undefined;
-              const hasDetails = details?.c1_process !== undefined;
-              return (
-                <button
-                  key={opt}
-                  onClick={() => {
-                    setSelectedDk(null);
-                    if (opt === selectedRecipe && !selectedDk && getEntity(entities, prefix, "button", "brew")) {
-                      safeCall(() => pressButton(conn, brewId));
-                    } else {
-                      safeCall(() => selectOption(conn, `select.${prefix}_recipe`, opt));
-                    }
-                  }}
-                  className="relative flex flex-col items-center justify-center p-2 pb-6 transition-colors duration-300 active:scale-[0.97] overflow-hidden"
-                  style={{ background: isSelected ? "var(--recipe-selected-bg)" : "var(--bg)" }}
-                >
-                  <div className={isSelected && hasDetails ? "recipe-icon-fade" : ""}>
-                    <CoffeeIcon recipe={opt} size={120} />
-                  </div>
-                  {isSelected && hasDetails && details && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center recipe-overlay-enter" style={{ background: "var(--overlay-bg)" }}>
-                      <RecipeInfo details={details} vertical animated t={t} />
-                    </div>
-                  )}
-                  <span
-                    className="absolute bottom-0 left-0 right-0 text-center text-xs py-1.5 transition-all duration-300 z-10"
-                    style={
-                      isSelected
-                        ? { background: "var(--recipe-label-bg)", color: "var(--recipe-label-text)", fontWeight: 600 }
-                        : { background: "transparent", color: "var(--text-tertiary)", fontWeight: 500 }
-                    }
-                  >
-                    {isSelected ? `${t("brew.brew")} ${opt}` : opt}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+
+          {/* List view */}
+          {viewMode === "list" && (
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <div className="flex flex-col" style={{ gap: "1px", background: "var(--recipe-grid-gap)" }}>
+                {recipeOptions.map((opt) => {
+                  const isSelected = opt === selectedRecipe && !selectedDk;
+                  const details = allRecipes[opt] as RecipeDetails | undefined;
+                  const hasDetails = details?.c1_process !== undefined;
+                  return (
+                    <button
+                      key={opt}
+                      onClick={() => {
+                        setSelectedDk(null);
+                        if (opt === selectedRecipe && !selectedDk && getEntity(entities, prefix, "button", "brew")) {
+                          safeCall(() => pressButton(conn, brewId));
+                        } else {
+                          safeCall(() => selectOption(conn, `select.${prefix}_recipe`, opt));
+                        }
+                      }}
+                      className="flex items-center gap-4 px-4 py-3 transition-colors duration-300 active:scale-[0.99]"
+                      style={{ background: isSelected ? "var(--recipe-selected-bg)" : "var(--bg)" }}
+                    >
+                      <CoffeeIcon recipe={opt} size={64} />
+                      <div className="flex-1 min-w-0 text-left">
+                        <span
+                          className="text-sm font-medium block truncate"
+                          style={{ color: isSelected ? "var(--recipe-label-text)" : "var(--text-primary)" }}
+                        >
+                          {isSelected ? `${t("brew.brew")} ${opt}` : opt}
+                        </span>
+                        {hasDetails && details && (
+                          <div className="mt-1">
+                            <RecipeInfo details={details} compact t={t} />
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Carousel view */}
+          {viewMode === "carousel" && (
+            <RecipeCarousel
+              recipes={recipeOptions.map((opt) => ({
+                name: opt,
+                isSelected: opt === selectedRecipe && !selectedDk,
+                details: allRecipes[opt] as RecipeDetails | undefined,
+              }))}
+              onSelect={(name) => {
+                setSelectedDk(null);
+                if (name !== selectedRecipe) {
+                  safeCall(() => selectOption(conn, `select.${prefix}_recipe`, name));
+                }
+              }}
+              onBrew={() => {
+                if (getEntity(entities, prefix, "button", "brew")) {
+                  safeCall(() => pressButton(conn, brewId));
+                }
+              }}
+              renderInfo={(details) => <RecipeInfo details={details} vertical animated t={t} />}
+              brewLabel={t("brew.brew")}
+            />
+          )}
         </div>
       )}
     </div>

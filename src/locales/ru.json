@@ -42,6 +42,9 @@
   "brew.aroma": "Аромат",
   "brew.aroma_on": "Аромат+",
   "brew.all_recipes": "Все рецепты",
+  "brew.view_grid": "Сетка",
+  "brew.view_list": "Список",
+  "brew.view_carousel": "Карусель",
 
   "freestyle.component1": "Компонент 1",
   "freestyle.component2": "Компонент 2",
