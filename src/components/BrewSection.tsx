@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo } from "react";
 import type { Connection, HassEntities } from "home-assistant-js-websocket";
-import { getState, getEntity, type RecipeDetails, type DirectKeyRecipe, type DirectKeyCategory, DIRECTKEY_CATEGORIES } from "../lib/entities";
+import { getState, getEntity, getCupCounts, type RecipeDetails, type DirectKeyRecipe, type DirectKeyCategory, DIRECTKEY_CATEGORIES } from "../lib/entities";
 import { selectOption, pressButton, brewDirectkey, setTextValue, safeCall } from "../lib/ha";
 import { useRecipeCache } from "../hooks/useRecipeCache";
 import { usePreferences } from "../lib/preferences";
@@ -208,6 +208,14 @@ export function BrewSection({ conn, entities, prefix }: Props) {
   const selectedProfile = getState(entities, prefix, "select", "profile");
   const selectedRecipe = getState(entities, prefix, "select", "recipe");
   const { profileOptions, recipeOptions, allRecipes, directKey } = useRecipeCache(entities, prefix);
+  const cupCounts = useMemo(() => getCupCounts(entities, prefix), [entities, prefix]);
+
+  // Sort recipes by popularity (cup count desc), keep original order for ties
+  const sortedRecipeOptions = useMemo(() => {
+    if (Object.keys(cupCounts).length === 0) return recipeOptions;
+    return [...recipeOptions].sort((a, b) => (cupCounts[b] ?? 0) - (cupCounts[a] ?? 0));
+  }, [recipeOptions, cupCounts]);
+
   const selectedDetails = allRecipes[selectedRecipe || ""] as RecipeDetails | undefined;
   const hasSelectedDetails = selectedDetails?.c1_process !== undefined;
 
@@ -334,12 +342,12 @@ export function BrewSection({ conn, entities, prefix }: Props) {
 
   // Carousel: stable recipes array (only recompute when source data changes)
   const carouselRecipes = useMemo(
-    () => recipeOptions.map((opt) => ({
+    () => sortedRecipeOptions.map((opt) => ({
       name: opt,
       isSelected: opt === selectedRecipe && !selectedDk,
       details: allRecipes[opt] as RecipeDetails | undefined,
     })),
-    [recipeOptions, selectedRecipe, selectedDk, allRecipes],
+    [sortedRecipeOptions, selectedRecipe, selectedDk, allRecipes],
   );
 
   if (isBrewing) {
@@ -607,7 +615,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
         />
       )}
 
-      {isReady && recipeOptions.length > 0 && (
+      {isReady && sortedRecipeOptions.length > 0 && (
         <div className="flex-1 min-h-0 flex flex-col">
           {/* Divider with view mode toggle */}
           <div className="shrink-0 flex items-center gap-3 px-5 py-1.5" style={{ background: "var(--bg)" }}>
@@ -627,7 +635,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
               className="flex-1 min-h-0 grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 auto-rows-fr"
               style={{ gap: "1px", background: "var(--recipe-grid-gap)" }}
             >
-              {recipeOptions.map((opt) => {
+              {sortedRecipeOptions.map((opt) => {
                 const isSelected = opt === selectedRecipe && !selectedDk;
                 const details = isSelected ? allRecipes[opt] as RecipeDetails | undefined : undefined;
                 const hasDetails = details?.c1_process !== undefined;
@@ -666,7 +674,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
           {viewMode === "list" && (
             <div className="flex-1 min-h-0 overflow-y-auto">
               <div className="flex flex-col" style={{ gap: "1px", background: "var(--recipe-grid-gap)" }}>
-                {recipeOptions.map((opt) => {
+                {sortedRecipeOptions.map((opt) => {
                   const isSelected = opt === selectedRecipe && !selectedDk;
                   const details = allRecipes[opt] as RecipeDetails | undefined;
                   const hasDetails = details?.c1_process !== undefined;

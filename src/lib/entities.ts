@@ -95,6 +95,22 @@ export function getState(
   return s && s !== "unknown" && s !== "unavailable" ? s : null;
 }
 
+/** Get per-recipe cup counts from total_cups sensor attributes. */
+export function getCupCounts(
+  entities: HassEntities,
+  prefix: string,
+): Record<string, number> {
+  const entity = getEntity(entities, prefix, "sensor", "total_cups");
+  if (!entity?.attributes) return {};
+  const counts: Record<string, number> = {};
+  for (const [name, val] of Object.entries(entity.attributes)) {
+    if (typeof val === "number" && !["friendly_name", "unit_of_measurement", "state_class", "icon"].includes(name)) {
+      counts[name] = val;
+    }
+  }
+  return counts;
+}
+
 export function getOptions(
   entities: HassEntities,
   prefix: string,

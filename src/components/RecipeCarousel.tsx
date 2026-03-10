@@ -30,9 +30,8 @@ export function RecipeCarousel({ recipes, onSelect, onBrew, renderInfo, brewLabe
   );
 
   const [emblaRef, emblaApi] = useEmblaCarousel({
-    loop: false,
+    loop: true,
     align: "center",
-    containScroll: "trimSnaps",
     dragFree: false,
     startIndex,
   });
