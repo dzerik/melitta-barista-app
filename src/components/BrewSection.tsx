@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import type { Connection, HassEntities } from "home-assistant-js-websocket";
 import { getState, getEntity, type RecipeDetails, type DirectKeyRecipe, type DirectKeyCategory, DIRECTKEY_CATEGORIES } from "../lib/entities";
 import { selectOption, pressButton, brewDirectkey, setTextValue, safeCall } from "../lib/ha";
@@ -301,6 +301,47 @@ export function BrewSection({ conn, entities, prefix }: Props) {
     setEditingProfileIdx(null);
   }, [editingProfileIdx, editingProfileName, conn, prefix]);
 
+  // Shared click handler for all recipe views (DRY)
+  const handleRecipeClick = useCallback((opt: string) => {
+    setSelectedDk(null);
+    if (opt === selectedRecipe && !selectedDk && getEntity(entities, prefix, "button", "brew")) {
+      safeCall(() => pressButton(conn, brewId));
+    } else {
+      safeCall(() => selectOption(conn, `select.${prefix}_recipe`, opt));
+    }
+  }, [conn, brewId, entities, prefix, selectedRecipe, selectedDk]);
+
+  // Carousel: select only (no brew)
+  const handleCarouselSelect = useCallback((name: string) => {
+    setSelectedDk(null);
+    if (name !== selectedRecipe) {
+      safeCall(() => selectOption(conn, `select.${prefix}_recipe`, name));
+    }
+  }, [conn, prefix, selectedRecipe]);
+
+  // Carousel: brew
+  const handleCarouselBrew = useCallback(() => {
+    if (getEntity(entities, prefix, "button", "brew")) {
+      safeCall(() => pressButton(conn, brewId));
+    }
+  }, [conn, brewId, entities, prefix]);
+
+  // Carousel: stable renderInfo
+  const carouselRenderInfo = useCallback(
+    (details: RecipeDetails) => <RecipeInfo details={details} vertical animated t={t} />,
+    [t],
+  );
+
+  // Carousel: stable recipes array (only recompute when source data changes)
+  const carouselRecipes = useMemo(
+    () => recipeOptions.map((opt) => ({
+      name: opt,
+      isSelected: opt === selectedRecipe && !selectedDk,
+      details: allRecipes[opt] as RecipeDetails | undefined,
+    })),
+    [recipeOptions, selectedRecipe, selectedDk, allRecipes],
+  );
+
   if (isBrewing) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-8 px-6">
@@ -593,14 +634,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
                 return (
                   <button
                     key={opt}
-                    onClick={() => {
-                      setSelectedDk(null);
-                      if (opt === selectedRecipe && !selectedDk && getEntity(entities, prefix, "button", "brew")) {
-                        safeCall(() => pressButton(conn, brewId));
-                      } else {
-                        safeCall(() => selectOption(conn, `select.${prefix}_recipe`, opt));
-                      }
-                    }}
+                    onClick={() => handleRecipeClick(opt)}
                     className="relative flex flex-col items-center justify-center p-2 pb-6 transition-colors duration-300 active:scale-[0.97] overflow-hidden"
                     style={{ background: isSelected ? "var(--recipe-selected-bg)" : "var(--bg)" }}
                   >
@@ -639,14 +673,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
                   return (
                     <button
                       key={opt}
-                      onClick={() => {
-                        setSelectedDk(null);
-                        if (opt === selectedRecipe && !selectedDk && getEntity(entities, prefix, "button", "brew")) {
-                          safeCall(() => pressButton(conn, brewId));
-                        } else {
-                          safeCall(() => selectOption(conn, `select.${prefix}_recipe`, opt));
-                        }
-                      }}
+                      onClick={() => handleRecipeClick(opt)}
                       className="flex items-center gap-4 px-4 py-3 transition-colors duration-300 active:scale-[0.99]"
                       style={{ background: isSelected ? "var(--recipe-selected-bg)" : "var(--bg)" }}
                     >
@@ -674,23 +701,10 @@ export function BrewSection({ conn, entities, prefix }: Props) {
           {/* Carousel view */}
           {viewMode === "carousel" && (
             <RecipeCarousel
-              recipes={recipeOptions.map((opt) => ({
-                name: opt,
-                isSelected: opt === selectedRecipe && !selectedDk,
-                details: allRecipes[opt] as RecipeDetails | undefined,
-              }))}
-              onSelect={(name) => {
-                setSelectedDk(null);
-                if (name !== selectedRecipe) {
-                  safeCall(() => selectOption(conn, `select.${prefix}_recipe`, name));
-                }
-              }}
-              onBrew={() => {
-                if (getEntity(entities, prefix, "button", "brew")) {
-                  safeCall(() => pressButton(conn, brewId));
-                }
-              }}
-              renderInfo={(details) => <RecipeInfo details={details} vertical animated t={t} />}
+              recipes={carouselRecipes}
+              onSelect={handleCarouselSelect}
+              onBrew={handleCarouselBrew}
+              renderInfo={carouselRenderInfo}
               brewLabel={t("brew.brew")}
             />
           )}
