@@ -7,6 +7,8 @@ import { usePreferences } from "../lib/preferences";
 import { CoffeeIcon } from "./CoffeeIcon";
 import { RecipeEditModal } from "./RecipeEditModal";
 import { RecipeCarousel } from "./RecipeCarousel";
+import { RecipeCard } from "./RecipeCard";
+import { RecipeGrid } from "./RecipeGrid";
 import { ViewModeToggle } from "./ViewModeToggle";
 import { Snowflake, Flame } from "lucide-react";
 import type { TranslationKey } from "../lib/i18n";
@@ -221,6 +223,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
 
   const brewId = `button.${prefix}_brew`;
   const cancelId = `button.${prefix}_cancel`;
+  const [hoveredRecipe, setHoveredRecipe] = useState<string | null>(null);
   const [editingDk, setEditingDk] = useState<{ category: DirectKeyCategory; recipe: DirectKeyRecipe } | null>(null);
   const [selectedDk, setSelectedDk] = useState<DirectKeyCategory | null>(null);
   const [twoCups, setTwoCups] = useState(false);
@@ -309,17 +312,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
     setEditingProfileIdx(null);
   }, [editingProfileIdx, editingProfileName, conn, prefix]);
 
-  // Shared click handler for all recipe views (DRY)
-  const handleRecipeClick = useCallback((opt: string) => {
-    setSelectedDk(null);
-    if (opt === selectedRecipe && !selectedDk && getEntity(entities, prefix, "button", "brew")) {
-      safeCall(() => pressButton(conn, brewId));
-    } else {
-      safeCall(() => selectOption(conn, `select.${prefix}_recipe`, opt));
-    }
-  }, [conn, brewId, entities, prefix, selectedRecipe, selectedDk]);
-
-  // Carousel: select only (no brew)
+  // Select recipe only (no brew) — used by carousel, grid, and list
   const handleCarouselSelect = useCallback((name: string) => {
     setSelectedDk(null);
     if (name !== selectedRecipe) {
@@ -334,9 +327,9 @@ export function BrewSection({ conn, entities, prefix }: Props) {
     }
   }, [conn, brewId, entities, prefix]);
 
-  // Carousel: stable renderInfo
+  // Carousel: stable renderInfo (compact for card layout)
   const carouselRenderInfo = useCallback(
-    (details: RecipeDetails) => <RecipeInfo details={details} vertical animated t={t} />,
+    (details: RecipeDetails) => <RecipeInfo details={details} compact animated t={t} />,
     [t],
   );
 
@@ -631,78 +624,89 @@ export function BrewSection({ conn, entities, prefix }: Props) {
 
           {/* Grid view */}
           {viewMode === "grid" && (
-            <div
-              className="flex-1 min-h-0 grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 auto-rows-fr"
-              style={{ gap: "1px", background: "var(--recipe-grid-gap)" }}
-            >
-              {sortedRecipeOptions.map((opt) => {
-                const isSelected = opt === selectedRecipe && !selectedDk;
-                const details = isSelected ? allRecipes[opt] as RecipeDetails | undefined : undefined;
-                const hasDetails = details?.c1_process !== undefined;
-                return (
-                  <button
-                    key={opt}
-                    onClick={() => handleRecipeClick(opt)}
-                    className="relative flex flex-col items-center justify-center p-2 pb-6 transition-colors duration-300 active:scale-[0.97] overflow-hidden"
-                    style={{ background: isSelected ? "var(--recipe-selected-bg)" : "var(--bg)" }}
-                  >
-                    <div className={isSelected && hasDetails ? "recipe-icon-fade" : ""}>
-                      <CoffeeIcon recipe={opt} size={120} />
-                    </div>
-                    {isSelected && hasDetails && details && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center recipe-overlay-enter" style={{ background: "var(--overlay-bg)" }}>
-                        <RecipeInfo details={details} vertical animated t={t} />
-                      </div>
-                    )}
-                    <span
-                      className="absolute bottom-0 left-0 right-0 text-center text-xs py-1.5 transition-all duration-300 z-10"
-                      style={
-                        isSelected
-                          ? { background: "var(--recipe-label-bg)", color: "var(--recipe-label-text)", fontWeight: 600 }
-                          : { background: "transparent", color: "var(--text-tertiary)", fontWeight: 500 }
-                      }
-                    >
-                      {isSelected ? `${t("brew.brew")} ${opt}` : opt}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            <RecipeGrid
+              recipes={carouselRecipes}
+              onSelect={handleCarouselSelect}
+              onBrew={handleCarouselBrew}
+              renderInfo={carouselRenderInfo}
+              brewLabel={t("brew.brew")}
+            />
           )}
 
-          {/* List view */}
+          {/* List view — list left, selected card right */}
           {viewMode === "list" && (
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              <div className="flex flex-col" style={{ gap: "1px", background: "var(--recipe-grid-gap)" }}>
+            <div className="flex-1 min-h-0 flex">
+              {/* Recipe list — left side */}
+              <div className="flex-1 min-h-0 overflow-y-auto">
                 {sortedRecipeOptions.map((opt) => {
                   const isSelected = opt === selectedRecipe && !selectedDk;
-                  const details = allRecipes[opt] as RecipeDetails | undefined;
-                  const hasDetails = details?.c1_process !== undefined;
                   return (
-                    <button
-                      key={opt}
-                      onClick={() => handleRecipeClick(opt)}
-                      className="flex items-center gap-4 px-4 py-3 transition-colors duration-300 active:scale-[0.99]"
-                      style={{ background: isSelected ? "var(--recipe-selected-bg)" : "var(--bg)" }}
-                    >
-                      <CoffeeIcon recipe={opt} size={64} />
-                      <div className="flex-1 min-w-0 text-left">
+                    <div key={opt}>
+                      <button
+                        onClick={() => handleCarouselSelect(opt)}
+                        onPointerEnter={() => setHoveredRecipe(opt)}
+                        onPointerLeave={() => setHoveredRecipe((h) => h === opt ? null : h)}
+                        className="w-full flex items-center gap-3 px-4 py-2 transition-all duration-300 active:scale-[0.99]"
+                        style={{
+                          background: isSelected
+                            ? "linear-gradient(90deg, var(--recipe-selected-bg), transparent)"
+                            : hoveredRecipe === opt
+                              ? "linear-gradient(90deg, var(--surface), transparent)"
+                              : "transparent",
+                        }}
+                      >
+                        <CoffeeIcon recipe={opt} size={36} />
                         <span
-                          className="text-sm font-medium block truncate"
-                          style={{ color: isSelected ? "var(--recipe-label-text)" : "var(--text-primary)" }}
+                          className={`text-xs tracking-widest uppercase text-left truncate transition-all duration-300 ${isSelected ? "font-medium" : "font-light"}`}
+                          style={{
+                            color: isSelected ? "var(--text-primary)" : "var(--text-tertiary)",
+                            letterSpacing: "0.12em",
+                          }}
                         >
-                          {isSelected ? `${t("brew.brew")} ${opt}` : opt}
+                          {opt}
                         </span>
-                        {hasDetails && details && (
-                          <div className="mt-1">
-                            <RecipeInfo details={details} compact t={t} />
-                          </div>
-                        )}
-                      </div>
-                    </button>
+                      </button>
+                      <div className="h-px ml-4" style={{ background: "linear-gradient(90deg, var(--border-hover), transparent)" }} />
+                    </div>
                   );
                 })}
               </div>
+
+              {/* Selected recipe card — right side */}
+              {selectedRecipe && selectedDetails && (
+                <div className="w-[45%] shrink-0 flex flex-col items-center justify-center border-l" style={{ borderColor: "var(--border)" }}>
+                  <RecipeCard
+                    recipe={{
+                      name: selectedRecipe,
+                      isSelected: true,
+                      details: selectedDetails,
+                    }}
+                    active
+                    hovered={false}
+                    dimInactive={false}
+                    iconSize={200}
+                    onClick={handleCarouselBrew}
+                    onPointerEnter={() => {}}
+                    onPointerLeave={() => {}}
+                    renderInfo={carouselRenderInfo}
+                    className="pt-4 px-4 pb-3 h-full"
+                  />
+                  {/* Brew button */}
+                  <div className="shrink-0 pb-3">
+                    <button
+                      className="py-2.5 px-8 text-xs tracking-widest uppercase font-semibold transition-all duration-200 active:scale-[0.98]"
+                      style={{
+                        background: "var(--recipe-label-bg)",
+                        color: "var(--recipe-label-text)",
+                        letterSpacing: "0.12em",
+                      }}
+                      onClick={handleCarouselBrew}
+                    >
+                      {t("brew.brew")}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

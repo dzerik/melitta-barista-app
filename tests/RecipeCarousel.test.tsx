@@ -71,8 +71,7 @@ describe("RecipeCarousel", () => {
 
   it("renders all recipe slides", () => {
     renderWithProviders(<RecipeCarousel {...defaultProps} />);
-    // First slide is selected + current snap, so shows "Brew Espresso"
-    expect(screen.getByText("Brew Espresso")).toBeInTheDocument();
+    expect(screen.getByText("Espresso")).toBeInTheDocument();
     expect(screen.getByText("Cappuccino")).toBeInTheDocument();
     expect(screen.getByText("Latte Macchiato")).toBeInTheDocument();
   });
@@ -104,18 +103,13 @@ describe("RecipeCarousel", () => {
     expect(mockScrollTo).toHaveBeenCalledWith(1);
   });
 
-  it("shows brew label for selected recipe on current snap", () => {
+  it("shows brew button on current slide", () => {
     renderWithProviders(<RecipeCarousel {...defaultProps} />);
-    expect(screen.getByText("Brew Espresso")).toBeInTheDocument();
+    expect(screen.getByText("Brew")).toBeInTheDocument();
   });
 
-  it("does NOT show brew label for non-selected recipe on current snap", () => {
-    const recipes = [
-      { name: "Espresso", isSelected: false, details: undefined },
-      { name: "Cappuccino", isSelected: true, details: undefined },
-    ];
-    renderWithProviders(<RecipeCarousel {...defaultProps} recipes={recipes} />);
-    // Snap 0, but Espresso is NOT selected in HA
+  it("shows recipe name without brew prefix", () => {
+    renderWithProviders(<RecipeCarousel {...defaultProps} />);
     expect(screen.getByText("Espresso")).toBeInTheDocument();
     expect(screen.queryByText("Brew Espresso")).not.toBeInTheDocument();
   });
@@ -131,14 +125,19 @@ describe("RecipeCarousel", () => {
     expect(screen.getByTestId("recipe-info")).toBeInTheDocument();
   });
 
-  it("does not render recipe info for non-selected recipe", () => {
+  it("renders recipe info for current slide even when not selected", () => {
     const recipes = [
       { name: "Espresso", isSelected: false, details: MOCK_RECIPES_WITH_DETAILS[0].details },
     ];
     renderWithProviders(
-      <RecipeCarousel {...defaultProps} recipes={recipes} />,
+      <RecipeCarousel
+        {...defaultProps}
+        recipes={recipes}
+        renderInfo={() => <span data-testid="recipe-info">Info</span>}
+      />,
     );
-    expect(screen.queryByTestId("recipe-info")).not.toBeInTheDocument();
+    // Details are always shown on the center slide (regardless of isSelected)
+    expect(screen.getByTestId("recipe-info")).toBeInTheDocument();
   });
 
   it("registers embla event listeners", () => {
@@ -162,24 +161,22 @@ describe("RecipeCarousel", () => {
     expect(container.querySelector("[data-embla-carousel]")).toBeInTheDocument();
   });
 
-  it("clicking current selected slide triggers onBrew (not onSelect)", async () => {
+  it("clicking brew button on selected slide triggers onBrew", async () => {
     const user = userEvent.setup();
     const onBrew = vi.fn();
     const onSelect = vi.fn();
     renderWithProviders(
       <RecipeCarousel {...defaultProps} onBrew={onBrew} onSelect={onSelect} />,
     );
-    await user.click(screen.getByText("Brew Espresso").closest("div[class*='cursor-pointer']")!);
+    await user.click(screen.getByText("Brew"));
     expect(onBrew).toHaveBeenCalledWith("Espresso");
     expect(onSelect).not.toHaveBeenCalled();
   });
 
-  it("clicking current NON-selected slide triggers onSelect (not onBrew)", async () => {
+  it("clicking brew button on non-selected slide triggers onSelect", async () => {
     const user = userEvent.setup();
     const onBrew = vi.fn();
     const onSelect = vi.fn();
-    // No recipe is selected → startIndex = 0, snap = 0
-    // So Espresso is current but not isSelected → click should call onSelect
     const recipes = [
       { name: "Espresso", isSelected: false },
       { name: "Cappuccino", isSelected: false },
@@ -187,7 +184,7 @@ describe("RecipeCarousel", () => {
     renderWithProviders(
       <RecipeCarousel {...defaultProps} recipes={recipes} onBrew={onBrew} onSelect={onSelect} />,
     );
-    await user.click(screen.getByText("Espresso").closest("div[class*='cursor-pointer']")!);
+    await user.click(screen.getByText("Brew"));
     expect(onSelect).toHaveBeenCalledWith("Espresso");
     expect(onBrew).not.toHaveBeenCalled();
   });
@@ -199,7 +196,7 @@ describe("RecipeCarousel", () => {
     renderWithProviders(
       <RecipeCarousel {...defaultProps} onBrew={onBrew} onSelect={onSelect} />,
     );
-    await user.click(screen.getByText("Cappuccino").closest("div[class*='cursor-pointer']")!);
+    await user.click(screen.getByText("Cappuccino").closest("button[class*='cursor-pointer']")!);
     expect(mockScrollTo).toHaveBeenCalledWith(1);
     expect(onBrew).not.toHaveBeenCalled();
     expect(onSelect).not.toHaveBeenCalled();
@@ -222,10 +219,10 @@ describe("RecipeCarousel", () => {
 
   it("background highlights only when isSelected AND isCurrent", () => {
     const { container } = renderWithProviders(<RecipeCarousel {...defaultProps} />);
-    const cards = container.querySelectorAll("div[class*='cursor-pointer']");
-    // First card: current + selected → recipe-selected-bg
-    expect(cards[0]).toHaveStyle({ background: "var(--recipe-selected-bg)" });
-    // Second card: not current → bg
-    expect(cards[1]).toHaveStyle({ background: "var(--bg)" });
+    const cards = container.querySelectorAll("button[class*='cursor-pointer']");
+    // First card: current + selected → gradient with recipe-selected-bg
+    expect((cards[0] as HTMLElement).style.background).toContain("linear-gradient");
+    // Second card: not current → transparent
+    expect(cards[1]).toHaveStyle({ background: "transparent" });
   });
 });

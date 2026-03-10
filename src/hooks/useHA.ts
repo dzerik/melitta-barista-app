@@ -1,7 +1,9 @@
+import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Connection, HassEntities } from "home-assistant-js-websocket";
 import { connectToHA, getSavedConfig, subscribeToEntities } from "../lib/ha";
 import { detectPrefix } from "../lib/entities";
+import { createMockEntities, MOCK_PREFIX } from "../lib/mockData";
 
 interface HAState {
   status: "disconnected" | "connecting" | "connected" | "error";
@@ -28,18 +30,66 @@ function filterMelittaEntities(
   return filtered;
 }
 
-export function useHA() {
-  const [state, setState] = useState<HAState>({
-    status: "disconnected",
-    connection: null,
-    entities: {},
-    prefix: null,
-    error: null,
+const isDemo = new URLSearchParams(window.location.search).has("demo");
+
+/** In demo mode, create a fake Connection that intercepts select_option calls. */
+function createDemoConnection(setState: React.Dispatch<React.SetStateAction<HAState>>): Connection {
+  return new Proxy({} as Connection, {
+    get(_target, prop) {
+      if (prop === "sendMessagePromise") {
+        return (msg: { type: string; domain?: string; service?: string; service_data?: Record<string, unknown> }) => {
+          if (msg.type === "call_service" && msg.service === "select_option" && msg.service_data) {
+            const entityId = msg.service_data.entity_id as string;
+            const option = msg.service_data.option as string;
+            setState((s) => {
+              const entity = s.entities[entityId];
+              if (!entity) return s;
+              return {
+                ...s,
+                entities: {
+                  ...s.entities,
+                  [entityId]: { ...entity, state: option },
+                },
+              };
+            });
+          }
+          return Promise.resolve();
+        };
+      }
+      return undefined;
+    },
   });
+}
+
+export function useHA() {
+  const [state, setState] = useState<HAState>(() =>
+    isDemo
+      ? {
+          status: "connected",
+          connection: null as unknown as Connection, // replaced below
+          entities: createMockEntities(),
+          prefix: MOCK_PREFIX,
+          error: null,
+        }
+      : {
+          status: "disconnected",
+          connection: null,
+          entities: {},
+          prefix: null,
+          error: null,
+        },
+  );
+
+  // Lazily create demo connection (needs setState reference)
+  if (isDemo && state.connection === null) {
+    const demoConn = createDemoConnection(setState);
+    setState((s) => ({ ...s, connection: demoConn }));
+  }
   const unsubRef = useRef<(() => void) | null>(null);
   const prefixRef = useRef<string | null>(null);
 
   const connect = useCallback(async (url: string, token: string) => {
+    if (isDemo) return;
     setState((s) => ({ ...s, status: "connecting", error: null }));
     try {
       const conn = await connectToHA(url, token);
@@ -94,6 +144,7 @@ export function useHA() {
 
   // Auto-connect on mount if saved config exists
   useEffect(() => {
+    if (isDemo) return;
     const { url, token } = getSavedConfig();
     if (url && token) {
       connect(url, token);
