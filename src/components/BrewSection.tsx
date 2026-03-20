@@ -210,6 +210,16 @@ export function BrewSection({ conn, entities, prefix }: Props) {
   const selectedProfile = getState(entities, prefix, "select", "profile");
   const selectedRecipe = getState(entities, prefix, "select", "recipe");
   const { profileOptions, recipeOptions, allRecipes, directKey } = useRecipeCache(entities, prefix);
+
+  // Filter profiles: always show profile 0, only show 1-8 if switch.profile_N_active is on
+  const visibleProfileOptions = useMemo(() => {
+    return profileOptions.filter((_, idx) => {
+      if (idx === 0) return true; // "My Coffee" always visible
+      const sw = getEntity(entities, prefix, "switch", `profile_${idx}_active`);
+      return sw?.state === "on";
+    });
+  }, [profileOptions, entities, prefix]);
+
   const cupCounts = useMemo(() => getCupCounts(entities, prefix), [entities, prefix]);
 
   // Sort recipes by popularity (cup count desc), keep original order for ties
@@ -435,10 +445,11 @@ export function BrewSection({ conn, entities, prefix }: Props) {
       )}
 
       {/* Profile tab bar — always dark */}
-      {isReady && profileOptions.length > 1 && (
+      {isReady && visibleProfileOptions.length > 1 && (
         <div className="shrink-0" style={{ background: "var(--profile-bar-bg)" }}>
           <div className="flex overflow-x-auto">
-            {profileOptions.map((opt, idx) => {
+            {visibleProfileOptions.map((opt) => {
+              const idx = profileOptions.indexOf(opt);
               const isActive = opt === selectedProfile;
               const isEditing = editingProfileIdx === idx;
               return (
