@@ -15,6 +15,8 @@ interface Props {
   hovered: boolean;
   /** Dim non-active cards (default true) */
   dimInactive?: boolean;
+  /** Display size: normal for grid/carousel, large for detail panel */
+  size?: "normal" | "large";
   iconSize?: number;
   onClick: () => void;
   onPointerEnter: () => void;
@@ -28,13 +30,17 @@ export function RecipeCard({
   active,
   hovered,
   dimInactive = true,
-  iconSize = 140,
+  size = "normal",
+  iconSize,
   onClick,
   onPointerEnter,
   onPointerLeave,
   renderInfo,
   className = "",
 }: Props) {
+  const isLarge = size === "large";
+  const resolvedIconSize = iconSize ?? (isLarge ? 280 : 140);
+
   return (
     <button
       onClick={onClick}
@@ -52,9 +58,11 @@ export function RecipeCard({
         } : {}),
       }}
     >
-      {/* Name — uppercase, light weight */}
+      {/* Name */}
       <span
-        className={`text-sm tracking-widest uppercase text-center transition-all duration-300 shrink-0 truncate w-full ${active ? "font-medium" : "font-light"}`}
+        className={`tracking-widest uppercase text-center transition-all duration-300 shrink-0 truncate w-full ${
+          isLarge ? "text-base" : "text-sm"
+        } ${active ? "font-medium" : "font-light"}`}
         style={{
           color: active ? "var(--text-primary)" : "var(--text-tertiary)",
           letterSpacing: "0.12em",
@@ -64,15 +72,15 @@ export function RecipeCard({
       </span>
 
       {/* Icon */}
-      <div className="flex-1 flex items-center justify-center w-full min-h-0 py-2">
-        <CoffeeIcon recipe={recipe.name} size={iconSize} />
+      <div className={`flex-1 flex items-center justify-center w-full min-h-0 ${isLarge ? "py-4" : "py-2"}`}>
+        <CoffeeIcon recipe={recipe.name} size={resolvedIconSize} />
       </div>
 
       {/* Divider + recipe details */}
       {recipe.details && renderInfo ? (
         <div className="shrink-0 w-full">
           <div className="h-px my-2" style={{ background: "linear-gradient(90deg, transparent, var(--border-hover), transparent)" }} />
-          <div className="flex justify-center">
+          <div className={`flex justify-center ${isLarge ? "pb-2" : ""}`}>
             {renderInfo(recipe.details)}
           </div>
         </div>

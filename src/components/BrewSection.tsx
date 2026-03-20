@@ -637,7 +637,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
           {viewMode === "list" && (
             <div className="flex-1 min-h-0 flex">
               {/* Recipe list — left side */}
-              <div className="flex-1 min-h-0 overflow-y-auto">
+              <div className="flex-1 min-h-0 overflow-y-auto custom-scroll">
                 {sortedRecipeOptions.map((opt) => {
                   const isSelected = opt === selectedRecipe && !selectedDk;
                   return (
@@ -684,7 +684,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
                     active
                     hovered={false}
                     dimInactive={false}
-                    iconSize={200}
+                    size="large"
                     onClick={handleCarouselBrew}
                     onPointerEnter={() => {}}
                     onPointerLeave={() => {}}
