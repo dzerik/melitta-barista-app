@@ -1,8 +1,19 @@
 import { useState } from "react";
 import { getSavedConfig, saveConfig } from "../lib/ha";
 import { usePreferences } from "../lib/preferences";
+import type { Locale } from "../lib/i18n";
+import { ShieldCheck } from "lucide-react";
 import logoMelitta from "../assets/logo_melitta.png";
 import machineImg from "../assets/machine.png";
+import flagEn from "../assets/flags/en.png";
+import flagRu from "../assets/flags/ru.png";
+import flagDe from "../assets/flags/de.png";
+
+const LOCALES: { value: Locale; flag: string }[] = [
+  { value: "en", flag: flagEn },
+  { value: "ru", flag: flagRu },
+  { value: "de", flag: flagDe },
+];
 
 interface Props {
   onConnect: (url: string, token: string) => void;
@@ -12,9 +23,9 @@ interface Props {
 
 export function ConnectScreen({ onConnect, error, connecting }: Props) {
   const saved = getSavedConfig();
-  const [url, setUrl] = useState(saved.url || "http://");
+  const [url, setUrl] = useState(saved.url || "https://");
   const [token, setToken] = useState(saved.token);
-  const { t } = usePreferences();
+  const { t, locale, setLocale } = usePreferences();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,7 +96,7 @@ export function ConnectScreen({ onConnect, error, connecting }: Props) {
               borderColor: "var(--error-border)",
             }}
           >
-            {error}
+            {t("connect.error")}
           </div>
         )}
 
@@ -104,6 +115,30 @@ export function ConnectScreen({ onConnect, error, connecting }: Props) {
         <p className="text-center text-xs text-tertiary">
           {t("connect.hint")}
         </p>
+
+        <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "var(--surface)" }}>
+          <ShieldCheck size={14} className="text-green-500 shrink-0" />
+          <p className="text-[10px] text-tertiary leading-tight">
+            {t("connect.security")}
+          </p>
+        </div>
+
+        <div className="flex items-center justify-center gap-2 pt-2">
+          {LOCALES.map(({ value, flag }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setLocale(value)}
+              className={`rounded-lg p-1.5 transition ${
+                locale === value
+                  ? "ring-2 ring-accent opacity-100"
+                  : "opacity-40 hover:opacity-70"
+              }`}
+            >
+              <img src={flag} alt={value} className="h-4 w-auto rounded-sm" draggable={false} />
+            </button>
+          ))}
+        </div>
       </form>
     </div>
   );
