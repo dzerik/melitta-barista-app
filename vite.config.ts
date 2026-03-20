@@ -4,7 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
-  base: "/melitta/",
+  base: process.env.VITE_BASE ?? "/melitta/",
   server: {
     host: "0.0.0.0",
   },
