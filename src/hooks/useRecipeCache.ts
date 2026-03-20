@@ -34,7 +34,23 @@ function buildFromEntities(entities: HassEntities, prefix: string): RecipeCache 
   if (recipeOpts.length === 0) return null;
 
   const recipeEntity = getEntity(entities, prefix, "select", "recipe");
-  const recipes = (recipeEntity?.attributes?.recipes || {}) as Record<string, RecipeDetails>;
+  let recipes = (recipeEntity?.attributes?.recipes || {}) as Record<string, RecipeDetails>;
+
+  // Fallback: if integration doesn't expose "recipes" dict, build from flat attributes
+  if (Object.keys(recipes).length === 0 && recipeEntity?.attributes?.c1_process) {
+    const selected = recipeEntity.state;
+    if (selected) {
+      const a = recipeEntity.attributes;
+      recipes = {
+        [selected]: {
+          c1_process: a.c1_process, c1_intensity: a.c1_intensity, c1_aroma: a.c1_aroma,
+          c1_temperature: a.c1_temperature, c1_shots: a.c1_shots, c1_portion_ml: a.c1_portion_ml,
+          c2_process: a.c2_process, c2_intensity: a.c2_intensity, c2_aroma: a.c2_aroma,
+          c2_temperature: a.c2_temperature, c2_shots: a.c2_shots, c2_portion_ml: a.c2_portion_ml,
+        } as RecipeDetails,
+      };
+    }
+  }
   const profileOpts = getOptions(entities, prefix, "profile");
 
   // Read DirectKey data from profile select entity attributes
