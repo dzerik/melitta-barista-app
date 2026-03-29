@@ -49,6 +49,14 @@ export interface RecipeComponent {
   portion_ml: number;
 }
 
+export interface RecipeExtras {
+  ice?: boolean;
+  syrup?: string | null;
+  topping?: string | null;
+  liqueur?: string | null;
+  instruction?: string | null;
+}
+
 export interface AiRecipe {
   id: string;
   name: string;
@@ -57,6 +65,42 @@ export interface AiRecipe {
   component1: RecipeComponent;
   component2: RecipeComponent;
   brewed: boolean;
+  extras?: RecipeExtras | null;
+  cup_type?: string;
+  estimated_caffeine?: string;
+  calories_approx?: number | null;
+}
+
+export interface UserExtras {
+  syrups: string[];
+  toppings: string[];
+  liqueurs: string[];
+}
+
+export interface UserPreferences {
+  [key: string]: string;
+}
+
+export interface SommelierProfile {
+  id: string;
+  name: string;
+  cup_size: string;
+  temperature_pref: string;
+  dietary: string[];
+  caffeine_pref: string;
+  is_active: boolean;
+  machine_profile: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProfileInput {
+  name: string;
+  cup_size?: string;
+  temperature_pref?: string;
+  dietary?: string[];
+  caffeine_pref?: string;
+  machine_profile?: number;
 }
 
 export interface GenerationSession {
@@ -111,6 +155,9 @@ export function useSommelier(conn: Connection | null) {
   const [history, setHistory] = useState<GenerationSession[]>([]);
   const [presets, setPresets] = useState<CoffeePreset[]>([]);
   const [settings, setSettings] = useState<SommelierSettings>({});
+  const [extras, setExtrasState] = useState<UserExtras>({ syrups: [], toppings: [], liqueurs: [] });
+  const [preferences, setPreferencesState] = useState<UserPreferences>({});
+  const [profiles, setProfiles] = useState<SommelierProfile[]>([]);
   const [currentSession, setCurrentSession] = useState<GenerationSession | null>(null);
   const [generating, setGenerating] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -122,7 +169,7 @@ export function useSommelier(conn: Connection | null) {
   const refresh = useCallback(async () => {
     if (!conn) return;
     try {
-      const [beansRes, hoppersRes, milkRes, favsRes, histRes, presetsRes, settingsRes] = await Promise.all([
+      const [beansRes, hoppersRes, milkRes, favsRes, histRes, presetsRes, settingsRes, extrasRes, prefsRes, profilesRes] = await Promise.all([
         wsCommand<{ beans: CoffeeBean[] }>(conn, "melitta_barista/sommelier/beans/list"),
         wsCommand<Hoppers>(conn, "melitta_barista/sommelier/hoppers/get"),
         wsCommand<{ milk_types: string[] }>(conn, "melitta_barista/sommelier/milk/get"),
@@ -130,6 +177,9 @@ export function useSommelier(conn: Connection | null) {
         wsCommand<{ sessions: GenerationSession[] }>(conn, "melitta_barista/sommelier/history/list", { limit: 20 }),
         wsCommand<{ presets: CoffeePreset[] }>(conn, "melitta_barista/sommelier/presets/list"),
         wsCommand<{ settings: SommelierSettings }>(conn, "melitta_barista/sommelier/settings/get"),
+        wsCommand<{ extras: UserExtras }>(conn, "melitta_barista/sommelier/extras/get"),
+        wsCommand<{ preferences: UserPreferences }>(conn, "melitta_barista/sommelier/preferences/get"),
+        wsCommand<{ profiles: SommelierProfile[] }>(conn, "melitta_barista/sommelier/profiles/list"),
       ]);
       setBeans(beansRes.beans);
       setHoppers(hoppersRes);
@@ -138,6 +188,9 @@ export function useSommelier(conn: Connection | null) {
       setHistory(histRes.sessions);
       setPresets(presetsRes.presets);
       setSettings(settingsRes.settings);
+      setExtrasState(extrasRes.extras);
+      setPreferencesState(prefsRes.preferences);
+      setProfiles(profilesRes.profiles);
       setError(null);
     } catch (e) {
       console.warn("[sommelier] Failed to load data:", e);
@@ -202,14 +255,19 @@ export function useSommelier(conn: Connection | null) {
 
   // ── Generate ───────────────────────────────────────────────────
 
-  const generate = useCallback(async (mode: string = "surprise_me", preference?: string, count: number = 3) => {
+  const generate = useCallback(async (
+    mode: string = "surprise_me",
+    preference?: string,
+    count: number = 3,
+    opts?: { mood?: string; occasion?: string; temperature?: string; servings?: number },
+  ) => {
     if (!conn) return null;
     setGenerating(true);
     setError(null);
     try {
       const res = await wsCommand<{ session: GenerationSession }>(
         conn, "melitta_barista/sommelier/generate",
-        { mode, preference, count },
+        { mode, preference, count, ...opts },
       );
       setCurrentSession(res.session);
       setHistory((prev) => [res.session, ...prev]);
@@ -276,9 +334,60 @@ export function useSommelier(conn: Connection | null) {
     setHistory((prev) => [...prev, ...res.sessions]);
   }, [conn, history.length]);
 
+  // ── Extras ─────────────────────────────────────────────────────
+
+  const setExtras = useCallback(async (category: string, items: string[]) => {
+    if (!conn) return;
+    await wsCommand(conn, "melitta_barista/sommelier/extras/set", { category, items });
+    setExtrasState((prev) => ({ ...prev, [category]: items }));
+  }, [conn]);
+
+  // ── Preferences ───────────────────────────────────────────────
+
+  const getPreferences = useCallback(async () => {
+    if (!conn) return {};
+    const res = await wsCommand<{ preferences: UserPreferences }>(conn, "melitta_barista/sommelier/preferences/get");
+    setPreferencesState(res.preferences);
+    return res.preferences;
+  }, [conn]);
+
+  const setPreference = useCallback(async (key: string, value: string) => {
+    if (!conn) return;
+    await wsCommand(conn, "melitta_barista/sommelier/preferences/set", { key, value });
+    setPreferencesState((prev) => ({ ...prev, [key]: value }));
+  }, [conn]);
+
+  // ── Profiles ──────────────────────────────────────────────────
+
+  const addProfile = useCallback(async (data: ProfileInput) => {
+    if (!conn) return null;
+    const res = await wsCommand<{ profile: SommelierProfile }>(conn, "melitta_barista/sommelier/profiles/add", data);
+    setProfiles((prev) => [...prev, res.profile]);
+    return res.profile;
+  }, [conn]);
+
+  const updateProfile = useCallback(async (profileId: string, data: Partial<ProfileInput>) => {
+    if (!conn) return;
+    const res = await wsCommand<{ profile: SommelierProfile }>(conn, "melitta_barista/sommelier/profiles/update", { profile_id: profileId, ...data });
+    setProfiles((prev) => prev.map((p) => (p.id === profileId ? res.profile : p)));
+  }, [conn]);
+
+  const deleteProfile = useCallback(async (profileId: string) => {
+    if (!conn) return;
+    await wsCommand(conn, "melitta_barista/sommelier/profiles/delete", { profile_id: profileId });
+    setProfiles((prev) => prev.filter((p) => p.id !== profileId));
+  }, [conn]);
+
+  const activateProfile = useCallback(async (profileId: string) => {
+    if (!conn) return;
+    await wsCommand(conn, "melitta_barista/sommelier/profiles/activate", { profile_id: profileId });
+    setProfiles((prev) => prev.map((p) => ({ ...p, is_active: p.id === profileId })));
+  }, [conn]);
+
   return {
     // Data
     beans, hoppers, milkTypes, favorites, history, presets, settings,
+    extras, preferences, profiles,
     currentSession, generating, loading, error,
     // Actions
     addBean, updateBean, deleteBean,
@@ -286,5 +395,7 @@ export function useSommelier(conn: Connection | null) {
     generate, brewRecipe, brewFavorite,
     addFavorite, removeFavorite,
     setSetting, loadMoreHistory, refresh,
+    setExtras, getPreferences, setPreference,
+    addProfile, updateProfile, deleteProfile, activateProfile,
   };
 }

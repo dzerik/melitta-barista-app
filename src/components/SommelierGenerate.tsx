@@ -11,17 +11,37 @@ interface Props {
   sommelier: SommelierHook;
 }
 
+const MOODS = ["energizing", "relaxing", "dessert", "classic"] as const;
+const OCCASIONS = ["morning", "after_lunch", "guests", "romantic", "work"] as const;
+const TEMPS = ["auto", "hot", "iced"] as const;
+
 export function SommelierGenerate({ sommelier }: Props) {
   const { t } = usePreferences();
-  const { hoppers, milkTypes, currentSession, generating, favorites, generate, brewRecipe, addFavorite } = sommelier;
+  const { hoppers, milkTypes, extras, currentSession, generating, favorites, generate, brewRecipe, addFavorite } = sommelier;
   const [preference, setPreference] = useState("");
   const [count, setCount] = useState(3);
   const [brewingId, setBrewingId] = useState<string | null>(null);
+  const [mood, setMood] = useState<string>("");
+  const [occasion, setOccasion] = useState<string>("");
+  const [temperature, setTemperature] = useState<string>("auto");
+  const [servings, setServings] = useState(1);
 
   const favIds = new Set(favorites.map((f) => f.source_recipe_id));
 
-  const handleGenerate = () => generate("generate", preference || undefined, count);
-  const handleSurprise = () => generate("surprise_me", undefined, count);
+  const hasIce = extras.syrups.length > 0 || extras.toppings.length > 0 || extras.liqueurs.length > 0;
+
+  const handleGenerate = () => generate("generate", preference || undefined, count, {
+    mood: mood || undefined,
+    occasion: occasion || undefined,
+    temperature: temperature !== "auto" ? temperature : undefined,
+    servings: servings > 1 ? servings : undefined,
+  });
+  const handleSurprise = () => generate("surprise_me", undefined, count, {
+    mood: mood || undefined,
+    occasion: occasion || undefined,
+    temperature: temperature !== "auto" ? temperature : undefined,
+    servings: servings > 1 ? servings : undefined,
+  });
 
   const handleBrew = async (id: string) => {
     setBrewingId(id);
@@ -58,6 +78,12 @@ export function SommelierGenerate({ sommelier }: Props) {
     );
   };
 
+  const chipStyle = (active: boolean) => ({
+    background: active ? "var(--btn-primary-bg)" : "var(--surface-card)",
+    color: active ? "var(--btn-primary-text)" : "var(--text-secondary)",
+    "--tw-ring-color": active ? "transparent" : "var(--border)",
+  } as React.CSSProperties);
+
   return (
     <div className="space-y-5">
       {/* Hoppers */}
@@ -79,6 +105,84 @@ export function SommelierGenerate({ sommelier }: Props) {
           ))}
         </div>
       )}
+
+      {/* Mood selector */}
+      <div>
+        <div className="text-[10px] font-medium text-tertiary uppercase tracking-wider mb-2">
+          {t("sommelier.mood" as TranslationKey)}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {MOODS.map((m) => (
+            <button
+              key={m}
+              onClick={() => setMood(mood === m ? "" : m)}
+              className="rounded-full px-3 py-1.5 text-xs font-medium transition active:scale-95 ring-1"
+              style={chipStyle(mood === m)}
+            >
+              {t(`sommelier.mood_${m}` as TranslationKey)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Occasion selector */}
+      <div>
+        <div className="text-[10px] font-medium text-tertiary uppercase tracking-wider mb-2">
+          {t("sommelier.occasion" as TranslationKey)}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {OCCASIONS.map((o) => (
+            <button
+              key={o}
+              onClick={() => setOccasion(occasion === o ? "" : o)}
+              className="rounded-full px-3 py-1.5 text-xs font-medium transition active:scale-95 ring-1"
+              style={chipStyle(occasion === o)}
+            >
+              {t(`sommelier.occasion_${o}` as TranslationKey)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Temperature toggle — show only if extras exist (ice available) */}
+      {hasIce && (
+        <div>
+          <div className="text-[10px] font-medium text-tertiary uppercase tracking-wider mb-2">
+            {t("sommelier.temp_pref" as TranslationKey)}
+          </div>
+          <div className="flex gap-2">
+            {TEMPS.map((tmp) => (
+              <button
+                key={tmp}
+                onClick={() => setTemperature(tmp)}
+                className="rounded-full px-3 py-1.5 text-xs font-medium transition active:scale-95 ring-1"
+                style={chipStyle(temperature === tmp)}
+              >
+                {t(`sommelier.temp_${tmp}` as TranslationKey)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Servings */}
+      <div className="flex items-center gap-3">
+        <span className="text-[10px] font-medium text-tertiary uppercase tracking-wider">
+          {t("sommelier.servings" as TranslationKey)}
+        </span>
+        <div className="flex gap-1.5">
+          {[1, 2, 3, 4].map((n) => (
+            <button
+              key={n}
+              onClick={() => setServings(n)}
+              className="w-8 h-8 rounded-lg text-xs font-semibold transition active:scale-95 ring-1"
+              style={chipStyle(servings === n)}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Preference input */}
       <div>

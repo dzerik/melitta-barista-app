@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Heart, Coffee, ChevronDown, ChevronUp, Check } from "lucide-react";
+import { Heart, Coffee, ChevronDown, ChevronUp, Check, Snowflake, Info } from "lucide-react";
 import { usePreferences } from "../lib/preferences";
 import type { TranslationKey } from "../lib/i18n";
 import type { AiRecipe } from "../hooks/useSommelier";
@@ -23,6 +23,8 @@ export function SommelierRecipeCard({ recipe, onBrew, onFavorite, isFavorited, b
     c2.process !== "none" && `${c2.process} ${c2.portion_ml}ml`,
   ].filter(Boolean).join(" + ");
 
+  const extras = recipe.extras;
+
   return (
     <div
       className="rounded-2xl ring-1 ring-border p-4 transition-all duration-200"
@@ -35,9 +37,49 @@ export function SommelierRecipeCard({ recipe, onBrew, onFavorite, isFavorited, b
             {recipe.brewed && (
               <Check size={14} className="shrink-0" style={{ color: "var(--success)" }} />
             )}
+            {extras?.ice && (
+              <Snowflake size={14} className="shrink-0" style={{ color: "var(--info, #60a5fa)" }} />
+            )}
           </div>
           <p className="text-xs text-secondary mt-1 line-clamp-2">{recipe.description}</p>
           <p className="text-[11px] text-tertiary mt-1.5 font-mono">{summary}</p>
+
+          {/* Extras tags */}
+          {extras && (extras.syrup || extras.topping || extras.liqueur || extras.ice) && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {extras.syrup && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--surface)", color: "var(--text-tertiary)" }}>
+                  {extras.syrup}
+                </span>
+              )}
+              {extras.topping && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--surface)", color: "var(--text-tertiary)" }}>
+                  {extras.topping}
+                </span>
+              )}
+              {extras.liqueur && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--surface)", color: "var(--text-tertiary)" }}>
+                  {extras.liqueur}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Caffeine & Calories badges */}
+          {(recipe.estimated_caffeine || recipe.calories_approx != null) && (
+            <div className="flex items-center gap-2 mt-1.5">
+              {recipe.estimated_caffeine && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: "var(--surface)", color: "var(--text-tertiary)" }}>
+                  {t("sommelier.caffeine" as TranslationKey)}: {recipe.estimated_caffeine}
+                </span>
+              )}
+              {recipe.calories_approx != null && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: "var(--surface)", color: "var(--text-tertiary)" }}>
+                  ~{recipe.calories_approx} {t("sommelier.calories" as TranslationKey)}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
@@ -92,6 +134,16 @@ export function SommelierRecipeCard({ recipe, onBrew, onFavorite, isFavorited, b
           <div className="text-[11px] text-tertiary">
             {t("sommelier.blend" as TranslationKey)}: {recipe.blend}%
           </div>
+
+          {/* Extras instruction */}
+          {extras?.instruction && (
+            <div className="flex items-start gap-1.5 mt-1">
+              <Info size={12} className="shrink-0 mt-0.5" style={{ color: "var(--text-tertiary)" }} />
+              <span className="text-[11px] text-secondary italic">
+                {t("sommelier.instruction" as TranslationKey)}: {extras.instruction}
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>
