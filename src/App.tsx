@@ -11,18 +11,20 @@ import { FreestyleSection } from "./components/FreestyleSection";
 import { SettingsSection } from "./components/SettingsSection";
 import { StatsSection } from "./components/StatsSection";
 import { MaintenanceSection } from "./components/MaintenanceSection";
+import { SommelierSection } from "./components/SommelierSection";
 import { StatusOverlay } from "./components/StatusOverlay";
 import { PreferencesModal } from "./components/PreferencesModal";
 import { ResolutionGuard } from "./components/ResolutionGuard";
 import type { TranslationKey } from "./lib/i18n";
 import iconBtConnect from "./assets/icons/bt_connect.png";
 
-const TABS = ["brew", "freestyle", "stats", "maintenance", "settings"] as const;
+const TABS = ["brew", "freestyle", "sommelier", "stats", "maintenance", "settings"] as const;
 type Tab = (typeof TABS)[number];
 
 const TAB_LABEL_KEYS: Record<Tab, TranslationKey> = {
   brew: "tab.brew",
   freestyle: "tab.freestyle",
+  sommelier: "tab.sommelier",
   stats: "tab.stats",
   maintenance: "tab.maintenance",
   settings: "tab.settings",
@@ -143,6 +145,9 @@ export default function App() {
           </div>
           <div className="h-full" style={{ width: `${pageWidth}px` }}>
             <FreestyleSection conn={connection} entities={entities} prefix={prefix} />
+          </div>
+          <div className="h-full" style={{ width: `${pageWidth}px` }}>
+            <SommelierSection conn={connection} entities={entities} prefix={prefix} />
           </div>
           <div className="h-full" style={{ width: `${pageWidth}px` }}>
             <StatsSection entities={entities} prefix={prefix} />
