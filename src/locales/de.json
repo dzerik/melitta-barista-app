@@ -313,5 +313,23 @@
   "sommelier.note_earthy": "Erdig",
   "sommelier.note_honey": "Honig",
   "sommelier.note_berry": "Beerig",
-  "sommelier.note_citrus": "Zitrus"
+  "sommelier.note_citrus": "Zitrus",
+
+  "sommelier.tab_generate": "Generieren",
+  "sommelier.tab_beans": "Bohnen",
+  "sommelier.tab_favorites": "Favoriten",
+  "sommelier.tab_history": "Verlauf",
+  "sommelier.results": "Ergebnisse",
+  "sommelier.select_preset": "Vorlage wählen…",
+  "sommelier.optional": "Optional",
+  "sommelier.origin_country": "Herkunftsland",
+  "sommelier.blend": "Blend",
+  "sommelier.last_brewed": "Zuletzt gebrüht",
+  "sommelier.milk": "Milch",
+  "sommelier.milk_types": "Milchsorten",
+  "sommelier.no_beans": "Noch keine Bohnen",
+  "sommelier.search_beans": "Bohnen suchen…",
+  "sommelier.hopper1": "Behälter 1",
+  "sommelier.hopper2": "Behälter 2",
+  "sommelier.activate": "Aktivieren"
 }

@@ -138,7 +138,7 @@ export function SommelierBeans({ sommelier }: Props) {
             <button
               onClick={() => assignHopper(1, bean.id)}
               className="p-1.5 rounded-lg text-tertiary hover:text-secondary transition"
-              title="Hopper 1"
+              title={t("sommelier.hopper1" as TranslationKey)}
             >
               <Pin size={14} />
               <span className="text-[9px]">1</span>
@@ -146,7 +146,7 @@ export function SommelierBeans({ sommelier }: Props) {
             <button
               onClick={() => assignHopper(2, bean.id)}
               className="p-1.5 rounded-lg text-tertiary hover:text-secondary transition"
-              title="Hopper 2"
+              title={t("sommelier.hopper2" as TranslationKey)}
             >
               <Pin size={14} />
               <span className="text-[9px]">2</span>
@@ -354,7 +354,7 @@ export function SommelierBeans({ sommelier }: Props) {
                     <button
                       onClick={() => activateProfile(profile.id)}
                       className="p-1.5 rounded-lg transition hover:opacity-80"
-                      title="Activate"
+                      title={t("sommelier.activate" as TranslationKey)}
                     >
                       <ChevronDown size={14} />
                     </button>

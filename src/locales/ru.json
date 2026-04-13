@@ -313,5 +313,23 @@
   "sommelier.note_earthy": "Землистый",
   "sommelier.note_honey": "Мёд",
   "sommelier.note_berry": "Ягодный",
-  "sommelier.note_citrus": "Цитрус"
+  "sommelier.note_citrus": "Цитрус",
+
+  "sommelier.tab_generate": "Генерация",
+  "sommelier.tab_beans": "Зёрна",
+  "sommelier.tab_favorites": "Избранное",
+  "sommelier.tab_history": "История",
+  "sommelier.results": "Результаты",
+  "sommelier.select_preset": "Выберите пресет…",
+  "sommelier.optional": "Необязательно",
+  "sommelier.origin_country": "Страна происхождения",
+  "sommelier.blend": "Бленд",
+  "sommelier.last_brewed": "Последняя варка",
+  "sommelier.milk": "Молоко",
+  "sommelier.milk_types": "Типы молока",
+  "sommelier.no_beans": "Зёрна ещё не добавлены",
+  "sommelier.search_beans": "Поиск зёрен…",
+  "sommelier.hopper1": "Бункер 1",
+  "sommelier.hopper2": "Бункер 2",
+  "sommelier.activate": "Активировать"
 }

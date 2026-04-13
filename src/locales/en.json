@@ -313,5 +313,23 @@
   "sommelier.note_earthy": "Earthy",
   "sommelier.note_honey": "Honey",
   "sommelier.note_berry": "Berry",
-  "sommelier.note_citrus": "Citrus"
+  "sommelier.note_citrus": "Citrus",
+
+  "sommelier.tab_generate": "Generate",
+  "sommelier.tab_beans": "Beans",
+  "sommelier.tab_favorites": "Favorites",
+  "sommelier.tab_history": "History",
+  "sommelier.results": "Results",
+  "sommelier.select_preset": "Select a preset…",
+  "sommelier.optional": "Optional",
+  "sommelier.origin_country": "Country of origin",
+  "sommelier.blend": "Blend",
+  "sommelier.last_brewed": "Last brewed",
+  "sommelier.milk": "Milk",
+  "sommelier.milk_types": "Milk types",
+  "sommelier.no_beans": "No beans yet",
+  "sommelier.search_beans": "Search beans…",
+  "sommelier.hopper1": "Hopper 1",
+  "sommelier.hopper2": "Hopper 2",
+  "sommelier.activate": "Activate"
 }
