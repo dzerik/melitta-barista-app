@@ -42,11 +42,15 @@ export function SommelierSection({ conn }: Props) {
       {/* Error banner */}
       {sommelier.error && (
         <div
+          role="alert"
           className="mx-5 mt-3 rounded-xl px-4 py-3 text-sm flex items-center gap-2"
           style={{ background: "var(--error-bg)", color: "var(--error-text)" }}
+          title={sommelier.error}
         >
-          <AlertCircle size={16} />
-          {sommelier.error}
+          <AlertCircle size={16} className="shrink-0" />
+          <span className="line-clamp-2">
+            {sommelier.error.length > 240 ? `${sommelier.error.slice(0, 240)}…` : sommelier.error}
+          </span>
         </div>
       )}
 

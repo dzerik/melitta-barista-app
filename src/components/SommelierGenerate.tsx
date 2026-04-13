@@ -116,6 +116,8 @@ export function SommelierGenerate({ sommelier }: Props) {
             <button
               key={m}
               onClick={() => setMood(mood === m ? "" : m)}
+              aria-pressed={mood === m}
+              aria-label={t(`sommelier.mood_${m}` as TranslationKey)}
               className="rounded-full px-3 py-1.5 text-xs font-medium transition active:scale-95 ring-1"
               style={chipStyle(mood === m)}
             >
@@ -135,6 +137,8 @@ export function SommelierGenerate({ sommelier }: Props) {
             <button
               key={o}
               onClick={() => setOccasion(occasion === o ? "" : o)}
+              aria-pressed={occasion === o}
+              aria-label={t(`sommelier.occasion_${o}` as TranslationKey)}
               className="rounded-full px-3 py-1.5 text-xs font-medium transition active:scale-95 ring-1"
               style={chipStyle(occasion === o)}
             >
@@ -155,6 +159,8 @@ export function SommelierGenerate({ sommelier }: Props) {
               <button
                 key={tmp}
                 onClick={() => setTemperature(tmp)}
+                aria-pressed={temperature === tmp}
+                aria-label={t(`sommelier.temp_${tmp}` as TranslationKey)}
                 className="rounded-full px-3 py-1.5 text-xs font-medium transition active:scale-95 ring-1"
                 style={chipStyle(temperature === tmp)}
               >
