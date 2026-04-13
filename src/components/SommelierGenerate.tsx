@@ -28,7 +28,7 @@ export function SommelierGenerate({ sommelier }: Props) {
 
   const favIds = new Set(favorites.map((f) => f.source_recipe_id));
 
-  const hasIce = extras.syrups.length > 0 || extras.toppings.length > 0 || extras.liqueurs.length > 0;
+  const hasIce = (extras?.syrups?.length ?? 0) > 0 || (extras?.toppings?.length ?? 0) > 0 || (extras?.liqueurs?.length ?? 0) > 0;
 
   const handleGenerate = () => generate("generate", preference || undefined, count, {
     mood: mood || undefined,

@@ -188,9 +188,9 @@ export function useSommelier(conn: Connection | null) {
       setHistory(histRes.sessions);
       setPresets(presetsRes.presets);
       setSettings(settingsRes.settings);
-      setExtrasState(extrasRes.extras);
+      setExtrasState(extrasRes.extras ?? { syrups: [], toppings: [], liqueurs: [] });
       setPreferencesState(prefsRes.preferences);
-      setProfiles(profilesRes.profiles);
+      setProfiles(profilesRes.profiles ?? []);
       setError(null);
     } catch (e) {
       console.warn("[sommelier] Failed to load data:", e);
