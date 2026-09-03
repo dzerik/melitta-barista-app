@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import type { Connection, HassEntities } from "home-assistant-js-websocket";
 import { getState } from "../lib/entities";
+import { deriveMachineStatus, type MachineStatusView } from "../lib/status";
 import { pressButton, safeCall } from "../lib/ha";
 import { usePreferences } from "../lib/preferences";
 import { X } from "lucide-react";
@@ -24,6 +25,12 @@ interface StatusConfig {
   pulse?: boolean;
 }
 
+/**
+ * Overlay kinds, keyed like the legacy lowercase native_value matching so
+ * pre-contract rendering stays byte-identical. Token mode maps process
+ * tokens onto the same set (easy/intensive clean & evaporating stay
+ * overlay-free — BrewSection shows their service screen, as before).
+ */
 const STATUS_MAP: Record<string, StatusConfig> = {
   brewing: {
     imgSrc: iconBrewCup,
@@ -56,28 +63,41 @@ const STATUS_MAP: Record<string, StatusConfig> = {
   },
 };
 
+/** Map the status view onto an overlay config, or null for no overlay. */
+function overlayConfig(view: MachineStatusView): StatusConfig | null {
+  if (view.brewing) return STATUS_MAP.brewing;
+  if (view.off) return STATUS_MAP.off;
+  if (view.service === "cleaning") return STATUS_MAP.cleaning;
+  if (view.service === "descaling") return STATUS_MAP.descaling;
+  if (view.service === "busy") return STATUS_MAP.busy;
+  // §5.3.2 rule 2: an unknown status token renders as neutral active/busy.
+  if (view.source === "tokens" && view.unknownActive) return STATUS_MAP.busy;
+  return null;
+}
+
 const stop = (e: React.TouchEvent | React.MouseEvent) => e.stopPropagation();
 
+/**
+ * Full-screen machine-status overlay (brewing/maintenance/off/action).
+ *
+ * Status is token-first via `deriveMachineStatus` (UI Contract §3.4 B) with
+ * the legacy English-string matching as the pre-contract fallback.
+ */
 export function StatusOverlay({ entities, prefix, conn }: Props) {
-  const { t } = usePreferences();
-  const machineState = (
-    getState(entities, prefix, "sensor", "state") || "ready"
-  ).toLowerCase();
+  const { t, locale } = usePreferences();
+  const view = deriveMachineStatus(entities, prefix, locale);
 
-  const actionRequired = getState(entities, prefix, "sensor", "action_required");
-  const hasAction = !!actionRequired && actionRequired !== "None";
   const progress = getState(entities, prefix, "sensor", "progress");
-  const activity = getState(entities, prefix, "sensor", "activity");
 
-  const config = STATUS_MAP[machineState];
-  const showOverlay = !!config || hasAction;
+  const config = overlayConfig(view);
+  const showOverlay = !!config || view.hasAction;
   if (!showOverlay) return null;
 
   const handleCancel = () => {
     safeCall(() => pressButton(conn, `button.${prefix}_cancel`));
   };
 
-  const statusConfig: StatusConfig = hasAction
+  const statusConfig: StatusConfig = view.hasAction
     ? {
         imgSrc: iconBtError,
         labelKey: "status.action_required",
@@ -85,12 +105,20 @@ export function StatusOverlay({ entities, prefix, conn }: Props) {
       }
     : config!;
 
-  const isBrewing = machineState === "brewing";
+  const isBrewing = view.brewing;
   const progressNum = progress ? parseInt(progress, 10) : null;
-  const description = hasAction
-    ? actionRequired || t(statusConfig.descKey)
-    : isBrewing && activity
-      ? activity
+
+  // Title: token mode prefers the localized token label (server string →
+  // bundle → humanized); the legacy path keeps the bundle key text.
+  const title =
+    view.hasAction || view.source === "legacy"
+      ? t(statusConfig.labelKey)
+      : view.statusLabel;
+
+  const description = view.hasAction
+    ? view.actionLabel || t(statusConfig.descKey)
+    : isBrewing && view.activityLabel
+      ? view.activityLabel
       : t(statusConfig.descKey);
 
   return createPortal(
@@ -111,7 +139,7 @@ export function StatusOverlay({ entities, prefix, conn }: Props) {
         />
 
         <h2 className="text-xl font-semibold text-primary tracking-wide">
-          {t(statusConfig.labelKey)}
+          {title}
         </h2>
 
         <p className="text-sm text-secondary text-center max-w-[260px]">

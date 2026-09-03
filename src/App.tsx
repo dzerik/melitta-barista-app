@@ -1,10 +1,12 @@
 import { useState, useCallback, useEffect } from "react";
 import { useHA } from "./hooks/useHA";
+import { useUiContract } from "./hooks/useUiContract";
 import { useSwipePager } from "./hooks/useSwipe";
 import { clearConfig } from "./lib/ha";
-import { getState } from "./lib/entities";
+import { deriveMachineStatus, isNavigationLocked, sectionGates } from "./lib/status";
+import { syncServerStrings } from "./lib/server-strings";
 import { usePreferences } from "./lib/preferences";
-import { ConnectScreen } from "./components/ConnectScreen";
+import { ConnectScreen, VersionMismatchScreen } from "./components/ConnectScreen";
 import { StatusBar } from "./components/StatusBar";
 import { BrewSection } from "./components/BrewSection";
 import { FreestyleSection } from "./components/FreestyleSection";
@@ -46,14 +48,43 @@ export default function App() {
   const [tabIndex, setTabIndex] = useState(0);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const pageWidth = useWindowWidth();
-  const { t } = usePreferences();
+  const { t, locale } = usePreferences();
 
+  // Contract session (Zone P-I wiring): bridge detection, ui_contract/get
+  // lifecycle with retry + last-good persistence, §5.4 version gate.
+  const session = useUiContract(connection, entities, prefix);
+  const contract = session.contract;
+
+  // Server strings (§6.3.2): one i18n/get per connection + locale, revalidated
+  // for free against the contract document's strings_version when available.
+  // The tick re-renders the tree once the registry is (re)filled — every
+  // label helper reads the registry synchronously during render.
+  const [, setStringsTick] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    syncServerStrings(connection, locale, session.stringsVersion).then(() => {
+      if (!cancelled) setStringsTick((tick) => tick + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [connection, locale, session.stringsVersion]);
+
+  // Capability-gated sections (§3.5): no contract → every tab stays visible
+  // (the legacy behavior).
+  const gates = sectionGates(contract);
+  const visibleTabs = TABS.filter((tt) =>
+    tt === "freestyle" ? gates.freestyle : tt === "stats" ? gates.stats : true,
+  );
+  // Clamped at render time: if a contract arriving mid-session hides tabs,
+  // the pager lands on the last visible one without a state round-trip.
+  const pageIndex = Math.min(tabIndex, visibleTabs.length - 1);
+
+  // Tab-lock gate, token-first (UI Contract §3.4 B) with the legacy
+  // English-string matching as the pre-contract fallback.
   const hasAction = (() => {
     if (!entities || !prefix) return false;
-    const ar = getState(entities, prefix, "sensor", "action_required");
-    if (ar && ar !== "None") return true;
-    const ms = (getState(entities, prefix, "sensor", "state") || "ready").toLowerCase();
-    return ms !== "ready";
+    return isNavigationLocked(deriveMachineStatus(entities, prefix, locale));
   })();
 
   const onPageChange = useCallback(
@@ -64,8 +95,8 @@ export default function App() {
   );
 
   const { state: pager, handlers: swipe } = useSwipePager({
-    pageCount: TABS.length,
-    currentPage: tabIndex,
+    pageCount: visibleTabs.length,
+    currentPage: pageIndex,
     onPageChange,
     pageWidth,
   });
@@ -83,6 +114,11 @@ export default function App() {
     );
   }
 
+  const handleDisconnect = () => {
+    clearConfig();
+    disconnect();
+  };
+
   if (!prefix) {
     return (
       <>
@@ -94,10 +130,7 @@ export default function App() {
               {t("app.integration_hint")}
             </p>
             <button
-              onClick={() => {
-                clearConfig();
-                disconnect();
-              }}
+              onClick={handleDisconnect}
               className="mt-4 rounded-lg px-4 py-2 text-sm text-secondary ring-1 ring-border hover:ring-border-hover transition"
             >
               {t("app.disconnect")}
@@ -109,12 +142,38 @@ export default function App() {
     );
   }
 
-  const handleDisconnect = () => {
-    clearConfig();
-    disconnect();
-  };
+  // §5.4 PWA gate: the app has no legacy mode against a pre-contract or
+  // version-incompatible integration — one of the two mismatch screens.
+  if (session.mismatch !== null) {
+    return (
+      <>
+        <VersionMismatchScreen
+          direction={session.mismatch}
+          onDisconnect={handleDisconnect}
+        />
+        <ResolutionGuard />
+      </>
+    );
+  }
 
-  const tab = TABS[tabIndex];
+  const tab = visibleTabs[pageIndex];
+
+  const renderSection = (tt: Tab) => {
+    switch (tt) {
+      case "brew":
+        return <BrewSection conn={connection} entities={entities} prefix={prefix} contract={contract} />;
+      case "freestyle":
+        return <FreestyleSection conn={connection} entities={entities} prefix={prefix} contract={contract} />;
+      case "sommelier":
+        return <SommelierSection conn={connection} entities={entities} prefix={prefix} contract={contract} />;
+      case "stats":
+        return <StatsSection entities={entities} prefix={prefix} />;
+      case "maintenance":
+        return <MaintenanceSection conn={connection} entities={entities} prefix={prefix} contract={contract} />;
+      case "settings":
+        return <SettingsSection conn={connection} entities={entities} prefix={prefix} contract={contract} />;
+    }
+  };
 
   return (
     <div className="flex h-full flex-col bg-page">
@@ -125,12 +184,22 @@ export default function App() {
         onOpenPrefs={() => setPrefsOpen(true)}
       />
 
+      {/* §5.4: persisted last-good contract rendered before a live fetch lands */}
+      {session.stale && (
+        <div
+          className="px-4 py-1 text-center text-[11px] text-tertiary"
+          style={{ background: "var(--surface)" }}
+        >
+          {t("contract.stale_notice")}
+        </div>
+      )}
+
       {/* Swipe pager */}
       <div className="flex-1 min-h-0 overflow-hidden">
         <div
           className="flex h-full will-change-transform"
           style={{
-            width: `${TABS.length * 100}%`,
+            width: `${visibleTabs.length * 100}%`,
             transform: `translateX(${pager.offsetPx}px)`,
             transition: pager.dragging
               ? "none"
@@ -140,24 +209,11 @@ export default function App() {
           onTouchMove={swipe.onTouchMove}
           onTouchEnd={swipe.onTouchEnd}
         >
-          <div className="h-full" style={{ width: `${pageWidth}px` }}>
-            <BrewSection conn={connection} entities={entities} prefix={prefix} />
-          </div>
-          <div className="h-full" style={{ width: `${pageWidth}px` }}>
-            <FreestyleSection conn={connection} entities={entities} prefix={prefix} />
-          </div>
-          <div className="h-full" style={{ width: `${pageWidth}px` }}>
-            <SommelierSection conn={connection} entities={entities} prefix={prefix} />
-          </div>
-          <div className="h-full" style={{ width: `${pageWidth}px` }}>
-            <StatsSection entities={entities} prefix={prefix} />
-          </div>
-          <div className="h-full" style={{ width: `${pageWidth}px` }}>
-            <MaintenanceSection conn={connection} entities={entities} prefix={prefix} />
-          </div>
-          <div className="h-full" style={{ width: `${pageWidth}px` }}>
-            <SettingsSection conn={connection} entities={entities} prefix={prefix} />
-          </div>
+          {visibleTabs.map((tt) => (
+            <div key={tt} className="h-full" style={{ width: `${pageWidth}px` }}>
+              {renderSection(tt)}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -167,7 +223,7 @@ export default function App() {
         <div
           className="absolute top-0 h-px"
           style={{
-            width: `${100 / TABS.length}%`,
+            width: `${100 / visibleTabs.length}%`,
             transform: `translateX(${(-pager.offsetPx / pageWidth) * 100}%)`,
             transition: pager.dragging
               ? "none"
@@ -175,7 +231,7 @@ export default function App() {
             background: "var(--accent)",
           }}
         />
-        {TABS.map((tt, i) => (
+        {visibleTabs.map((tt, i) => (
           <button
             key={tt}
             onClick={() => onPageChange(i)}

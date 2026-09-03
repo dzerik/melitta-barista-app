@@ -2,6 +2,7 @@ import { useState } from "react";
 import { getSavedConfig, saveConfig } from "../lib/ha";
 import { usePreferences } from "../lib/preferences";
 import type { Locale } from "../lib/i18n";
+import type { MismatchDirection } from "../lib/contract";
 import { ShieldCheck } from "lucide-react";
 import logoMelitta from "../assets/logo_melitta.png";
 import machineImg from "../assets/machine.png";
@@ -19,6 +20,46 @@ interface Props {
   onConnect: (url: string, token: string) => void;
   error: string | null;
   connecting: boolean;
+}
+
+interface MismatchProps {
+  /** Which side is too old (§5.4): server below our minimum / above our maximum. */
+  direction: MismatchDirection;
+  onDisconnect?: () => void;
+}
+
+/**
+ * The §5.4 PWA version-mismatch screen — the app has no legacy mode, so an
+ * unsupported (or absent, i.e. pre-contract) `contract_version` renders one
+ * of two full-screen prompts instead of a degraded UI: server too old →
+ * "update the integration"; server too new → "update the app".
+ */
+export function VersionMismatchScreen({ direction, onDisconnect }: MismatchProps) {
+  const { t } = usePreferences();
+  const isAppOld = direction === "update_app";
+
+  return (
+    <div className="flex h-full items-center justify-center p-6 bg-page">
+      <div className="flex flex-col items-center text-center space-y-4 max-w-md">
+        <img src={logoMelitta} alt="Melitta" className="h-10 object-contain" draggable={false} />
+        <img src={machineImg} alt="" className="h-24 object-contain opacity-50" draggable={false} />
+        <h2 className="text-xl font-semibold text-primary tracking-wide">
+          {t(isAppOld ? "contract.update_app_title" : "contract.update_integration_title")}
+        </h2>
+        <p className="text-sm text-tertiary leading-relaxed">
+          {t(isAppOld ? "contract.update_app_desc" : "contract.update_integration_desc")}
+        </p>
+        {onDisconnect && (
+          <button
+            onClick={onDisconnect}
+            className="mt-4 rounded-lg px-4 py-2 text-sm text-secondary ring-1 ring-border hover:ring-border-hover transition"
+          >
+            {t("app.disconnect")}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function ConnectScreen({ onConnect, error, connecting }: Props) {

@@ -2,15 +2,21 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import type { Connection, HassEntities } from "home-assistant-js-websocket";
 import type { RecipeDetails } from "../lib/entities";
-import { getState } from "../lib/entities";
+import type { UiContract } from "../lib/contract";
 import { brewFreestyle, safeCall } from "../lib/ha";
 import { useFreestyleState } from "../hooks/useFreestyleState";
 import { useRecipeCache } from "../hooks/useRecipeCache";
 import { usePreferences } from "../lib/preferences";
+import { deriveMachineStatus } from "../lib/status";
+import {
+  resolveEnumTokens,
+  resolveProcessTokens,
+  resolvePortionRange,
+} from "../lib/parameters";
+import { displayNameFor } from "../lib/i18n";
 import { FreestyleGlass } from "./FreestyleGlass";
 import { CoffeeIcon } from "./CoffeeIcon";
 import { Ban } from "lucide-react";
-import type { TranslationKey } from "../lib/i18n";
 import iconBean from "../assets/icons/bean.png";
 import iconMilk from "../assets/icons/milk.png";
 import iconWater from "../assets/icons/water.png";
@@ -26,6 +32,8 @@ interface Props {
   conn: Connection;
   entities: HassEntities;
   prefix: string;
+  /** UI Contract document (P-I wiring); null/omitted → legacy sources. */
+  contract?: UiContract | null;
 }
 
 function RecipePickerModal({
@@ -100,23 +108,21 @@ function RecipePickerModal({
 }
 
 function SegmentPicker({
+  family,
   options,
   value,
   onChange,
 }: {
+  family: string;
   options: string[];
   value: string;
   onChange: (v: string) => void;
 }) {
-  const { t } = usePreferences();
+  const { locale } = usePreferences();
   if (options.length === 0) return null;
 
-  const displayName = (v: string): string => {
-    const key = `process.${v}` as TranslationKey;
-    const translated = t(key);
-    if (translated !== key) return translated;
-    return v.charAt(0).toUpperCase() + v.slice(1).replaceAll("_", " ");
-  };
+  // §6.3.5.7 chain: server values.<family>.<token> → bundle → humanized.
+  const displayName = (v: string): string => displayNameFor(locale, family, v);
 
   return (
     <div className="flex rounded-xl overflow-hidden ring-1 ring-border">
@@ -147,28 +153,25 @@ function SegmentPicker({
 }
 
 function SliderRow({
+  family,
   label,
   options,
   value,
   onChange,
   disabled = false,
 }: {
+  family: string;
   label: string;
   options: string[];
   value: string;
   onChange: (v: string) => void;
   disabled?: boolean;
 }) {
-  const { t } = usePreferences();
+  const { locale } = usePreferences();
   if (options.length === 0) return null;
   const idx = options.indexOf(value);
 
-  const displayName = (v: string): string => {
-    const key = `process.${v}` as TranslationKey;
-    const translated = t(key);
-    if (translated !== key) return translated;
-    return v.charAt(0).toUpperCase() + v.slice(1).replaceAll("_", " ");
-  };
+  const displayName = (v: string): string => displayNameFor(locale, family, v);
 
   return (
     <div className={`space-y-1.5 transition-opacity ${disabled ? "opacity-20 pointer-events-none" : ""}`}>
@@ -241,15 +244,30 @@ function PortionSlider({
   );
 }
 
-export function FreestyleSection({ conn, entities, prefix }: Props) {
-  const { t } = usePreferences();
-  const machineState = getState(entities, prefix, "sensor", "state");
-  const isReady = machineState === "Ready";
+export function FreestyleSection({ conn, entities, prefix, contract = null }: Props) {
+  const { t, locale } = usePreferences();
+  const view = deriveMachineStatus(entities, prefix, locale);
+  const isReady = view.ready;
   const brewEntityId = `button.${prefix}_brew_freestyle`;
 
   const { state: fs, update, options: opts, loadFromRecipe } = useFreestyleState(entities, prefix);
   const { recipeOptions, allRecipes } = useRecipeCache(entities, prefix);
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  // §6.1.5 three-tier resolution: contract parameters → the freestyle select
+  // entities' options (the pre-contract source) → hardcoded consts.
+  const processOpts1 = resolveProcessTokens(contract, 1, opts.processOpts1).tokens;
+  const processOpts2 = resolveProcessTokens(contract, 2, opts.processOpts2).tokens;
+  const intensityOpts1 = resolveEnumTokens(contract, "intensity", opts.intensityOpts1).tokens;
+  const intensityOpts2 = resolveEnumTokens(contract, "intensity", opts.intensityOpts2).tokens;
+  const aromaOpts1 = resolveEnumTokens(contract, "aroma", opts.aromaOpts1).tokens;
+  const aromaOpts2 = resolveEnumTokens(contract, "aroma", opts.aromaOpts2).tokens;
+  const tempOpts1 = resolveEnumTokens(contract, "temperature", opts.tempOpts1).tokens;
+  const tempOpts2 = resolveEnumTokens(contract, "temperature", opts.tempOpts2).tokens;
+  const shotsOpts1 = resolveEnumTokens(contract, "shots", opts.shotsOpts1).tokens;
+  const shotsOpts2 = resolveEnumTokens(contract, "shots", opts.shotsOpts2).tokens;
+  const portion1Range = resolvePortionRange(contract, "c1");
+  const portion2Range = resolvePortionRange(contract, "c2");
 
   const handleBrew = () => {
     safeCall(() =>
@@ -278,7 +296,7 @@ export function FreestyleSection({ conn, entities, prefix }: Props) {
           <img src={iconNotConnected} alt="not ready" className="w-20 h-20 object-contain opacity-60" draggable={false} />
           <div className="text-center">
             <div className="text-lg font-light text-primary tracking-wide">
-              {machineState || "Offline"}
+              {view.offline ? "Offline" : view.statusLabel}
             </div>
             <div className="text-sm text-tertiary mt-2">
               {t("freestyle.available_when_ready")}
@@ -296,12 +314,12 @@ export function FreestyleSection({ conn, entities, prefix }: Props) {
           <div className="text-xs font-bold text-primary uppercase tracking-[0.2em]">
             {t("freestyle.component1")}
           </div>
-          <SegmentPicker options={opts.processOpts1} value={fs.process1} onChange={(v) => update("process1", v)} />
-          <PortionSlider label={t("freestyle.portion")} value={fs.portion1} min={5} max={250} step={5} onChange={(v) => update("portion1", v)} />
-          <SliderRow label={t("freestyle.intensity")} options={opts.intensityOpts1} value={fs.intensity1} onChange={(v) => update("intensity1", v)} disabled={fs.process1 !== "coffee"} />
-          <SliderRow label={t("freestyle.aroma")} options={opts.aromaOpts1} value={fs.aroma1} onChange={(v) => update("aroma1", v)} disabled={fs.process1 !== "coffee"} />
-          <SliderRow label={t("freestyle.temperature")} options={opts.tempOpts1} value={fs.temperature1} onChange={(v) => update("temperature1", v)} />
-          <SliderRow label={t("freestyle.shots")} options={opts.shotsOpts1} value={fs.shots1} onChange={(v) => update("shots1", v)} disabled={fs.process1 !== "coffee"} />
+          <SegmentPicker family="process" options={processOpts1} value={fs.process1} onChange={(v) => update("process1", v)} />
+          <PortionSlider label={t("freestyle.portion")} value={fs.portion1} min={portion1Range.min} max={portion1Range.max} step={portion1Range.step} onChange={(v) => update("portion1", v)} />
+          <SliderRow family="intensity" label={t("freestyle.intensity")} options={intensityOpts1} value={fs.intensity1} onChange={(v) => update("intensity1", v)} disabled={fs.process1 !== "coffee"} />
+          <SliderRow family="aroma" label={t("freestyle.aroma")} options={aromaOpts1} value={fs.aroma1} onChange={(v) => update("aroma1", v)} disabled={fs.process1 !== "coffee"} />
+          <SliderRow family="temperature" label={t("freestyle.temperature")} options={tempOpts1} value={fs.temperature1} onChange={(v) => update("temperature1", v)} />
+          <SliderRow family="shots" label={t("freestyle.shots")} options={shotsOpts1} value={fs.shots1} onChange={(v) => update("shots1", v)} disabled={fs.process1 !== "coffee"} />
         </div>
 
         <div className="flex flex-col items-center justify-center px-4 border-x border-border">
@@ -357,6 +375,8 @@ export function FreestyleSection({ conn, entities, prefix }: Props) {
             portion2={fs.portion2}
             size={280}
             hideVolume
+            intensityScale={intensityOpts1}
+            temperatureScale={tempOpts1}
           />
 
           <button
@@ -372,12 +392,12 @@ export function FreestyleSection({ conn, entities, prefix }: Props) {
           <div className="text-xs font-bold text-primary uppercase tracking-[0.2em]">
             {t("freestyle.component2")}
           </div>
-          <SegmentPicker options={opts.processOpts2} value={fs.process2} onChange={(v) => update("process2", v)} />
-          <PortionSlider label={t("freestyle.portion")} value={fs.portion2} min={0} max={250} step={5} onChange={(v) => update("portion2", v)} disabled={fs.process2 === "none"} />
-          <SliderRow label={t("freestyle.intensity")} options={opts.intensityOpts2} value={fs.intensity2} onChange={(v) => update("intensity2", v)} disabled={fs.process2 !== "coffee"} />
-          <SliderRow label={t("freestyle.aroma")} options={opts.aromaOpts2} value={fs.aroma2} onChange={(v) => update("aroma2", v)} disabled={fs.process2 !== "coffee"} />
-          <SliderRow label={t("freestyle.temperature")} options={opts.tempOpts2} value={fs.temperature2} onChange={(v) => update("temperature2", v)} disabled={fs.process2 === "none"} />
-          <SliderRow label={t("freestyle.shots")} options={opts.shotsOpts2} value={fs.shots2} onChange={(v) => update("shots2", v)} disabled={fs.process2 !== "coffee"} />
+          <SegmentPicker family="process" options={processOpts2} value={fs.process2} onChange={(v) => update("process2", v)} />
+          <PortionSlider label={t("freestyle.portion")} value={fs.portion2} min={portion2Range.min} max={portion2Range.max} step={portion2Range.step} onChange={(v) => update("portion2", v)} disabled={fs.process2 === "none"} />
+          <SliderRow family="intensity" label={t("freestyle.intensity")} options={intensityOpts2} value={fs.intensity2} onChange={(v) => update("intensity2", v)} disabled={fs.process2 !== "coffee"} />
+          <SliderRow family="aroma" label={t("freestyle.aroma")} options={aromaOpts2} value={fs.aroma2} onChange={(v) => update("aroma2", v)} disabled={fs.process2 !== "coffee"} />
+          <SliderRow family="temperature" label={t("freestyle.temperature")} options={tempOpts2} value={fs.temperature2} onChange={(v) => update("temperature2", v)} disabled={fs.process2 === "none"} />
+          <SliderRow family="shots" label={t("freestyle.shots")} options={shotsOpts2} value={fs.shots2} onChange={(v) => update("shots2", v)} disabled={fs.process2 !== "coffee"} />
         </div>
       </div>
     </div>

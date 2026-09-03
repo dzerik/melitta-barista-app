@@ -1,5 +1,5 @@
 import type { HassEntities } from "home-assistant-js-websocket";
-import { getState } from "../lib/entities";
+import { deriveMachineStatus } from "../lib/status";
 import { usePreferences } from "../lib/preferences";
 import { Settings } from "lucide-react";
 import logoMelitta from "../assets/logo_melitta.png";
@@ -13,11 +13,16 @@ interface Props {
   onOpenPrefs: () => void;
 }
 
+/**
+ * Top bar: BLE link state + machine status label.
+ *
+ * Token-first (UI Contract §3.4): with a supported bridge, `connected` comes
+ * from the bridge attribute block and the label from the localized process
+ * token; pre-contract integrations keep the frozen legacy strings.
+ */
 export function StatusBar({ entities, prefix, onDisconnect, onOpenPrefs }: Props) {
-  const machineState = getState(entities, prefix, "sensor", "state") || "offline";
-  const connection = getState(entities, prefix, "sensor", "connection") || "Disconnected";
-  const isConnected = connection === "Connected";
-  const { t } = usePreferences();
+  const { t, locale } = usePreferences();
+  const view = deriveMachineStatus(entities, prefix, locale);
 
   return (
     <div className="flex items-center justify-between px-6 py-3 border-b border-border">
@@ -25,12 +30,12 @@ export function StatusBar({ entities, prefix, onDisconnect, onOpenPrefs }: Props
         <img src={logoMelitta} alt="Melitta" className="h-6 object-contain" draggable={false} />
         <div className="flex items-center gap-1.5 text-xs">
           <img
-            src={isConnected ? iconBtConnected : iconBtDisconnected}
-            alt={isConnected ? "connected" : "disconnected"}
+            src={view.connected ? iconBtConnected : iconBtDisconnected}
+            alt={view.connected ? "connected" : "disconnected"}
             className="w-3.5 h-3.5 object-contain"
             draggable={false}
           />
-          <span className="text-secondary">{machineState}</span>
+          <span className="text-secondary">{view.statusLabel}</span>
         </div>
       </div>
       <div className="flex items-center gap-2">

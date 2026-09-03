@@ -3,6 +3,7 @@ import { Sparkles, Shuffle, Loader2 } from "lucide-react";
 import { usePreferences } from "../lib/preferences";
 import type { TranslationKey } from "../lib/i18n";
 import type { useSommelier } from "../hooks/useSommelier";
+import { sommelierTokens, sommelierLabel, suggestionLabel } from "../lib/sommelier-vocab";
 import { SommelierRecipeCard } from "./SommelierRecipeCard";
 
 type SommelierHook = ReturnType<typeof useSommelier>;
@@ -11,12 +12,8 @@ interface Props {
   sommelier: SommelierHook;
 }
 
-const MOODS = ["energizing", "relaxing", "dessert", "classic"] as const;
-const OCCASIONS = ["morning", "after_lunch", "guests", "romantic", "work"] as const;
-const TEMPS = ["auto", "hot", "iced"] as const;
-
 export function SommelierGenerate({ sommelier }: Props) {
-  const { t } = usePreferences();
+  const { t, locale } = usePreferences();
   const { hoppers, milkTypes, extras, currentSession, generating, favorites, generate, brewRecipe, addFavorite } = sommelier;
   const [preference, setPreference] = useState("");
   const [count, setCount] = useState(3);
@@ -27,6 +24,11 @@ export function SommelierGenerate({ sommelier }: Props) {
   const [servings, setServings] = useState(1);
 
   const favIds = new Set(favorites.map((f) => f.source_recipe_id));
+
+  // §9.2.6.1 pickers: served vocab tokens → hardcoded fallback lists.
+  const moods = sommelierTokens("mood");
+  const occasions = sommelierTokens("occasion");
+  const temps = sommelierTokens("temperature");
 
   const hasIce = (extras?.syrups?.length ?? 0) > 0 || (extras?.toppings?.length ?? 0) > 0 || (extras?.liqueurs?.length ?? 0) > 0;
 
@@ -66,7 +68,7 @@ export function SommelierGenerate({ sommelier }: Props) {
             <div className="flex flex-wrap gap-1 mt-1.5">
               {bean.flavor_notes.slice(0, 3).map((note) => (
                 <span key={note} className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--surface)", color: "var(--text-tertiary)" }}>
-                  {t(`sommelier.note_${note}` as TranslationKey)}
+                  {suggestionLabel(locale, "note_", note)}
                 </span>
               ))}
             </div>
@@ -112,16 +114,16 @@ export function SommelierGenerate({ sommelier }: Props) {
           {t("sommelier.mood" as TranslationKey)}
         </div>
         <div className="flex flex-wrap gap-2">
-          {MOODS.map((m) => (
+          {moods.map((m) => (
             <button
               key={m}
               onClick={() => setMood(mood === m ? "" : m)}
               aria-pressed={mood === m}
-              aria-label={t(`sommelier.mood_${m}` as TranslationKey)}
+              aria-label={sommelierLabel(locale, "mood", m)}
               className="rounded-full px-3 py-1.5 text-xs font-medium transition active:scale-95 ring-1"
               style={chipStyle(mood === m)}
             >
-              {t(`sommelier.mood_${m}` as TranslationKey)}
+              {sommelierLabel(locale, "mood", m)}
             </button>
           ))}
         </div>
@@ -133,16 +135,16 @@ export function SommelierGenerate({ sommelier }: Props) {
           {t("sommelier.occasion" as TranslationKey)}
         </div>
         <div className="flex flex-wrap gap-2">
-          {OCCASIONS.map((o) => (
+          {occasions.map((o) => (
             <button
               key={o}
               onClick={() => setOccasion(occasion === o ? "" : o)}
               aria-pressed={occasion === o}
-              aria-label={t(`sommelier.occasion_${o}` as TranslationKey)}
+              aria-label={sommelierLabel(locale, "occasion", o)}
               className="rounded-full px-3 py-1.5 text-xs font-medium transition active:scale-95 ring-1"
               style={chipStyle(occasion === o)}
             >
-              {t(`sommelier.occasion_${o}` as TranslationKey)}
+              {sommelierLabel(locale, "occasion", o)}
             </button>
           ))}
         </div>
@@ -155,16 +157,16 @@ export function SommelierGenerate({ sommelier }: Props) {
             {t("sommelier.temp_pref" as TranslationKey)}
           </div>
           <div className="flex gap-2">
-            {TEMPS.map((tmp) => (
+            {temps.map((tmp) => (
               <button
                 key={tmp}
                 onClick={() => setTemperature(tmp)}
                 aria-pressed={temperature === tmp}
-                aria-label={t(`sommelier.temp_${tmp}` as TranslationKey)}
+                aria-label={sommelierLabel(locale, "temperature", tmp)}
                 className="rounded-full px-3 py-1.5 text-xs font-medium transition active:scale-95 ring-1"
                 style={chipStyle(temperature === tmp)}
               >
-                {t(`sommelier.temp_${tmp}` as TranslationKey)}
+                {sommelierLabel(locale, "temperature", tmp)}
               </button>
             ))}
           </div>

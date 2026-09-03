@@ -1,7 +1,8 @@
 import type { RecipeDetails } from "../lib/entities";
+import { recipeDisplayName, type ContractRecipeFields } from "../lib/recipes";
 import { CoffeeIcon } from "./CoffeeIcon";
 
-export interface RecipeCardData {
+export interface RecipeCardData extends ContractRecipeFields {
   name: string;
   isSelected: boolean;
   details?: RecipeDetails;
@@ -40,6 +41,7 @@ export function RecipeCard({
 }: Props) {
   const isLarge = size === "large";
   const resolvedIconSize = iconSize ?? (isLarge ? 280 : 140);
+  const label = recipeDisplayName(recipe);
 
   return (
     <button
@@ -68,12 +70,12 @@ export function RecipeCard({
           letterSpacing: "0.12em",
         }}
       >
-        {recipe.name}
+        {label}
       </span>
 
       {/* Icon */}
       <div className={`flex-1 flex items-center justify-center w-full min-h-0 ${isLarge ? "py-4" : "py-2"}`}>
-        <CoffeeIcon recipe={recipe.name} size={resolvedIconSize} />
+        <CoffeeIcon recipe={recipe.name} size={resolvedIconSize} icon={recipe.icon} nameKey={recipe.nameKey} />
       </div>
 
       {/* Divider + recipe details */}

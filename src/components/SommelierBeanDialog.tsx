@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { usePreferences } from "../lib/preferences";
 import type { TranslationKey } from "../lib/i18n";
 import type { CoffeeBeanInput, CoffeePreset } from "../hooks/useSommelier";
+import { sommelierTokens, sommelierLabel, suggestionLabel, mergeSuggestions } from "../lib/sommelier-vocab";
 
 interface Props {
   open: boolean;
@@ -13,10 +14,9 @@ interface Props {
   initial?: Partial<CoffeeBeanInput>;
 }
 
-const ROAST_OPTIONS = ["light", "medium", "medium_dark", "dark"] as const;
-const BEAN_TYPES = ["arabica", "arabica_robusta", "robusta"] as const;
-const ORIGIN_OPTIONS = ["single_origin", "blend"] as const;
-const FLAVOR_NOTES = [
+// Client-local *suggestions* over a free-form field (§9.2.4) — flavor notes
+// are deliberately not vocab; user input is never restricted to this list.
+const FLAVOR_NOTE_SUGGESTIONS = [
   "chocolate", "nutty", "fruity", "floral", "caramel",
   "spicy", "earthy", "honey", "berry", "citrus",
 ] as const;
@@ -31,15 +31,25 @@ const EMPTY: CoffeeBeanInput = {
 };
 
 export function SommelierBeanDialog({ open, onClose, onSave, presets, initial }: Props) {
-  const { t } = usePreferences();
+  const { t, locale } = usePreferences();
   const [form, setForm] = useState<CoffeeBeanInput>({ ...EMPTY, ...initial });
   const [saving, setSaving] = useState(false);
+  const [customNote, setCustomNote] = useState("");
 
   useEffect(() => {
-    if (open) setForm({ ...EMPTY, ...initial });
+    if (open) {
+      setForm({ ...EMPTY, ...initial });
+      setCustomNote("");
+    }
   }, [open, initial]);
 
   if (!open) return null;
+
+  // §9.2.6.1 pickers: served vocab tokens → hardcoded fallback lists.
+  const roasts = sommelierTokens("roast");
+  const beanTypes = sommelierTokens("bean_type");
+  const origins = sommelierTokens("origin");
+  const noteChips = mergeSuggestions(FLAVOR_NOTE_SUGGESTIONS, form.flavor_notes ?? []);
 
   const set = <K extends keyof CoffeeBeanInput>(key: K, value: CoffeeBeanInput[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -47,6 +57,14 @@ export function SommelierBeanDialog({ open, onClose, onSave, presets, initial }:
   const toggleNote = (note: string) => {
     const notes = form.flavor_notes ?? [];
     set("flavor_notes", notes.includes(note) ? notes.filter((n) => n !== note) : [...notes, note]);
+  };
+
+  const addCustomNote = () => {
+    const note = customNote.trim();
+    if (!note) return;
+    const notes = form.flavor_notes ?? [];
+    if (!notes.includes(note)) set("flavor_notes", [...notes, note]);
+    setCustomNote("");
   };
 
   const applyPreset = (presetId: string) => {
@@ -148,8 +166,8 @@ export function SommelierBeanDialog({ open, onClose, onSave, presets, initial }:
               className="mt-1 w-full rounded-xl px-3 py-2.5 text-sm ring-1 ring-border outline-none"
               style={{ background: "var(--surface-card)", color: "var(--text-primary)" }}
             >
-              {ROAST_OPTIONS.map((r) => (
-                <option key={r} value={r}>{t(`sommelier.roast_${r}` as TranslationKey)}</option>
+              {roasts.map((r) => (
+                <option key={r} value={r}>{sommelierLabel(locale, "roast", r)}</option>
               ))}
             </select>
           </div>
@@ -165,8 +183,8 @@ export function SommelierBeanDialog({ open, onClose, onSave, presets, initial }:
               className="mt-1 w-full rounded-xl px-3 py-2.5 text-sm ring-1 ring-border outline-none"
               style={{ background: "var(--surface-card)", color: "var(--text-primary)" }}
             >
-              {BEAN_TYPES.map((bt) => (
-                <option key={bt} value={bt}>{t(`sommelier.type_${bt}` as TranslationKey)}</option>
+              {beanTypes.map((bt) => (
+                <option key={bt} value={bt}>{sommelierLabel(locale, "bean_type", bt)}</option>
               ))}
             </select>
           </div>
@@ -182,8 +200,8 @@ export function SommelierBeanDialog({ open, onClose, onSave, presets, initial }:
               className="mt-1 w-full rounded-xl px-3 py-2.5 text-sm ring-1 ring-border outline-none"
               style={{ background: "var(--surface-card)", color: "var(--text-primary)" }}
             >
-              {ORIGIN_OPTIONS.map((o) => (
-                <option key={o} value={o}>{t(`sommelier.origin_${o}` as TranslationKey)}</option>
+              {origins.map((o) => (
+                <option key={o} value={o}>{sommelierLabel(locale, "origin", o)}</option>
               ))}
             </select>
           </div>
@@ -211,7 +229,7 @@ export function SommelierBeanDialog({ open, onClose, onSave, presets, initial }:
               {t("sommelier.flavor_notes" as TranslationKey)}
             </label>
             <div className="mt-2 flex flex-wrap gap-2">
-              {FLAVOR_NOTES.map((note) => {
+              {noteChips.map((note) => {
                 const active = (form.flavor_notes ?? []).includes(note);
                 return (
                   <button
@@ -224,11 +242,21 @@ export function SommelierBeanDialog({ open, onClose, onSave, presets, initial }:
                       "--tw-ring-color": active ? "transparent" : "var(--border)",
                     } as React.CSSProperties}
                   >
-                    {t(`sommelier.note_${note}` as TranslationKey)}
+                    {suggestionLabel(locale, "note_", note)}
                   </button>
                 );
               })}
             </div>
+            <input
+              type="text"
+              value={customNote}
+              onChange={(e) => setCustomNote(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomNote(); } }}
+              onBlur={addCustomNote}
+              placeholder={t("sommelier.add_custom" as TranslationKey)}
+              className="mt-2 w-full rounded-xl px-3 py-2.5 text-sm ring-1 ring-border outline-none"
+              style={{ background: "var(--surface-card)", color: "var(--text-primary)" }}
+            />
           </div>
         </div>
 

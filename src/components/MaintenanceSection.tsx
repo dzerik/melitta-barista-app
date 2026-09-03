@@ -1,8 +1,25 @@
 import { useState, useCallback } from "react";
-import type { Connection, HassEntities } from "home-assistant-js-websocket";
+import { callService, type Connection, type HassEntities } from "home-assistant-js-websocket";
 import { getState, getEntity } from "../lib/entities";
 import { pressButton, safeCall } from "../lib/ha";
 import { usePreferences } from "../lib/preferences";
+import type { UiContract } from "../lib/contract";
+import { deriveMachineStatus } from "../lib/status";
+import {
+  resolveActionCatalog,
+  maintenanceActionGroups,
+  requiresContextFromStatus,
+  evalRequires,
+  needsConfirm,
+  isDestructive,
+  planActionInvocation,
+  actionIconName,
+  actionLabel,
+  actionDescription,
+  actionGroupLabel,
+  type CatalogAction,
+} from "../lib/actions";
+import { resolveMdiIcon } from "../lib/icons";
 import type { TranslationKey } from "../lib/i18n";
 import iconMaintenance from "../assets/icons/maintenance.png";
 import iconWater from "../assets/icons/water.png";
@@ -17,6 +34,8 @@ interface Props {
   conn: Connection;
   entities: HassEntities;
   prefix: string;
+  /** UI Contract document (P-I wiring); null/omitted → legacy tables. */
+  contract?: UiContract | null;
 }
 
 interface MaintenanceAction {
@@ -28,6 +47,10 @@ interface MaintenanceAction {
   confirm?: boolean;
 }
 
+/**
+ * Legacy hardcoded action tables — the permanent §6.2.5.1 fallback rendered
+ * whenever the contract serves no action catalog (pre-0.92 integrations).
+ */
 const CLEANING_ACTIONS: MaintenanceAction[] = [
   {
     key: "easy_clean",
@@ -100,37 +123,156 @@ const OTHER_ACTIONS: MaintenanceAction[] = [
 
 const stagger = (index: number) => ({ animationDelay: `${index * 60}ms` });
 
-export function MaintenanceSection({ conn, entities, prefix }: Props) {
-  const { t } = usePreferences();
+/** One rendered maintenance row — shared markup for both catalog and legacy modes. */
+function ActionCard({
+  index,
+  icon,
+  label,
+  description,
+  destructive = false,
+  isConfirming,
+  isBusy,
+  disabled,
+  onPress,
+  confirmText,
+  startText,
+}: {
+  index: number;
+  icon: React.ReactNode;
+  label: string;
+  description: string | null;
+  destructive?: boolean;
+  isConfirming: boolean;
+  isBusy: boolean;
+  disabled: boolean;
+  onPress: () => void;
+  confirmText: string;
+  startText: string;
+}) {
+  const danger = isConfirming || destructive;
+  return (
+    <div
+      className="settings-card-enter rounded-2xl p-4 transition-all duration-200 ring-1"
+      style={{
+        ...stagger(index),
+        background: isConfirming
+          ? "var(--surface-card-active)"
+          : "var(--surface-card)",
+        "--tw-ring-color": isConfirming
+          ? "var(--border-active)"
+          : "var(--border)",
+      } as React.CSSProperties}
+    >
+      <div className="flex items-center gap-3">
+        <div
+          className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
+          style={{
+            background: "var(--surface-card)",
+            color: "var(--text-secondary)",
+          }}
+        >
+          {icon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium text-primary">
+            {label}
+          </div>
+          {description !== null && (
+            <div className="text-[11px] text-tertiary leading-tight mt-0.5">
+              {description}
+            </div>
+          )}
+        </div>
+        <button
+          onClick={onPress}
+          disabled={disabled}
+          className="shrink-0 rounded-xl px-4 py-2 text-xs font-semibold transition-all duration-200 active:scale-95"
+          style={{
+            background: danger
+              ? "var(--error-bg)"
+              : "var(--btn-secondary-bg)",
+            color: danger
+              ? "var(--error-text)"
+              : "var(--btn-secondary-text)",
+            opacity: disabled ? 0.4 : 1,
+            border: danger
+              ? "1px solid var(--error-border)"
+              : "1px solid transparent",
+          }}
+        >
+          {isBusy ? "..." : isConfirming ? confirmText : startText}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function MaintenanceSection({ conn, entities, prefix, contract = null }: Props) {
+  const { t, locale } = usePreferences();
   const [confirmKey, setConfirmKey] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
+  const catalog = resolveActionCatalog(contract);
+
+  // Legacy flags — kept byte-identical to the pre-contract app for the
+  // fallback tables (missing state sensor defaults to ready, as before).
   const machineState = (
     getState(entities, prefix, "sensor", "state") || "ready"
   ).toLowerCase();
-  const isReady = machineState === "ready";
-  const isConnected = getState(entities, prefix, "sensor", "connection") === "Connected";
+  const legacyReady = machineState === "ready";
+  const legacyConnected =
+    getState(entities, prefix, "sensor", "connection") === "Connected";
 
-  const handlePress = useCallback(
+  // Catalog mode gates per entry via `requires` (§6.2.4) — no blanket
+  // ready-gate, so switch_off stays usable while connected-not-ready (PR #42
+  // as data). The banners reflect the same context.
+  const view = deriveMachineStatus(entities, prefix, locale);
+  const ctx = requiresContextFromStatus(view);
+  const isConnected = catalog !== null ? ctx.connected : legacyConnected;
+  const isReady = catalog !== null ? ctx.ready : legacyReady;
+
+  const finishPress = useCallback(
+    (key: string, run: () => Promise<unknown>) => {
+      setConfirmKey(null);
+      setBusyKey(key);
+      safeCall(async () => {
+        await run();
+        // Clear busy state after a short delay
+        setTimeout(() => setBusyKey(null), 2000);
+      });
+    },
+    [],
+  );
+
+  const handleLegacyPress = useCallback(
     (action: MaintenanceAction) => {
       if (action.confirm && confirmKey !== action.key) {
         setConfirmKey(action.key);
         return;
       }
-      setConfirmKey(null);
-      setBusyKey(action.key);
-
       const entityId = `button.${prefix}_${action.suffix}`;
-      safeCall(async () => {
-        await pressButton(conn, entityId);
-        // Clear busy state after a short delay
-        setTimeout(() => setBusyKey(null), 2000);
-      });
+      finishPress(action.key, () => pressButton(conn, entityId));
     },
-    [conn, prefix, confirmKey],
+    [conn, prefix, confirmKey, finishPress],
   );
 
-  const renderSection = (
+  const handleCatalogPress = useCallback(
+    (entry: CatalogAction) => {
+      if (needsConfirm(entry) && confirmKey !== entry.action) {
+        setConfirmKey(entry.action);
+        return;
+      }
+      const plan = planActionInvocation(entry, prefix);
+      finishPress(entry.action, () =>
+        "button" in plan
+          ? pressButton(conn, `button.${prefix}_${plan.button}`)
+          : callService(conn, plan.domain, plan.service, plan.data),
+      );
+    },
+    [conn, prefix, confirmKey, finishPress],
+  );
+
+  const renderLegacySection = (
     title: TranslationKey,
     actions: MaintenanceAction[],
     startIndex: number,
@@ -146,72 +288,61 @@ export function MaintenanceSection({ conn, entities, prefix }: Props) {
         {actions.map((action, i) => {
           const exists = getEntity(entities, prefix, "button", action.suffix);
           if (!exists) return null;
-          const isConfirming = confirmKey === action.key;
-          const isBusy = busyKey === action.key;
-          const disabled = !isConnected || !isReady || isBusy;
-          const idx = startIndex + i + 1;
-
           return (
-            <div
+            <ActionCard
               key={action.key}
-              className="settings-card-enter rounded-2xl p-4 transition-all duration-200 ring-1"
-              style={{
-                ...stagger(idx),
-                background: isConfirming
-                  ? "var(--surface-card-active)"
-                  : "var(--surface-card)",
-                "--tw-ring-color": isConfirming
-                  ? "var(--border-active)"
-                  : "var(--border)",
-              } as React.CSSProperties}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
-                  style={{
-                    background: "var(--surface-card)",
-                    color: "var(--text-secondary)",
-                  }}
-                >
-                  {action.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-primary">
-                    {t(action.labelKey)}
-                  </div>
-                  <div className="text-[11px] text-tertiary leading-tight mt-0.5">
-                    {t(action.descKey)}
-                  </div>
-                </div>
-                <button
-                  onClick={() => handlePress(action)}
-                  disabled={disabled}
-                  className="shrink-0 rounded-xl px-4 py-2 text-xs font-semibold transition-all duration-200 active:scale-95"
-                  style={{
-                    background: isConfirming
-                      ? "var(--error-bg)"
-                      : "var(--btn-secondary-bg)",
-                    color: isConfirming
-                      ? "var(--error-text)"
-                      : "var(--btn-secondary-text)",
-                    opacity: disabled ? 0.4 : 1,
-                    border: isConfirming
-                      ? "1px solid var(--error-border)"
-                      : "1px solid transparent",
-                  }}
-                >
-                  {isBusy
-                    ? "..."
-                    : isConfirming
-                      ? t("maint.confirm")
-                      : t("maint.start")}
-                </button>
-              </div>
-            </div>
+              index={startIndex + i + 1}
+              icon={action.icon}
+              label={t(action.labelKey)}
+              description={t(action.descKey)}
+              isConfirming={confirmKey === action.key}
+              isBusy={busyKey === action.key}
+              disabled={!legacyConnected || !legacyReady || busyKey === action.key}
+              onPress={() => handleLegacyPress(action)}
+              confirmText={t("maint.confirm")}
+              startText={t("maint.start")}
+            />
           );
         })}
       </div>
     </>
+  );
+
+  const renderCatalogGroup = (
+    group: string,
+    entries: CatalogAction[],
+    startIndex: number,
+  ) => (
+    <div key={group}>
+      <div
+        className="settings-header-enter text-[10px] font-medium text-tertiary uppercase tracking-[0.2em] mb-3"
+        style={stagger(startIndex)}
+      >
+        {actionGroupLabel(locale, group)}
+      </div>
+      <div className="space-y-2 mb-6">
+        {entries.map((entry, i) => {
+          const Icon = resolveMdiIcon(actionIconName(entry));
+          const isBusy = busyKey === entry.action;
+          return (
+            <ActionCard
+              key={entry.action}
+              index={startIndex + i + 1}
+              icon={<Icon size={24} strokeWidth={1.75} />}
+              label={actionLabel(locale, entry.action)}
+              description={actionDescription(locale, entry.action)}
+              destructive={isDestructive(entry)}
+              isConfirming={confirmKey === entry.action}
+              isBusy={isBusy}
+              disabled={!evalRequires(entry.requires, ctx) || isBusy}
+              onPress={() => handleCatalogPress(entry)}
+              confirmText={t("maint.confirm")}
+              startText={t("maint.start")}
+            />
+          );
+        })}
+      </div>
+    </div>
   );
 
   // Reset confirm state on tap outside
@@ -222,6 +353,20 @@ export function MaintenanceSection({ conn, entities, prefix }: Props) {
   const cleaningStart = 0;
   const filterStart = CLEANING_ACTIONS.length + 1;
   const otherStart = filterStart + FILTER_ACTIONS.length + 1;
+
+  // Catalog mode: served groups minus the informational brew/control ones
+  // (§6.2.5.2), with entries lacking their anchor button entity hidden.
+  const catalogGroups =
+    catalog === null
+      ? null
+      : maintenanceActionGroups(catalog)
+          .map((g) => ({
+            group: g.group,
+            entries: g.entries.filter((e) =>
+              getEntity(entities, prefix, "button", e.invocation.entity_suffix),
+            ),
+          }))
+          .filter((g) => g.entries.length > 0);
 
   return (
     <div
@@ -244,9 +389,22 @@ export function MaintenanceSection({ conn, entities, prefix }: Props) {
         </div>
       )}
 
-      {renderSection("maint.section_cleaning", CLEANING_ACTIONS, cleaningStart)}
-      {renderSection("maint.section_filter", FILTER_ACTIONS, filterStart)}
-      {renderSection("maint.section_other", OTHER_ACTIONS, otherStart)}
+      {catalogGroups !== null ? (
+        (() => {
+          let start = 0;
+          return catalogGroups.map((g) => {
+            const rendered = renderCatalogGroup(g.group, g.entries, start);
+            start += g.entries.length + 1;
+            return rendered;
+          });
+        })()
+      ) : (
+        <>
+          {renderLegacySection("maint.section_cleaning", CLEANING_ACTIONS, cleaningStart)}
+          {renderLegacySection("maint.section_filter", FILTER_ACTIONS, filterStart)}
+          {renderLegacySection("maint.section_other", OTHER_ACTIONS, otherStart)}
+        </>
+      )}
     </div>
   );
 }

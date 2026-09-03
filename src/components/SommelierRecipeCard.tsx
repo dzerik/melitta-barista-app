@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { Heart, Coffee, ChevronDown, ChevronUp, Check, Snowflake, Info } from "lucide-react";
 import { usePreferences } from "../lib/preferences";
 import type { TranslationKey } from "../lib/i18n";
 import type { AiRecipe } from "../hooks/useSommelier";
+import { hasPhasePlan } from "../lib/brew-plan";
+import { BrewWizardContext } from "../hooks/useBrewPhase";
+import { BrewWizard } from "./BrewWizard";
 
 interface Props {
   recipe: AiRecipe;
@@ -12,9 +15,21 @@ interface Props {
   brewing?: boolean;
 }
 
+/**
+ * One generated sommelier recipe card.
+ *
+ * The Brew button routes per Zone P-H: when the hosting section provides a
+ * `BrewWizardContext` AND the row carries `machine_phases` (0.89+ servers),
+ * it opens the step-machine `BrewWizard` — multi-phase recipes must not
+ * one-shot brew. Otherwise (pre-contract rows, or no wizard host) it keeps
+ * the legacy one-shot `onBrew` path, byte-identically.
+ */
 export function SommelierRecipeCard({ recipe, onBrew, onFavorite, isFavorited, brewing }: Props) {
   const { t } = usePreferences();
   const [expanded, setExpanded] = useState(false);
+  const wizardEnv = useContext(BrewWizardContext);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const wizardBrew = wizardEnv !== null && hasPhasePlan(recipe);
 
   const c1 = recipe.component1;
   const c2 = recipe.component2;
@@ -91,7 +106,7 @@ export function SommelierRecipeCard({ recipe, onBrew, onFavorite, isFavorited, b
             <Heart size={18} fill={isFavorited ? "currentColor" : "none"} />
           </button>
           <button
-            onClick={() => onBrew(recipe.id)}
+            onClick={() => (wizardBrew ? setWizardOpen(true) : onBrew(recipe.id))}
             disabled={brewing}
             className="rounded-xl px-3 py-2 text-xs font-semibold transition active:scale-95"
             style={{
@@ -145,6 +160,14 @@ export function SommelierRecipeCard({ recipe, onBrew, onFavorite, isFavorited, b
             </div>
           )}
         </div>
+      )}
+
+      {wizardBrew && (
+        <BrewWizard
+          open={wizardOpen}
+          recipe={recipe}
+          onClose={() => setWizardOpen(false)}
+        />
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { usePreferences } from "../lib/preferences";
 import type { TranslationKey } from "../lib/i18n";
 import type { ProfileInput } from "../hooks/useSommelier";
+import { sommelierTokens, sommelierLabel, cupVolumesHint } from "../lib/sommelier-vocab";
 
 interface Props {
   open: boolean;
@@ -12,21 +13,19 @@ interface Props {
   initial?: Partial<ProfileInput>;
 }
 
-const CUP_SIZES = ["espresso", "cup", "mug", "tall_glass", "travel"] as const;
-const TEMP_PREFS = ["hot_only", "cold_ok", "prefer_cold"] as const;
-const DIETARY_OPTIONS = ["no_sugar", "lactose_free", "low_calorie", "vegan"] as const;
-const CAFFEINE_PREFS = ["regular", "low", "decaf_evening"] as const;
-
+// The temperature-preference picker is removed pending the §9.2.4 follow-up:
+// its token set is enforced nowhere server-side, so serving or picking from it
+// would advertise a false contract. An existing profile's stored value rides
+// through `initial` untouched; new profiles simply omit the field.
 const EMPTY: ProfileInput = {
   name: "",
   cup_size: "cup",
-  temperature_pref: "hot_only",
   dietary: [],
   caffeine_pref: "regular",
 };
 
 export function SommelierProfileDialog({ open, onClose, onSave, initial }: Props) {
-  const { t } = usePreferences();
+  const { t, locale } = usePreferences();
   const [form, setForm] = useState<ProfileInput>({ ...EMPTY, ...initial });
   const [saving, setSaving] = useState(false);
 
@@ -35,6 +34,13 @@ export function SommelierProfileDialog({ open, onClose, onSave, initial }: Props
   }, [open, initial]);
 
   if (!open) return null;
+
+  // §9.2.6.1 pickers: served vocab tokens → hardcoded fallback lists. The
+  // served cup_size list is adopted verbatim — no client-side token migration
+  // (§9.2.6.4; the server normalizes legacy values on ingest).
+  const cupSizes = sommelierTokens("cup_size");
+  const dietaryOptions = sommelierTokens("dietary");
+  const caffeinePrefs = sommelierTokens("caffeine");
 
   const set = <K extends keyof ProfileInput>(key: K, value: ProfileInput[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -113,26 +119,14 @@ export function SommelierProfileDialog({ open, onClose, onSave, initial }: Props
               className="mt-1 w-full rounded-xl px-3 py-2.5 text-sm ring-1 ring-border outline-none"
               style={{ background: "var(--surface-card)", color: "var(--text-primary)" }}
             >
-              {CUP_SIZES.map((cs) => (
-                <option key={cs} value={cs}>{t(`sommelier.cup_${cs}` as TranslationKey)}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Temperature Preference */}
-          <div>
-            <label className="text-[11px] font-medium text-tertiary uppercase tracking-wider">
-              {t("sommelier.temp_pref" as TranslationKey)}
-            </label>
-            <select
-              value={form.temperature_pref ?? "hot_only"}
-              onChange={(e) => set("temperature_pref", e.target.value)}
-              className="mt-1 w-full rounded-xl px-3 py-2.5 text-sm ring-1 ring-border outline-none"
-              style={{ background: "var(--surface-card)", color: "var(--text-primary)" }}
-            >
-              {TEMP_PREFS.map((tp) => (
-                <option key={tp} value={tp}>{t(`sommelier.temp_${tp}` as TranslationKey)}</option>
-              ))}
+              {cupSizes.map((cs) => {
+                const hint = cupVolumesHint(cs);
+                return (
+                  <option key={cs} value={cs}>
+                    {sommelierLabel(locale, "cup_size", cs)}{hint ? ` (${hint})` : ""}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -142,7 +136,7 @@ export function SommelierProfileDialog({ open, onClose, onSave, initial }: Props
               {t("sommelier.dietary" as TranslationKey)}
             </label>
             <div className="mt-2 flex flex-wrap gap-2">
-              {DIETARY_OPTIONS.map((d) => {
+              {dietaryOptions.map((d) => {
                 const active = (form.dietary ?? []).includes(d);
                 return (
                   <button
@@ -151,7 +145,7 @@ export function SommelierProfileDialog({ open, onClose, onSave, initial }: Props
                     className="rounded-full px-3 py-1.5 text-xs font-medium transition active:scale-95 ring-1"
                     style={chipStyle(active)}
                   >
-                    {t(`sommelier.diet_${d}` as TranslationKey)}
+                    {sommelierLabel(locale, "dietary", d)}
                   </button>
                 );
               })}
@@ -169,8 +163,8 @@ export function SommelierProfileDialog({ open, onClose, onSave, initial }: Props
               className="mt-1 w-full rounded-xl px-3 py-2.5 text-sm ring-1 ring-border outline-none"
               style={{ background: "var(--surface-card)", color: "var(--text-primary)" }}
             >
-              {CAFFEINE_PREFS.map((cp) => (
-                <option key={cp} value={cp}>{t(`sommelier.caffeine_${cp}` as TranslationKey)}</option>
+              {caffeinePrefs.map((cp) => (
+                <option key={cp} value={cp}>{sommelierLabel(locale, "caffeine", cp)}</option>
               ))}
             </select>
           </div>

@@ -1,5 +1,32 @@
 # Changelog
 
+## [2.0.0] - 2026-09-04
+
+Full UI Contract port (v1 + v2 + v3): the app is now a first-class contract client of the Melitta Barista integration (0.93+), with per-feature fallback to its previous hardcoded tables against any contract-serving integration that omits a block.
+
+### Features
+
+- **Contract core** — `ui_contract/get` fetch over the existing WebSocket connection with durable/transient failure classification, a session cache keyed by `entry_id + contract_fingerprint`, automatic refetch on fingerprint changes, one bounded retry per reconnect, and per-entry last-good persistence rendered stale-marked while offline
+- **Version gate** — the two compatibility screens: integrations older than the contract show "Update the integration", integrations newer than the app understands show "Update the app"
+- **Token-mode status** — machine state from stable attribute tokens instead of localized string matching; legacy string matching kept as the pre-contract fallback in demo mode
+- **Icon specs** — recipe icons rendered from server-derived icon descriptions, falling back to the built-in artwork
+- **Parameter catalogs** — freestyle pickers, sliders, and limits driven by the served parameter descriptors
+- **Action catalog** — the maintenance section renders the served, per-machine verified action list (with confirmation gates for destructive actions); recipe editing adopts served defaults
+- **Step-by-step brew wizard** — multi-phase sommelier recipes (and favorites) no longer one-shot brew past their manual steps: each machine phase is brewed via `sommelier/brew_phase` with the recipe's own user actions interleaved and confirmed
+- **Settings descriptors** — the settings section renders the served catalog: grouped rows, level tokens, unit numbers, and select controls (Nivona support), with entity-absence gating
+- **DirectKey/profile model** — brew categories, profile slots, and slot bindings from the contract; recipe rows joined via `recipes/list` category tokens
+- **Sommelier vocabulary** — enum pickers from the served vocabulary; free-form suggestion rows for milk, flavor notes, and extras
+- **Server i18n** — machine-domain display strings fetched per locale with `strings_version` caching and revalidation; bundled en/ru/de strings remain the fallback tier
+- **Brew-phase wizard** — step-by-step guided brewing for multi-phase sommelier recipes with live progress, confirmation prompts, and 2-hour re-entry
+- **Sommelier error hints** — generation/brew failures mapped by error code to localized, actionable guidance
+- **Capability-gated tabs** — Freestyle and Stats tabs hide when the machine reports no support for them
+
+### Improvements
+
+- Section visibility, labels, level names, and group headers resolve through a per-key chain: server string → bundled translation → humanized token
+- Every contract feature degrades independently; the hardcoded tables remain permanent fallback fixtures
+- Test suite expanded to 16+ suites covering the contract lifecycle, catalogs, settings, DirectKey model, vocabulary, wizard, and app wiring; tests now run in CI
+
 ## [1.2.0] - 2026-03-08
 
 ### Features

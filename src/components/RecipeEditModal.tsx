@@ -2,11 +2,18 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import type { Connection } from "home-assistant-js-websocket";
 import type { DirectKeyRecipe, DirectKeyCategory } from "../lib/entities";
+import type { UiContract } from "../lib/contract";
 import { saveDirectkey, safeCall } from "../lib/ha";
 import { usePreferences } from "../lib/preferences";
 import { Ban } from "lucide-react";
 import { FreestyleGlass } from "./FreestyleGlass";
-import type { TranslationKey } from "../lib/i18n";
+import { displayNameFor } from "../lib/i18n";
+import {
+  resolveEnumTokens,
+  resolveProcessTokens,
+  resolvePortionRange,
+} from "../lib/parameters";
+import { saveDirectkeyDefaults } from "../lib/actions";
 import iconBean from "../assets/icons/bean.png";
 import iconMilk from "../assets/icons/milk.png";
 import iconWater from "../assets/icons/water.png";
@@ -17,14 +24,28 @@ const PROCESS_IMG_ICONS: Record<string, string> = {
   water: iconWater,
 };
 
-const PROCESS_OPTIONS_1 = ["coffee", "milk", "water"];
-const PROCESS_OPTIONS_2 = ["none", "coffee", "milk", "water"];
-const INTENSITY_OPTIONS = ["very_mild", "mild", "medium", "strong", "very_strong"];
-const AROMA_OPTIONS = ["standard", "intense"];
-const TEMPERATURE_OPTIONS = ["cold", "normal", "high"];
-const SHOTS_OPTIONS = ["none", "one", "two", "three"];
-
 const SHOTS_TO_STRING: Record<number, string> = { 0: "none", 1: "one", 2: "two", 3: "three" };
+
+/**
+ * The modal's legacy hardcoded slot defaults — the fallback when the
+ * contract's `save_directkey` catalog entry (§9.3.5) is not served. Keys are
+ * the service's own param names, so served introspected defaults overlay
+ * these 1:1.
+ */
+const LEGACY_SAVE_DEFAULTS: Record<string, string | number> = {
+  process1: "coffee",
+  intensity1: "medium",
+  aroma1: "standard",
+  temperature1: "normal",
+  shots1: "one",
+  portion1_ml: 40,
+  process2: "none",
+  intensity2: "medium",
+  aroma2: "standard",
+  temperature2: "normal",
+  shots2: "none",
+  portion2_ml: 0,
+};
 
 interface EditState {
   process1: string;
@@ -41,39 +62,48 @@ interface EditState {
   portion2: number;
 }
 
-function fromRecipe(r: DirectKeyRecipe): EditState {
+function str(v: string | number | boolean | undefined, fallback: string): string {
+  return typeof v === "string" && v !== "" ? v : fallback;
+}
+
+function num(v: string | number | boolean | undefined, fallback: number): number {
+  return typeof v === "number" ? v : fallback;
+}
+
+function fromRecipe(
+  r: DirectKeyRecipe,
+  defaults: Record<string, string | number | boolean>,
+): EditState {
   return {
-    process1: r.c1_process || "coffee",
-    intensity1: r.c1_intensity || "medium",
-    aroma1: r.c1_aroma || "standard",
-    temperature1: r.c1_temperature || "normal",
-    shots1: SHOTS_TO_STRING[r.c1_shots] || "one",
-    portion1: r.c1_portion_ml || 40,
-    process2: r.c2_process || "none",
-    intensity2: r.c2_intensity || "medium",
-    aroma2: r.c2_aroma || "standard",
-    temperature2: r.c2_temperature || "normal",
-    shots2: SHOTS_TO_STRING[r.c2_shots] || "none",
-    portion2: r.c2_portion_ml || 0,
+    process1: r.c1_process || str(defaults.process1, "coffee"),
+    intensity1: r.c1_intensity || str(defaults.intensity1, "medium"),
+    aroma1: r.c1_aroma || str(defaults.aroma1, "standard"),
+    temperature1: r.c1_temperature || str(defaults.temperature1, "normal"),
+    shots1: SHOTS_TO_STRING[r.c1_shots] || str(defaults.shots1, "one"),
+    portion1: r.c1_portion_ml || num(defaults.portion1_ml, 40),
+    process2: r.c2_process || str(defaults.process2, "none"),
+    intensity2: r.c2_intensity || str(defaults.intensity2, "medium"),
+    aroma2: r.c2_aroma || str(defaults.aroma2, "standard"),
+    temperature2: r.c2_temperature || str(defaults.temperature2, "normal"),
+    shots2: SHOTS_TO_STRING[r.c2_shots] || str(defaults.shots2, "none"),
+    portion2: r.c2_portion_ml || num(defaults.portion2_ml, 0),
   };
 }
 
 function SegmentPicker({
+  family,
   options,
   value,
   onChange,
 }: {
+  family: string;
   options: string[];
   value: string;
   onChange: (v: string) => void;
 }) {
-  const { t } = usePreferences();
-  const displayName = (v: string): string => {
-    const key = `process.${v}` as TranslationKey;
-    const translated = t(key);
-    if (translated !== key) return translated;
-    return v.charAt(0).toUpperCase() + v.slice(1).replaceAll("_", " ");
-  };
+  const { locale } = usePreferences();
+  // §6.3.5.7 chain: server values.<family>.<token> → bundle → humanized.
+  const displayName = (v: string): string => displayNameFor(locale, family, v);
 
   return (
     <div className="flex rounded-xl overflow-hidden ring-1 ring-border">
@@ -104,27 +134,24 @@ function SegmentPicker({
 }
 
 function SliderRow({
+  family,
   label,
   options,
   value,
   onChange,
   disabled = false,
 }: {
+  family: string;
   label: string;
   options: string[];
   value: string;
   onChange: (v: string) => void;
   disabled?: boolean;
 }) {
-  const { t } = usePreferences();
+  const { locale } = usePreferences();
   const idx = options.indexOf(value);
 
-  const displayName = (v: string): string => {
-    const key = `process.${v}` as TranslationKey;
-    const translated = t(key);
-    if (translated !== key) return translated;
-    return v.charAt(0).toUpperCase() + v.slice(1).replaceAll("_", " ");
-  };
+  const displayName = (v: string): string => displayNameFor(locale, family, v);
 
   return (
     <div className={`space-y-1.5 transition-opacity ${disabled ? "opacity-20 pointer-events-none" : ""}`}>
@@ -205,12 +232,29 @@ interface Props {
   recipe: DirectKeyRecipe;
   profileId: number;
   onClose: () => void;
+  /** UI Contract document (P-I wiring); null/omitted → legacy consts. */
+  contract?: UiContract | null;
 }
 
-export function RecipeEditModal({ conn, brewEntityId, category, categoryLabel, recipe, profileId, onClose }: Props) {
+export function RecipeEditModal({ conn, brewEntityId, category, categoryLabel, recipe, profileId, onClose, contract = null }: Props) {
   const { t } = usePreferences();
-  const [state, setState] = useState<EditState>(() => fromRecipe(recipe));
+  // §9.3.5: slot defaults from the save_directkey catalog entry's
+  // introspected params; the legacy consts stay as the pre-catalog tier.
+  const [state, setState] = useState<EditState>(() =>
+    fromRecipe(recipe, { ...LEGACY_SAVE_DEFAULTS, ...saveDirectkeyDefaults(contract) }),
+  );
   const [saving, setSaving] = useState(false);
+
+  // §6.1.5 resolution: contract parameters → consts (the modal's own legacy
+  // tier — it has no select entities of its own).
+  const processOpts1 = resolveProcessTokens(contract, 1).tokens;
+  const processOpts2 = resolveProcessTokens(contract, 2).tokens;
+  const intensityOpts = resolveEnumTokens(contract, "intensity").tokens;
+  const aromaOpts = resolveEnumTokens(contract, "aroma").tokens;
+  const temperatureOpts = resolveEnumTokens(contract, "temperature").tokens;
+  const shotsOpts = resolveEnumTokens(contract, "shots").tokens;
+  const portion1Range = resolvePortionRange(contract, "c1");
+  const portion2Range = resolvePortionRange(contract, "c2");
 
   const update = <K extends keyof EditState>(key: K, value: EditState[K]) => {
     setState((prev) => ({ ...prev, [key]: value }));
@@ -275,12 +319,12 @@ export function RecipeEditModal({ conn, brewEntityId, category, categoryLabel, r
               <div className="text-xs font-bold text-primary uppercase tracking-[0.2em]">
                 {t("freestyle.component1")}
               </div>
-              <SegmentPicker options={PROCESS_OPTIONS_1} value={state.process1} onChange={(v) => update("process1", v)} />
-              <PortionSlider label={t("freestyle.portion")} value={state.portion1} min={5} max={250} step={5} onChange={(v) => update("portion1", v)} />
-              <SliderRow label={t("freestyle.intensity")} options={INTENSITY_OPTIONS} value={state.intensity1} onChange={(v) => update("intensity1", v)} disabled={state.process1 !== "coffee"} />
-              <SliderRow label={t("freestyle.aroma")} options={AROMA_OPTIONS} value={state.aroma1} onChange={(v) => update("aroma1", v)} disabled={state.process1 !== "coffee"} />
-              <SliderRow label={t("freestyle.temperature")} options={TEMPERATURE_OPTIONS} value={state.temperature1} onChange={(v) => update("temperature1", v)} />
-              <SliderRow label={t("freestyle.shots")} options={SHOTS_OPTIONS} value={state.shots1} onChange={(v) => update("shots1", v)} disabled={state.process1 !== "coffee"} />
+              <SegmentPicker family="process" options={processOpts1} value={state.process1} onChange={(v) => update("process1", v)} />
+              <PortionSlider label={t("freestyle.portion")} value={state.portion1} min={portion1Range.min} max={portion1Range.max} step={portion1Range.step} onChange={(v) => update("portion1", v)} />
+              <SliderRow family="intensity" label={t("freestyle.intensity")} options={intensityOpts} value={state.intensity1} onChange={(v) => update("intensity1", v)} disabled={state.process1 !== "coffee"} />
+              <SliderRow family="aroma" label={t("freestyle.aroma")} options={aromaOpts} value={state.aroma1} onChange={(v) => update("aroma1", v)} disabled={state.process1 !== "coffee"} />
+              <SliderRow family="temperature" label={t("freestyle.temperature")} options={temperatureOpts} value={state.temperature1} onChange={(v) => update("temperature1", v)} />
+              <SliderRow family="shots" label={t("freestyle.shots")} options={shotsOpts} value={state.shots1} onChange={(v) => update("shots1", v)} disabled={state.process1 !== "coffee"} />
             </div>
 
             {/* Center — glass preview */}
@@ -299,6 +343,8 @@ export function RecipeEditModal({ conn, brewEntityId, category, categoryLabel, r
                 portion2={state.portion2}
                 size={240}
                 hideVolume
+                intensityScale={intensityOpts}
+                temperatureScale={temperatureOpts}
               />
             </div>
 
@@ -307,12 +353,12 @@ export function RecipeEditModal({ conn, brewEntityId, category, categoryLabel, r
               <div className="text-xs font-bold text-primary uppercase tracking-[0.2em]">
                 {t("freestyle.component2")}
               </div>
-              <SegmentPicker options={PROCESS_OPTIONS_2} value={state.process2} onChange={(v) => update("process2", v)} />
-              <PortionSlider label={t("freestyle.portion")} value={state.portion2} min={0} max={250} step={5} onChange={(v) => update("portion2", v)} disabled={state.process2 === "none"} />
-              <SliderRow label={t("freestyle.intensity")} options={INTENSITY_OPTIONS} value={state.intensity2} onChange={(v) => update("intensity2", v)} disabled={state.process2 !== "coffee"} />
-              <SliderRow label={t("freestyle.aroma")} options={AROMA_OPTIONS} value={state.aroma2} onChange={(v) => update("aroma2", v)} disabled={state.process2 !== "coffee"} />
-              <SliderRow label={t("freestyle.temperature")} options={TEMPERATURE_OPTIONS} value={state.temperature2} onChange={(v) => update("temperature2", v)} disabled={state.process2 === "none"} />
-              <SliderRow label={t("freestyle.shots")} options={SHOTS_OPTIONS} value={state.shots2} onChange={(v) => update("shots2", v)} disabled={state.process2 !== "coffee"} />
+              <SegmentPicker family="process" options={processOpts2} value={state.process2} onChange={(v) => update("process2", v)} />
+              <PortionSlider label={t("freestyle.portion")} value={state.portion2} min={portion2Range.min} max={portion2Range.max} step={portion2Range.step} onChange={(v) => update("portion2", v)} disabled={state.process2 === "none"} />
+              <SliderRow family="intensity" label={t("freestyle.intensity")} options={intensityOpts} value={state.intensity2} onChange={(v) => update("intensity2", v)} disabled={state.process2 !== "coffee"} />
+              <SliderRow family="aroma" label={t("freestyle.aroma")} options={aromaOpts} value={state.aroma2} onChange={(v) => update("aroma2", v)} disabled={state.process2 !== "coffee"} />
+              <SliderRow family="temperature" label={t("freestyle.temperature")} options={temperatureOpts} value={state.temperature2} onChange={(v) => update("temperature2", v)} disabled={state.process2 === "none"} />
+              <SliderRow family="shots" label={t("freestyle.shots")} options={shotsOpts} value={state.shots2} onChange={(v) => update("shots2", v)} disabled={state.process2 !== "coffee"} />
             </div>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { Connection } from "home-assistant-js-websocket";
+import { getVocab, syncVocab, type ServerVocab } from "../lib/server-strings";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -147,7 +148,19 @@ async function wsCommand<T>(conn: Connection, type: string, data?: object): Prom
 
 // ── Hook ─────────────────────────────────────────────────────────────
 
-export function useSommelier(conn: Connection | null) {
+/**
+ * Sommelier data + actions over the `melitta_barista/sommelier/*` WS surface.
+ *
+ * Also owns the §9.2 vocabulary fetch: one `vocab/get` per session through
+ * `syncVocab` (cache axis `strings_version`, revalidated for free when the
+ * caller passes the contract document's `contractStringsVersion` — Zone P-I
+ * wiring; omitted, one fetch runs). The resolved vocabulary lands in the
+ * shared registry (`src/lib/server-strings.ts`) that the picker resolvers in
+ * `src/lib/sommelier-vocab.ts` read; the returned `vocab` value exists to
+ * re-render consumers when it arrives. Any failure degrades to `null` and the
+ * pickers fall back to their hardcoded lists (§9.2.6.1).
+ */
+export function useSommelier(conn: Connection | null, contractStringsVersion?: string | null) {
   const [beans, setBeans] = useState<CoffeeBean[]>([]);
   const [hoppers, setHoppers] = useState<Hoppers>({ hopper1: null, hopper2: null });
   const [milkTypes, setMilkTypes] = useState<string[]>([]);
@@ -162,7 +175,18 @@ export function useSommelier(conn: Connection | null) {
   const [generating, setGenerating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [vocab, setVocabState] = useState<ServerVocab | null>(() => getVocab());
   const initRef = useRef(false);
+  const vocabInitRef = useRef(false);
+
+  // ── Vocabulary (§9.2) — once per session, feeds the shared registry ─
+
+  useEffect(() => {
+    if (conn && !vocabInitRef.current) {
+      vocabInitRef.current = true;
+      syncVocab(conn, contractStringsVersion).then(setVocabState);
+    }
+  }, [conn, contractStringsVersion]);
 
   // ── Load initial data ──────────────────────────────────────────
 
@@ -188,7 +212,12 @@ export function useSommelier(conn: Connection | null) {
       setHistory(histRes.sessions);
       setPresets(presetsRes.presets);
       setSettings(settingsRes.settings);
-      setExtrasState(extrasRes.extras ?? { syrups: [], toppings: [], liqueurs: [] });
+      const ex = extrasRes.extras ?? {} as Partial<UserExtras>;
+      setExtrasState({
+        syrups: ex.syrups ?? [],
+        toppings: ex.toppings ?? [],
+        liqueurs: ex.liqueurs ?? [],
+      });
       setPreferencesState(prefsRes.preferences);
       setProfiles(profilesRes.profiles ?? []);
       setError(null);
@@ -387,7 +416,7 @@ export function useSommelier(conn: Connection | null) {
   return {
     // Data
     beans, hoppers, milkTypes, favorites, history, presets, settings,
-    extras, preferences, profiles,
+    extras, preferences, profiles, vocab,
     currentSession, generating, loading, error,
     // Actions
     addBean, updateBean, deleteBean,

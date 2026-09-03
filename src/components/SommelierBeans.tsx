@@ -4,6 +4,7 @@ import { usePreferences } from "../lib/preferences";
 import type { TranslationKey } from "../lib/i18n";
 import type { useSommelier } from "../hooks/useSommelier";
 import type { CoffeeBeanInput, ProfileInput } from "../hooks/useSommelier";
+import { sommelierLabel, suggestionLabel, mergeSuggestions } from "../lib/sommelier-vocab";
 import { SommelierBeanDialog } from "./SommelierBeanDialog";
 import { SommelierProfileDialog } from "./SommelierProfileDialog";
 
@@ -13,14 +14,39 @@ interface Props {
   sommelier: SommelierHook;
 }
 
-const MILK_OPTIONS = ["whole", "oat", "almond", "soy", "coconut", "lactose_free"];
+// Client-local *suggestions* over free-form fields (§9.2.4) — milk types and
+// extras item names are deliberately not vocab: the server stores free TEXT so
+// users can keep localized names. User input is never restricted to these.
+const MILK_SUGGESTIONS = ["whole", "oat", "almond", "soy", "coconut", "lactose_free"];
 
-const SYRUP_OPTIONS = ["vanilla", "caramel", "hazelnut", "chocolate", "maple", "lavender", "peppermint"];
-const TOPPING_OPTIONS = ["cinnamon_powder", "whipped_cream", "cocoa_powder", "marshmallow", "caramel_drizzle"];
-const LIQUEUR_OPTIONS = ["baileys", "kahlua", "amaretto", "frangelico"];
+const SYRUP_SUGGESTIONS = ["vanilla", "caramel", "hazelnut", "chocolate", "maple", "lavender", "peppermint"];
+const TOPPING_SUGGESTIONS = ["cinnamon_powder", "whipped_cream", "cocoa_powder", "marshmallow", "caramel_drizzle"];
+const LIQUEUR_SUGGESTIONS = ["baileys", "kahlua", "amaretto", "frangelico"];
+
+/** Free-form add row under a suggestion-chip list (Enter or blur commits). */
+function AddCustomInput({ placeholder, onAdd }: { placeholder: string; onAdd: (value: string) => void }) {
+  const [value, setValue] = useState("");
+  const commit = () => {
+    const trimmed = value.trim();
+    if (trimmed) onAdd(trimmed);
+    setValue("");
+  };
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(); } }}
+      onBlur={commit}
+      placeholder={placeholder}
+      className="mt-2 w-full rounded-xl px-3 py-2 text-xs ring-1 ring-border outline-none"
+      style={{ background: "var(--surface-card)", color: "var(--text-primary)" }}
+    />
+  );
+}
 
 export function SommelierBeans({ sommelier }: Props) {
-  const { t } = usePreferences();
+  const { t, locale } = usePreferences();
   const {
     beans, hoppers, milkTypes, presets, extras, profiles,
     addBean, updateBean, deleteBean, assignHopper, setMilk, setExtras,
@@ -81,6 +107,13 @@ export function SommelierBeans({ sommelier }: Props) {
     setExtras(category, next);
   };
 
+  // Suggestions + any stored free-form values, each rendered as a toggleable
+  // chip ("ice" stays on its dedicated toggle, never in the toppings row).
+  const milkChips = mergeSuggestions(MILK_SUGGESTIONS, milkTypes);
+  const syrupChips = mergeSuggestions(SYRUP_SUGGESTIONS, extras.syrups);
+  const toppingChips = mergeSuggestions(TOPPING_SUGGESTIONS, extras.toppings.filter((i) => i !== "ice"));
+  const liqueurChips = mergeSuggestions(LIQUEUR_SUGGESTIONS, extras.liqueurs);
+
   const chipStyle = (active: boolean) => ({
     background: active ? "var(--btn-primary-bg)" : "var(--surface-card)",
     color: active ? "var(--btn-primary-text)" : "var(--text-secondary)",
@@ -111,7 +144,7 @@ export function SommelierBeans({ sommelier }: Props) {
               )}
             </div>
             <div className="text-[11px] text-tertiary mt-0.5">
-              {t(`sommelier.roast_${bean.roast}` as TranslationKey)} · {t(`sommelier.type_${bean.bean_type}` as TranslationKey)} · {t(`sommelier.origin_${bean.origin}` as TranslationKey)}
+              {sommelierLabel(locale, "roast", bean.roast)} · {sommelierLabel(locale, "bean_type", bean.bean_type)} · {sommelierLabel(locale, "origin", bean.origin)}
             </div>
             {bean.flavor_notes.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-1.5">
@@ -121,7 +154,7 @@ export function SommelierBeans({ sommelier }: Props) {
                     className="text-[10px] px-1.5 py-0.5 rounded-full"
                     style={{ background: "var(--surface)", color: "var(--text-tertiary)" }}
                   >
-                    {t(`sommelier.note_${note}` as TranslationKey)}
+                    {suggestionLabel(locale, "note_", note)}
                   </span>
                 ))}
               </div>
@@ -217,7 +250,7 @@ export function SommelierBeans({ sommelier }: Props) {
           {t("sommelier.milk_types" as TranslationKey)}
         </div>
         <div className="flex flex-wrap gap-2">
-          {MILK_OPTIONS.map((m) => {
+          {milkChips.map((m) => {
             const active = milkTypes.includes(m);
             return (
               <button
@@ -226,11 +259,15 @@ export function SommelierBeans({ sommelier }: Props) {
                 className="rounded-full px-3 py-1.5 text-xs font-medium transition active:scale-95 ring-1"
                 style={chipStyle(active)}
               >
-                {t(`sommelier.milk_${m}` as TranslationKey)}
+                {suggestionLabel(locale, "milk_", m)}
               </button>
             );
           })}
         </div>
+        <AddCustomInput
+          placeholder={t("sommelier.add_custom" as TranslationKey)}
+          onAdd={(value) => { if (!milkTypes.includes(value)) setMilk([...milkTypes, value]); }}
+        />
       </div>
 
       {/* Extras — Syrups */}
@@ -239,17 +276,21 @@ export function SommelierBeans({ sommelier }: Props) {
           {t("sommelier.syrups" as TranslationKey)}
         </div>
         <div className="flex flex-wrap gap-2">
-          {SYRUP_OPTIONS.map((s) => (
+          {syrupChips.map((s) => (
             <button
               key={s}
               onClick={() => toggleExtra("syrups", s)}
               className="rounded-full px-3 py-1.5 text-xs font-medium transition active:scale-95 ring-1"
               style={chipStyle(extras.syrups.includes(s))}
             >
-              {t(`sommelier.syrup_${s}` as TranslationKey)}
+              {suggestionLabel(locale, "syrup_", s)}
             </button>
           ))}
         </div>
+        <AddCustomInput
+          placeholder={t("sommelier.add_custom" as TranslationKey)}
+          onAdd={(value) => { if (!extras.syrups.includes(value)) toggleExtra("syrups", value); }}
+        />
       </div>
 
       {/* Extras — Toppings */}
@@ -258,17 +299,21 @@ export function SommelierBeans({ sommelier }: Props) {
           {t("sommelier.toppings" as TranslationKey)}
         </div>
         <div className="flex flex-wrap gap-2">
-          {TOPPING_OPTIONS.map((tp) => (
+          {toppingChips.map((tp) => (
             <button
               key={tp}
               onClick={() => toggleExtra("toppings", tp)}
               className="rounded-full px-3 py-1.5 text-xs font-medium transition active:scale-95 ring-1"
               style={chipStyle(extras.toppings.includes(tp))}
             >
-              {t(`sommelier.topping_${tp}` as TranslationKey)}
+              {suggestionLabel(locale, "topping_", tp)}
             </button>
           ))}
         </div>
+        <AddCustomInput
+          placeholder={t("sommelier.add_custom" as TranslationKey)}
+          onAdd={(value) => { if (value !== "ice" && !extras.toppings.includes(value)) toggleExtra("toppings", value); }}
+        />
       </div>
 
       {/* Extras — Liqueurs */}
@@ -277,17 +322,21 @@ export function SommelierBeans({ sommelier }: Props) {
           {t("sommelier.liqueurs" as TranslationKey)}
         </div>
         <div className="flex flex-wrap gap-2">
-          {LIQUEUR_OPTIONS.map((lq) => (
+          {liqueurChips.map((lq) => (
             <button
               key={lq}
               onClick={() => toggleExtra("liqueurs", lq)}
               className="rounded-full px-3 py-1.5 text-xs font-medium transition active:scale-95 ring-1"
               style={chipStyle(extras.liqueurs.includes(lq))}
             >
-              {t(`sommelier.liqueur_${lq}` as TranslationKey)}
+              {suggestionLabel(locale, "liqueur_", lq)}
             </button>
           ))}
         </div>
+        <AddCustomInput
+          placeholder={t("sommelier.add_custom" as TranslationKey)}
+          onAdd={(value) => { if (!extras.liqueurs.includes(value)) toggleExtra("liqueurs", value); }}
+        />
       </div>
 
       {/* Extras — Ice toggle */}
@@ -346,7 +395,7 @@ export function SommelierBeans({ sommelier }: Props) {
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">{profile.name}</div>
                   <div className="text-[11px] opacity-70">
-                    {t(`sommelier.cup_${profile.cup_size}` as TranslationKey)} · {t(`sommelier.caffeine_${profile.caffeine_pref}` as TranslationKey)}
+                    {sommelierLabel(locale, "cup_size", profile.cup_size)} · {sommelierLabel(locale, "caffeine", profile.caffeine_pref)}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">

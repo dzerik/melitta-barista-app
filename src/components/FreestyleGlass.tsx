@@ -2,36 +2,13 @@
  * Dynamic glass visualization for freestyle drink builder.
  * Shape, reflections and shadows closely match the Melitta cafe_creme.png style —
  * a tall double-walled glass mug with a C-shaped handle.
+ *
+ * Colors and steam heat come from lib/parameters.ts: the frozen legacy token
+ * maps render byte-identically, and tokens outside them (served vocabularies,
+ * §6.1) interpolate by their ordinal position in the optional
+ * `intensityScale`/`temperatureScale` token lists.
  */
-
-const COFFEE_INTENSITY_COLORS: Record<string, string> = {
-  very_mild: "#8B6B4A",
-  mild: "#6B4A2E",
-  medium: "#4A2A14",
-  strong: "#3E1F0D",
-  very_strong: "#1A0D04",
-  extra_strong: "#0F0803",
-};
-
-function getProcessColor(process: string, intensity: string): string {
-  if (process === "coffee") return COFFEE_INTENSITY_COLORS[intensity] || COFFEE_INTENSITY_COLORS.medium;
-  if (process === "milk") return "#F0E6D8";
-  if (process === "water") return "#9DC4D8";
-  return "transparent";
-}
-
-function getCoffeeCremaColor(intensity: string): string {
-  if (intensity === "very_mild" || intensity === "mild") return "#D4A860";
-  if (intensity === "strong" || intensity === "very_strong" || intensity === "extra_strong") return "#8B6030";
-  return "#C49545"; // medium — golden
-}
-
-const TEMP_HEAT: Record<string, number> = {
-  cold: 0.2,
-  low: 0.2,
-  normal: 0.6,
-  high: 1.0,
-};
+import { processColor, cremaColor, heatFor } from "../lib/parameters";
 
 interface Props {
   process1: string;
@@ -44,6 +21,10 @@ interface Props {
   portion2: number;
   size?: number;
   hideVolume?: boolean;
+  /** Resolved intensity token list (ordinal color scale for unknown tokens). */
+  intensityScale?: string[];
+  /** Resolved temperature token list (ordinal heat scale for unknown tokens). */
+  temperatureScale?: string[];
 }
 
 export function FreestyleGlass({
@@ -57,6 +38,8 @@ export function FreestyleGlass({
   portion2,
   size = 300,
   hideVolume = false,
+  intensityScale,
+  temperatureScale,
 }: Props) {
   const vbW = 120;
   const vbH = 150;
@@ -146,10 +129,10 @@ export function FreestyleGlass({
   // Build layers bottom-up: component 1 on bottom, component 2 on top
   const layers: { color: string; frac: number; process: string; intensity: string }[] = [];
   if (frac1 > 0 && process1 !== "none") {
-    layers.push({ color: getProcessColor(process1, intensity1), frac: frac1, process: process1, intensity: intensity1 });
+    layers.push({ color: processColor(process1, intensity1, intensityScale), frac: frac1, process: process1, intensity: intensity1 });
   }
   if (frac2 > 0 && process2 !== "none") {
-    layers.push({ color: getProcessColor(process2, intensity2), frac: frac2, process: process2, intensity: intensity2 });
+    layers.push({ color: processColor(process2, intensity2, intensityScale), frac: frac2, process: process2, intensity: intensity2 });
   }
 
   let layerY = ciBot;
@@ -225,7 +208,7 @@ export function FreestyleGlass({
   const hasCoffeeOnTop = topLayerProcess === "coffee" && topLayerY < ciBot;
   const hasMilkOnTop = topLayerProcess === "milk" && topLayerY < ciBot;
   const hasFoam = hasCoffeeOnTop || hasMilkOnTop;
-  const cremaColor = getCoffeeCremaColor(topLayerIntensity);
+  const cremaFill = cremaColor(topLayerIntensity, intensityScale);
   const milkFoamColor = "#F5EDE3"; // warm white foam
 
   // Has any liquid?
@@ -235,8 +218,8 @@ export function FreestyleGlass({
   const totalMl = portion1 + portion2;
 
   // Steam
-  const heat1 = process1 !== "none" ? (TEMP_HEAT[temp1] || 0.5) * portion1 : 0;
-  const heat2 = process2 !== "none" ? (TEMP_HEAT[temp2] || 0.5) * portion2 : 0;
+  const heat1 = process1 !== "none" ? heatFor(temp1, temperatureScale) * portion1 : 0;
+  const heat2 = process2 !== "none" ? heatFor(temp2, temperatureScale) * portion2 : 0;
   const avgHeat = totalMl > 0 ? (heat1 + heat2) / totalMl : 0;
   const volFactor = Math.min(totalMl / 200, 1);
   const steamIntensity = avgHeat * volFactor;
@@ -349,7 +332,7 @@ export function FreestyleGlass({
 
           {/* Foam/crema gradient */}
           {hasFoam && (() => {
-            const color = hasCoffeeOnTop ? cremaColor : milkFoamColor;
+            const color = hasCoffeeOnTop ? cremaFill : milkFoamColor;
             return (
               <linearGradient id="fs-foam" x1="0" y1="0" x2="1" y2="0">
                 <stop offset="0%" stopColor={color} stopOpacity="0.5" />
@@ -514,7 +497,7 @@ export function FreestyleGlass({
               const fx0R = lerpX(fy0, false);
               const fx1L = lerpX(fy1, true);
               const fx1R = lerpX(fy1, false);
-              const highlightColor = hasCoffeeOnTop ? cremaColor : "#FFFFFF";
+              const highlightColor = hasCoffeeOnTop ? cremaFill : "#FFFFFF";
               const highlightOpacity = hasCoffeeOnTop ? 0.4 : 0.3;
               return (
                 <>

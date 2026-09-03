@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { Connection, HassEntities } from "home-assistant-js-websocket";
 import { Sparkles, Bean, Heart, Clock, Loader2, AlertCircle } from "lucide-react";
 import { usePreferences } from "../lib/preferences";
 import type { TranslationKey } from "../lib/i18n";
 import { useSommelier } from "../hooks/useSommelier";
+import { readBridgeAttributes, readStringsVersion, type UiContract } from "../lib/contract";
+import { withSommelierErrorMapping } from "../lib/sommelier-errors";
+import { BrewWizardContext, type BrewWizardEnv } from "../hooks/useBrewPhase";
 import { SommelierGenerate } from "./SommelierGenerate";
 import { SommelierBeans } from "./SommelierBeans";
 import { SommelierFavorites } from "./SommelierFavorites";
@@ -13,6 +16,8 @@ interface Props {
   conn: Connection;
   entities: HassEntities;
   prefix: string;
+  /** Contract document (Zone P-I): its strings_version revalidates the vocab cache for free. */
+  contract?: UiContract | null;
 }
 
 type SubView = "generate" | "beans" | "favorites" | "history";
@@ -24,10 +29,38 @@ const SUB_VIEWS: { key: SubView; labelKey: string; icon: typeof Sparkles }[] = [
   { key: "history", labelKey: "sommelier.tab_history", icon: Clock },
 ];
 
-export function SommelierSection({ conn }: Props) {
-  const { t } = usePreferences();
+/**
+ * Sommelier tab shell: sub-navigation, the shared error banner, and the
+ * Zone P-H hosting duties — sommelier WS rejections are mapped by code to
+ * localized actionable hints (no_llm_agent / no_llm_agent_selected /
+ * llm_agent_missing / timeout / unauthorized) before they reach the
+ * `useSommelier` error state, and a `BrewWizardContext` gives recipe cards
+ * the connection + entry scope + confirm-prompt entity the brew-phase
+ * wizard needs.
+ */
+export function SommelierSection({ conn, entities, prefix, contract = null }: Props) {
+  const { t, locale } = usePreferences();
   const [subView, setSubView] = useState<SubView>("generate");
-  const sommelier = useSommelier(conn);
+
+  // The mapping wrapper localizes at rejection time. Rebuilding it on a
+  // locale switch is safe: useSommelier's init effects are ref-guarded, so a
+  // new connection identity never refires the session fetches.
+  const mappedConn = useMemo(
+    () => withSommelierErrorMapping(conn, () => locale),
+    [conn, locale],
+  );
+  const sommelier = useSommelier(mappedConn, readStringsVersion(contract));
+
+  // Wizard environment (Zone P-H): entry scope from the §3.4 bridge
+  // attributes (null pre-contract — status polling then stays off) and the
+  // machine's Confirm Prompt button when it exists.
+  const entryId = readBridgeAttributes(entities, prefix)?.entryId ?? null;
+  const confirmId = `button.${prefix}_confirm_prompt`;
+  const confirmEntityId = entities[confirmId] ? confirmId : null;
+  const wizardEnv = useMemo<BrewWizardEnv>(
+    () => ({ conn, entryId, confirmEntityId }),
+    [conn, entryId, confirmEntityId],
+  );
 
   if (sommelier.loading) {
     return (
@@ -38,6 +71,7 @@ export function SommelierSection({ conn }: Props) {
   }
 
   return (
+    <BrewWizardContext.Provider value={wizardEnv}>
     <div className="flex h-full flex-col overflow-hidden">
       {/* Error banner */}
       {sommelier.error && (
@@ -84,5 +118,6 @@ export function SommelierSection({ conn }: Props) {
         {subView === "history" && <SommelierHistory sommelier={sommelier} />}
       </div>
     </div>
+    </BrewWizardContext.Provider>
   );
 }

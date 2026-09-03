@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { Coffee, Trash2, Star } from "lucide-react";
 import { usePreferences } from "../lib/preferences";
 import type { TranslationKey } from "../lib/i18n";
-import type { useSommelier } from "../hooks/useSommelier";
+import type { AiRecipe, Favorite, useSommelier } from "../hooks/useSommelier";
+import { hasPhasePlan } from "../lib/brew-plan";
+import { BrewWizardContext } from "../hooks/useBrewPhase";
+import { BrewWizard } from "./BrewWizard";
 
 type SommelierHook = ReturnType<typeof useSommelier>;
 
@@ -10,14 +13,31 @@ interface Props {
   sommelier: SommelierHook;
 }
 
+/**
+ * Saved favorites list.
+ *
+ * Brew routing mirrors `SommelierRecipeCard`: a favorite carrying
+ * `machine_phases` opens the step-machine wizard (multi-phase drinks must
+ * not one-shot brew past their manual steps) whenever a host provides the
+ * `BrewWizardContext`; everything else keeps the legacy `favorites/brew`
+ * path byte-identically.
+ */
 export function SommelierFavorites({ sommelier }: Props) {
   const { t } = usePreferences();
   const { favorites, brewFavorite, removeFavorite } = sommelier;
   const [brewingId, setBrewingId] = useState<string | null>(null);
+  const wizardEnv = useContext(BrewWizardContext);
+  const [wizardFav, setWizardFav] = useState<Favorite | null>(null);
 
-  const handleBrew = async (id: string) => {
-    setBrewingId(id);
-    try { await brewFavorite(id); } finally { setBrewingId(null); }
+  const wizardBrews = (fav: Favorite) => wizardEnv !== null && hasPhasePlan(fav);
+
+  const handleBrew = async (fav: Favorite) => {
+    if (wizardBrews(fav)) {
+      setWizardFav(fav);
+      return;
+    }
+    setBrewingId(fav.id);
+    try { await brewFavorite(fav.id); } finally { setBrewingId(null); }
   };
 
   if (favorites.length === 0) {
@@ -62,7 +82,7 @@ export function SommelierFavorites({ sommelier }: Props) {
 
             <div className="flex items-center gap-1.5 shrink-0">
               <button
-                onClick={() => handleBrew(fav.id)}
+                onClick={() => handleBrew(fav)}
                 disabled={brewingId === fav.id}
                 className="rounded-xl px-3 py-2 text-xs font-semibold transition active:scale-95"
                 style={{
@@ -88,6 +108,16 @@ export function SommelierFavorites({ sommelier }: Props) {
           </div>
         </div>
       ))}
+
+      {wizardFav && (
+        <BrewWizard
+          open
+          recipe={{ ...wizardFav, brewed: false } as unknown as AiRecipe}
+          source="favorite"
+          sourceId={wizardFav.id}
+          onClose={() => setWizardFav(null)}
+        />
+      )}
     </div>
   );
 }

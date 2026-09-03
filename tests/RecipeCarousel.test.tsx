@@ -1,8 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "./test-utils";
 import { RecipeCarousel } from "../src/components/RecipeCarousel";
+import { attachContractRecipes, recipeDisplayName } from "../src/lib/recipes";
+import { setServerStrings, resetServerStrings } from "../src/lib/server-strings";
+import { MELITTA_CONTRACT, clone } from "./fixtures/contracts";
 
 // Mock embla-carousel-react
 const mockScrollTo = vi.fn();
@@ -224,5 +227,67 @@ describe("RecipeCarousel", () => {
     expect((cards[0] as HTMLElement).style.background).toContain("linear-gradient");
     // Second card: not current → transparent
     expect(cards[1]).toHaveStyle({ background: "transparent" });
+  });
+});
+
+describe("RecipeCarousel — contract catalog adoption (v1)", () => {
+  const carouselProps = {
+    onSelect: vi.fn(),
+    onBrew: vi.fn(),
+    renderInfo: vi.fn(() => <span data-testid="recipe-info">Info</span>),
+    brewLabel: "Brew",
+  };
+
+  afterEach(() => {
+    resetServerStrings();
+  });
+
+  it("attachContractRecipes joins icon spec and name_key by display name", () => {
+    const contract = clone(MELITTA_CONTRACT);
+    contract.recipes[0].name_key = "espresso";
+    const joined = attachContractRecipes(MOCK_RECIPES, contract);
+    expect(joined[0].nameKey).toBe("espresso");
+    expect(joined[0].icon).toEqual(contract.recipes[0].icon);
+    // Rows without a catalog match pass through untouched
+    expect(joined[1]).toEqual(MOCK_RECIPES[1]);
+    expect(joined[1].icon).toBeUndefined();
+  });
+
+  it("attachContractRecipes is a no-op without a contract (legacy fallback)", () => {
+    expect(attachContractRecipes(MOCK_RECIPES, null)).toEqual(MOCK_RECIPES);
+  });
+
+  it("renders served icon specs as SVG drawings inside the carousel", () => {
+    const contract = clone(MELITTA_CONTRACT);
+    contract.recipes[0].name_key = "espresso";
+    const { container } = renderWithProviders(
+      <RecipeCarousel
+        {...carouselProps}
+        recipes={attachContractRecipes(MOCK_RECIPES, contract)}
+      />,
+    );
+    const svg = container.querySelector('svg[data-icon-spec][aria-label="Espresso"]');
+    expect(svg).toBeInTheDocument();
+  });
+
+  it("labels recipes via served recipes.name.<name_key> strings, falling back to the name", () => {
+    setServerStrings({ "recipes.name.espresso": "Эспрессо" });
+    const recipes = [
+      { name: "Espresso", isSelected: true, nameKey: "espresso" },
+      { name: "Cappuccino", isSelected: false, nameKey: "cappuccino" },
+    ];
+    renderWithProviders(<RecipeCarousel {...carouselProps} recipes={recipes} />);
+    expect(screen.getByText("Эспрессо")).toBeInTheDocument();
+    expect(screen.queryByText("Espresso")).not.toBeInTheDocument();
+    // no served string for cappuccino → English display name (legacy tier)
+    expect(screen.getByText("Cappuccino")).toBeInTheDocument();
+  });
+
+  it("recipeDisplayName never depends on server strings when no name_key is served", () => {
+    setServerStrings({ "recipes.name.espresso": "Should not be used" });
+    expect(recipeDisplayName({ name: "Espresso" })).toBe("Espresso");
+    expect(recipeDisplayName({ name: "Espresso", nameKey: "espresso" })).toBe("Should not be used");
+    resetServerStrings();
+    expect(recipeDisplayName({ name: "Espresso", nameKey: "espresso" })).toBe("Espresso");
   });
 });

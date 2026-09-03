@@ -1,6 +1,25 @@
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import type { Connection, HassEntities } from "home-assistant-js-websocket";
-import { getState, getEntity, getCupCounts, type RecipeDetails, type DirectKeyRecipe, type DirectKeyCategory, DIRECTKEY_CATEGORIES } from "../lib/entities";
+import {
+  getState,
+  getEntity,
+  getCupCounts,
+  resolveDirectKeyModel,
+  legacyDirectKeyModel,
+  visibleProfileSlots,
+  canRenameProfileSlot,
+  activeProfileFromEntities,
+  directKeyProfilesFromList,
+  fetchDirectKeyRecipeList,
+  directKeyCategoryLabel,
+  type RecipeDetails,
+  type DirectKeyRecipe,
+  type DirectKeyCategory,
+  type DirectKeyProfileSlotModel,
+} from "../lib/entities";
+import { readDirectKey, type UiContract } from "../lib/contract";
+import { serverString } from "../lib/server-strings";
+import { deriveMachineStatus, type ServiceKind } from "../lib/status";
 import { selectOption, pressButton, brewDirectkey, setTextValue, safeCall } from "../lib/ha";
 import { useRecipeCache } from "../hooks/useRecipeCache";
 import { usePreferences } from "../lib/preferences";
@@ -25,6 +44,8 @@ interface Props {
   conn: Connection;
   entities: HassEntities;
   prefix: string;
+  /** UI Contract document (P-I wiring); null/omitted → legacy tables. */
+  contract?: UiContract | null;
 }
 
 const PROCESS_IMG: Record<string, string> = {
@@ -157,68 +178,71 @@ function RecipeInfo({ details, vertical, animated, compact, t }: {
   );
 }
 
-const SERVICE_KEYS: Record<string, { labelKey: TranslationKey; subKey: TranslationKey }> = {
-  Cleaning: { labelKey: "service.cleaning", subKey: "service.cleaning_sub" },
-  "Easy Clean": { labelKey: "service.easy_clean", subKey: "service.easy_clean_sub" },
-  "Intensive Clean": { labelKey: "service.intensive_clean", subKey: "service.intensive_clean_sub" },
-  Descaling: { labelKey: "service.descaling", subKey: "service.descaling_sub" },
-  Evaporating: { labelKey: "service.evaporating", subKey: "service.evaporating_sub" },
-  Busy: { labelKey: "service.busy", subKey: "service.busy_sub" },
+const SERVICE_KEYS: Record<ServiceKind, { labelKey: TranslationKey; subKey: TranslationKey }> = {
+  cleaning: { labelKey: "service.cleaning", subKey: "service.cleaning_sub" },
+  easy_clean: { labelKey: "service.easy_clean", subKey: "service.easy_clean_sub" },
+  intensive_clean: { labelKey: "service.intensive_clean", subKey: "service.intensive_clean_sub" },
+  descaling: { labelKey: "service.descaling", subKey: "service.descaling_sub" },
+  evaporating: { labelKey: "service.evaporating", subKey: "service.evaporating_sub" },
+  busy: { labelKey: "service.busy", subKey: "service.busy_sub" },
 };
 
-const ACTION_KEYS: Record<string, TranslationKey> = {
-  "Brew Unit Removed": "action.brew_unit_removed",
-  "Trays Missing": "action.trays_missing",
-  "Empty Trays": "action.empty_trays",
-  "Fill Water": "action.fill_water",
-  "Close Powder Lid": "action.close_powder_lid",
-  "Fill Powder": "action.fill_powder",
-};
-
-const DK_LABEL_KEYS: Record<DirectKeyCategory, TranslationKey> = {
-  espresso: "brew.dk_espresso",
-  cafe_creme: "brew.dk_cafe_creme",
-  cappuccino: "brew.dk_cappuccino",
-  latte_macchiato: "brew.dk_latte_macchiato",
-  milk_froth: "brew.dk_milk_froth",
-  // milk: "brew.dk_milk",  // no physical button on Barista TS Smart
-  water: "brew.dk_water",
-};
-
-const DK_RECIPE_ICON: Record<DirectKeyCategory, string> = {
+/**
+ * Frozen English display labels (§5.2 rule 8) per category token — the
+ * CoffeeIcon PNG-lookup fallback tier when a recipe row carries no
+ * renderable IconSpec. Which categories render is served data now
+ * (`machine_button`, §9.3.1), so all 7 tokens map.
+ */
+const DK_RECIPE_ICON: Record<string, string> = {
   espresso: "Espresso",
   cafe_creme: "Café Crème",
   cappuccino: "Cappuccino",
   latte_macchiato: "Latte Macchiato",
   milk_froth: "Milk Froth",
-  // milk: "Milk",  // no physical button on Barista TS Smart
+  milk: "Milk",
   water: "Hot Water",
 };
 
-export function BrewSection({ conn, entities, prefix }: Props) {
-  const { t, theme, viewMode } = usePreferences();
+export function BrewSection({ conn, entities, prefix, contract = null }: Props) {
+  const { t, theme, viewMode, locale } = usePreferences();
   const isDark = theme === "dark";
-  const machineState = getState(entities, prefix, "sensor", "state");
-  const isReady = machineState === "Ready";
-  const isBrewing = machineState === "Brewing";
-  const activity = getState(entities, prefix, "sensor", "activity") || "";
+  // Token-first status (UI Contract §3.4 B); legacy string matching inside
+  // deriveMachineStatus is the pre-contract fallback.
+  const statusView = deriveMachineStatus(entities, prefix, locale);
+  const isReady = statusView.ready;
+  const isBrewing = statusView.brewing;
+  const activity = statusView.activityLabel || "";
   const progress = getState(entities, prefix, "sensor", "progress");
-  const actionRequired = getState(entities, prefix, "sensor", "action_required");
-  const hasAction = actionRequired && actionRequired !== "None";
+  const hasAction = statusView.hasAction;
   const progressNum = progress ? Math.min(100, Math.max(0, parseFloat(progress))) : 0;
 
-  const selectedProfile = getState(entities, prefix, "select", "profile");
   const selectedRecipe = getState(entities, prefix, "select", "recipe");
   const { profileOptions, recipeOptions, allRecipes, directKey } = useRecipeCache(entities, prefix);
 
-  // Filter profiles: always show profile 0, only show 1-8 if switch.profile_N_active is on
-  const visibleProfileOptions = useMemo(() => {
-    return profileOptions.filter((_, idx) => {
-      if (idx === 0) return true; // "My Coffee" always visible
-      const sw = getEntity(entities, prefix, "switch", `profile_${idx}_active`);
-      return sw?.state === "on";
-    });
-  }, [profileOptions, entities, prefix]);
+  // DirectKey/profile model (§9.3.6 rule 1): served block → legacy tables.
+  // Rule 6: a served model whose profile select has no state object falls
+  // back whole to the legacy tier (contract presence never overrides entity
+  // absence).
+  const model = useMemo(() => {
+    const m = resolveDirectKeyModel(contract, profileOptions.length);
+    if (
+      m.source === "contract" &&
+      getEntity(entities, prefix, "select", m.profileSelectSuffix) === undefined
+    ) {
+      return legacyDirectKeyModel(profileOptions.length);
+    }
+    return m;
+  }, [contract, profileOptions.length, entities, prefix]);
+
+  const selectedProfile = getState(
+    entities, prefix, "select", model.profileSelectSuffix,
+  );
+
+  // Profile slots: 0/fixed always; others via their bound activity switch.
+  const visibleSlots = useMemo(
+    () => visibleProfileSlots(model, profileOptions, entities, prefix),
+    [model, profileOptions, entities, prefix],
+  );
 
   const cupCounts = useMemo(() => getCupCounts(entities, prefix), [entities, prefix]);
 
@@ -246,18 +270,66 @@ export function BrewSection({ conn, entities, prefix }: Props) {
   const dkLongPressTriggered = useRef(false);
   const profileNameInputRef = useRef<HTMLInputElement>(null);
 
-  const activeProfileId = directKey?.activeProfile ?? 0;
-  const activeProfileRecipes = directKey?.profiles[activeProfileId] ?? {};
+  // Recipe data (§9.3.6 rule 5): WS recipes/list rows joined on
+  // profile_id + category token when the contract serves a directkey block;
+  // the pushed directkey_recipes attribute (display-name reverse maps in
+  // useRecipeCache) stays the pre-0.93 fallback. Refetched when the
+  // contract fingerprint changes (recipe_cache_generation is a fingerprint
+  // input) and after a save closes the edit modal.
+  const [listProfiles, setListProfiles] = useState<Record<
+    number,
+    Record<string, DirectKeyRecipe>
+  > | null>(null);
+  const [listGen, setListGen] = useState(0);
+  useEffect(() => {
+    const doc = contract;
+    const block = readDirectKey(doc);
+    if (doc === null || block === null) return;
+    const ids: Record<string, number> = {};
+    for (const c of block.categories) {
+      if (typeof c?.category === "string" && typeof c?.id === "number") {
+        ids[c.category] = c.id;
+      }
+    }
+    let cancelled = false;
+    void (async () => {
+      const payload = await fetchDirectKeyRecipeList(conn, doc.entry_id);
+      if (cancelled) return;
+      setListProfiles(
+        payload === null ? null : directKeyProfilesFromList(payload, ids),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [conn, contract, listGen]);
+
+  // Active profile from the served attribute name (§9.3.6 rule 4);
+  // the cached legacy value covers startup before entities arrive.
+  const activeProfileId =
+    activeProfileFromEntities(model, entities, prefix) ??
+    directKey?.activeProfile ??
+    0;
+  // The recipes/list join applies only while the contract serves the block
+  // (a fetched map from a previous document is ignored, not cleared — the
+  // effect refetches whenever the document changes).
+  const dkBlockPresent = contract !== null && readDirectKey(contract) !== null;
+  const dkProfiles =
+    (dkBlockPresent ? listProfiles : null) ?? directKey?.profiles ?? null;
+  const activeProfileRecipes = dkProfiles?.[activeProfileId] ?? {};
   const hasDkRecipes = Object.keys(activeProfileRecipes).length > 0;
+  // Slot 0 (`fixed`) recipes are not editable (§9.3.2).
+  const activeSlot = model.profiles.find((p) => p.slot === activeProfileId);
+  const dkEditBlocked = activeSlot !== undefined ? activeSlot.fixed : activeProfileId === 0;
 
   const startDkLongPress = useCallback((cat: DirectKeyCategory, recipe: DirectKeyRecipe) => {
-    if (activeProfileId === 0) return;
+    if (dkEditBlocked) return;
     dkLongPressTriggered.current = false;
     dkLongPressTimer.current = setTimeout(() => {
       dkLongPressTriggered.current = true;
       setEditingDk({ category: cat, recipe });
     }, 500);
-  }, [activeProfileId]);
+  }, [dkEditBlocked]);
 
   const cancelDkLongPress = useCallback(() => {
     if (dkLongPressTimer.current) {
@@ -276,21 +348,21 @@ export function BrewSection({ conn, entities, prefix }: Props) {
   }, [conn, brewId, selectedDk, twoCups]);
 
   const handleDkDoubleClick = useCallback((cat: DirectKeyCategory, recipe: DirectKeyRecipe) => {
-    if (activeProfileId === 0) return;
+    if (dkEditBlocked) return;
     setEditingDk({ category: cat, recipe });
-  }, [activeProfileId]);
+  }, [dkEditBlocked]);
 
-  const startLongPress = useCallback((idx: number, name: string) => {
+  const startLongPress = useCallback((slot: DirectKeyProfileSlotModel, name: string) => {
     longPressTriggered.current = false;
     longPressTimer.current = setTimeout(() => {
       longPressTriggered.current = true;
-      if (idx > 0) {
-        setEditingProfileIdx(idx);
+      if (canRenameProfileSlot(model, slot, entities, prefix)) {
+        setEditingProfileIdx(slot.slot);
         setEditingProfileName(name);
         setTimeout(() => profileNameInputRef.current?.focus(), 50);
       }
     }, 500);
-  }, []);
+  }, [model, entities, prefix]);
 
   const cancelLongPress = useCallback(() => {
     if (longPressTimer.current) {
@@ -299,28 +371,38 @@ export function BrewSection({ conn, entities, prefix }: Props) {
     }
   }, []);
 
-  const handleProfileClick = useCallback((_idx: number, opt: string) => {
+  const handleProfileClick = useCallback((_slot: number, opt: string) => {
     if (longPressTriggered.current) return;
     if (editingProfileIdx !== null) return;
     if (opt === selectedProfile) return;
-    safeCall(() => selectOption(conn, `select.${prefix}_profile`, opt));
-  }, [conn, prefix, editingProfileIdx, selectedProfile]);
+    safeCall(() =>
+      selectOption(conn, `select.${prefix}_${model.profileSelectSuffix}`, opt),
+    );
+  }, [conn, prefix, model, editingProfileIdx, selectedProfile]);
 
-  const handleProfileDoubleClick = useCallback((idx: number, name: string) => {
-    if (idx > 0) {
-      setEditingProfileIdx(idx);
+  const handleProfileDoubleClick = useCallback((slot: DirectKeyProfileSlotModel, name: string) => {
+    if (canRenameProfileSlot(model, slot, entities, prefix)) {
+      setEditingProfileIdx(slot.slot);
       setEditingProfileName(name);
       setTimeout(() => profileNameInputRef.current?.focus(), 50);
     }
-  }, []);
+  }, [model, entities, prefix]);
 
   const commitProfileName = useCallback(() => {
     if (editingProfileIdx !== null && editingProfileName.trim()) {
-      const entityId = `text.${prefix}_profile_${editingProfileIdx}_name`;
-      safeCall(() => setTextValue(conn, entityId, editingProfileName.trim()));
+      // Entity binding from the profiles entry (§9.3.6 rule 4) — the legacy
+      // model carries the old string-template suffix for pre-contract servers.
+      const suffix = model.profiles.find(
+        (p) => p.slot === editingProfileIdx,
+      )?.nameEntitySuffix;
+      if (suffix) {
+        safeCall(() =>
+          setTextValue(conn, `text.${prefix}_${suffix}`, editingProfileName.trim()),
+        );
+      }
     }
     setEditingProfileIdx(null);
-  }, [editingProfileIdx, editingProfileName, conn, prefix]);
+  }, [editingProfileIdx, editingProfileName, conn, prefix, model]);
 
   // Select recipe only (no brew) — used by carousel, grid, and list
   const handleCarouselSelect = useCallback((name: string) => {
@@ -388,7 +470,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
     );
   }
 
-  if (!machineState || machineState === "Off" || machineState === "offline") {
+  if (statusView.offline || statusView.off) {
     return (
       <div className="flex h-full flex-col items-center justify-center px-8">
         <div className="flex flex-col items-center gap-6 max-w-sm">
@@ -403,14 +485,16 @@ export function BrewSection({ conn, entities, prefix }: Props) {
     );
   }
 
-  const serviceKeys = machineState ? SERVICE_KEYS[machineState] : null;
+  const serviceKeys = statusView.service ? SERVICE_KEYS[statusView.service] : null;
   if (serviceKeys && !isReady && !isBrewing) {
+    const serviceTitle =
+      statusView.source === "tokens" ? statusView.statusLabel : t(serviceKeys.labelKey);
     return (
       <div className="flex h-full flex-col items-center justify-center px-8">
         <div className="flex flex-col items-center gap-6 max-w-sm">
           <img src={iconService} alt="service" className="w-20 h-20 object-contain opacity-70" draggable={false} />
           <div className="text-center">
-            <div className="text-xl font-light text-primary tracking-wide">{t(serviceKeys.labelKey)}</div>
+            <div className="text-xl font-light text-primary tracking-wide">{serviceTitle}</div>
             <div className="text-sm text-tertiary mt-2 leading-relaxed">{t(serviceKeys.subKey)}</div>
           </div>
           {progress && (
@@ -427,8 +511,8 @@ export function BrewSection({ conn, entities, prefix }: Props) {
     );
   }
 
-  const actionKey = ACTION_KEYS[actionRequired || ""];
-  const actionHint = actionKey ? t(actionKey) : "";
+  const actionLabel = statusView.actionLabel || "";
+  const actionHint = statusView.actionHint || "";
 
   return (
     <div className="relative flex h-full flex-col">
@@ -437,7 +521,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
           <div className="flex flex-col items-center gap-5 max-w-xs rounded-2xl ring-1 ring-border px-8 py-8" style={{ background: "var(--surface)" }}>
             <img src={iconNotConnected} alt="action required" className="w-20 h-20 object-contain" draggable={false} />
             <div className="text-center">
-              <div className="text-lg font-light text-primary tracking-wide">{actionRequired}</div>
+              <div className="text-lg font-light text-primary tracking-wide">{actionLabel}</div>
               {actionHint && <div className="text-sm text-tertiary mt-2 leading-relaxed">{actionHint}</div>}
             </div>
           </div>
@@ -445,19 +529,25 @@ export function BrewSection({ conn, entities, prefix }: Props) {
       )}
 
       {/* Profile tab bar — always dark */}
-      {isReady && visibleProfileOptions.length > 1 && (
+      {isReady && visibleSlots.length > 1 && (
         <div className="shrink-0" style={{ background: "var(--profile-bar-bg)" }}>
           <div className="flex overflow-x-auto">
-            {visibleProfileOptions.map((opt) => {
-              const idx = profileOptions.indexOf(opt);
+            {visibleSlots.map((slot) => {
+              const opt = profileOptions[slot.slot];
+              // Slot-0 name_key label via the reused recipes.category.* server
+              // string (§9.3.2); the select option (legacy label) otherwise.
+              const label =
+                (slot.nameKey !== null
+                  ? serverString(`recipes.category.${slot.nameKey}`)
+                  : undefined) ?? opt;
               const isActive = opt === selectedProfile;
-              const isEditing = editingProfileIdx === idx;
+              const isEditing = editingProfileIdx === slot.slot;
               return (
                 <button
-                  key={idx}
-                  onClick={() => handleProfileClick(idx, opt)}
-                  onDoubleClick={() => handleProfileDoubleClick(idx, opt)}
-                  onPointerDown={() => startLongPress(idx, opt)}
+                  key={slot.slot}
+                  onClick={() => handleProfileClick(slot.slot, opt)}
+                  onDoubleClick={() => handleProfileDoubleClick(slot, opt)}
+                  onPointerDown={() => startLongPress(slot, opt)}
                   onPointerUp={cancelLongPress}
                   onPointerLeave={cancelLongPress}
                   onContextMenu={(e) => e.preventDefault()}
@@ -480,7 +570,7 @@ export function BrewSection({ conn, entities, prefix }: Props) {
                       style={{ color: "#ffffff", borderColor: "rgba(255,255,255,0.5)" }}
                     />
                   ) : (
-                    opt
+                    label
                   )}
                   {isActive && (
                     <span
@@ -502,10 +592,14 @@ export function BrewSection({ conn, entities, prefix }: Props) {
             className="grid grid-cols-8 sm:grid-cols-8 md:grid-cols-8"
             style={{ gap: "1px", background: "var(--section-divider)" }}
           >
-            {DIRECTKEY_CATEGORIES.map((cat) => {
+            {/* Served category order (§9.3.6 rule 2); machine_button false →
+                hidden, matching the legacy hard omission of milk (§9.3.1 —
+                the BLE brew path itself is never disabled by the flag). */}
+            {model.categories.filter((c) => c.machineButton).map((entry) => {
+              const cat = entry.category;
               const recipe = activeProfileRecipes[cat];
               if (!recipe) return null;
-              const label = t(DK_LABEL_KEYS[cat]);
+              const label = directKeyCategoryLabel(locale, cat);
               const isSelected = selectedDk === cat;
               const hasDetails = recipe.c1_process !== undefined && recipe.c1_process !== "none";
               return (
@@ -521,7 +615,14 @@ export function BrewSection({ conn, entities, prefix }: Props) {
                   style={{ background: isSelected ? "var(--recipe-selected-bg)" : "var(--dk-card-bg)" }}
                 >
                   <div className={isSelected && hasDetails ? "recipe-icon-fade" : ""}>
-                    <CoffeeIcon recipe={DK_RECIPE_ICON[cat]} size={64} />
+                    {/* Served recipe IconSpec where a row exists (§9.3.6 rule
+                        2); the frozen display label drives the legacy PNG
+                        lookup fallback inside CoffeeIcon. */}
+                    <CoffeeIcon
+                      recipe={DK_RECIPE_ICON[cat] ?? label}
+                      icon={recipe.icon ?? null}
+                      size={64}
+                    />
                   </div>
                   {isSelected && hasDetails && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center recipe-overlay-enter" style={{ background: "var(--overlay-bg)" }}>
@@ -612,10 +713,16 @@ export function BrewSection({ conn, entities, prefix }: Props) {
           conn={conn}
           brewEntityId={brewId}
           category={editingDk.category}
-          categoryLabel={t(DK_LABEL_KEYS[editingDk.category])}
+          categoryLabel={directKeyCategoryLabel(locale, editingDk.category)}
           recipe={editingDk.recipe}
           profileId={activeProfileId}
-          onClose={() => setEditingDk(null)}
+          contract={contract}
+          onClose={() => {
+            setEditingDk(null);
+            // The recipes/list lane is polled, not pushed — refetch so a
+            // saved slot shows immediately (legacy-attribute responsiveness).
+            setListGen((g) => g + 1);
+          }}
         />
       )}
 
