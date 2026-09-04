@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.1] — 2026-09-04
+
+### Fixed
+
+- The language list on the sign-in screen was a native dropdown, so it opened as a system menu in the system's colours — white against the dark app. It is now the app's own list: same surface, border and accent as the form around it, every row a full-size target, the current language checked and scrolled into view, and it closes on Escape or a press outside.
+- Rows in that list and in the preferences language list read from the left edge again; the shared tap-target utility had been centring them.
+
 ## [2.3.0] — 2026-09-04
 
 ### Added

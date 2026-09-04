@@ -93,8 +93,9 @@ export function PreferencesModal({ onClose }: Props) {
                     key={value}
                     onClick={() => setLocale(value)}
                     aria-current={active ? "true" : undefined}
-                    className="tap press w-full flex items-center justify-between gap-3 px-4 t-body"
+                    className="tap press w-full flex items-center gap-3 px-4 t-body"
                     style={{
+                      justifyContent: "space-between",
                       background: active ? "var(--surface-elevated)" : "transparent",
                       color: active ? "var(--text-primary)" : "var(--text-secondary)",
                       fontWeight: active ? 600 : 400,

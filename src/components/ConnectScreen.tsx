@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { getSavedConfig, saveConfig } from "../lib/ha";
 import { usePreferences } from "../lib/preferences";
-import { SUPPORTED_LOCALES, LOCALE_ENDONYM, type Locale } from "../lib/i18n";
 import type { MismatchDirection } from "../lib/contract";
 import { ShieldCheck } from "lucide-react";
+import { LanguageSelect } from "./LanguageSelect";
 import logoMelitta from "../assets/logo_melitta.png";
 import machineImg from "../assets/machine.png";
 
@@ -161,23 +161,12 @@ export function ConnectScreen({ onConnect, error, connecting }: Props) {
           <label htmlFor="connect-locale" className="block t-label font-medium text-tertiary mb-1">
             {t("prefs.language")}
           </label>
-          <select
+          <LanguageSelect
             id="connect-locale"
+            label={t("prefs.language")}
             value={locale}
-            onChange={(e) => setLocale(e.target.value as Locale)}
-            className="tap w-full rounded-xl px-4 t-body outline-none ring-1 transition"
-            style={{
-              background: "var(--input-bg)",
-              borderColor: "var(--input-border)",
-              color: "var(--text-primary)",
-            }}
-          >
-            {SUPPORTED_LOCALES.map((value) => (
-              <option key={value} value={value}>
-                {LOCALE_ENDONYM[value]}
-              </option>
-            ))}
-          </select>
+            onChange={setLocale}
+          />
         </div>
       </form>
     </div>
