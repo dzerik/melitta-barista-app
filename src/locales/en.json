@@ -131,6 +131,7 @@
   "prefs.title": "Preferences",
   "prefs.theme": "Theme",
   "prefs.language": "Language",
+  "prefs.theme_system": "System",
   "prefs.theme_dark": "Dark",
   "prefs.theme_light": "Light",
   "maint.section_cleaning": "Cleaning & Descaling",

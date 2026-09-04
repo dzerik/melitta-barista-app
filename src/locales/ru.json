@@ -131,6 +131,7 @@
   "prefs.title": "Настройки",
   "prefs.theme": "Тема",
   "prefs.language": "Язык",
+  "prefs.theme_system": "Системная",
   "prefs.theme_dark": "Тёмная",
   "prefs.theme_light": "Светлая",
   "maint.section_cleaning": "Очистка и декальцинация",

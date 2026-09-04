@@ -58,6 +58,7 @@
   "service.evaporating": "Höyrystys",
   "service.busy": "Varattu",
   "prefs.language": "Kieli",
+  "prefs.theme_system": "Järjestelmä",
   "prefs.theme_dark": "Tumma",
   "prefs.theme_light": "Vaalea",
   "maint.section_cleaning": "Puhdistus ja kalkinpoisto",

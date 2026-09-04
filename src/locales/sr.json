@@ -62,6 +62,7 @@
   "service.evaporating": "Испаравање",
   "service.busy": "Заузет",
   "prefs.language": "Језик",
+  "prefs.theme_system": "Системска",
   "prefs.theme_dark": "Тамно",
   "prefs.theme_light": "Светло",
   "maint.section_cleaning": "Чишћење и уклањање каменца",

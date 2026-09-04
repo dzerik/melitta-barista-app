@@ -52,6 +52,7 @@
   "service.evaporating": "Avdunstning",
   "service.busy": "Upptagen",
   "prefs.language": "Språk",
+  "prefs.theme_system": "System",
   "prefs.theme_dark": "Mörk",
   "prefs.theme_light": "Ljus",
   "maint.section_cleaning": "Rengöring & avkalkning",

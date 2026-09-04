@@ -58,6 +58,7 @@
   "service.evaporating": "Изпаряване",
   "service.busy": "Заета",
   "prefs.language": "Език",
+  "prefs.theme_system": "Системна",
   "prefs.theme_dark": "Тъмно",
   "prefs.theme_light": "Светло",
   "maint.section_cleaning": "Почистване и декалциране",

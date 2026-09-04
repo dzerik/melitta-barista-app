@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.3.0] — 2026-09-04
+
+### Added
+
+- **The app follows your device's colour scheme.** Theme now has a third setting, System, and it is the default: a device set to light opens the app in porcelain instead of forcing dark, and a scheme that flips mid-session repaints immediately. Picking Dark or Light still pins it, and a theme chosen before this release stays chosen. The browser's own chrome (status bar, address bar) now takes the same ground as the page.
+
 ## [2.2.1] — 2026-09-04
 
 ### Fixed

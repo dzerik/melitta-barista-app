@@ -1,13 +1,16 @@
 import { createPortal } from "react-dom";
-import { usePreferences, type Theme } from "../lib/preferences";
+import { usePreferences, type ThemePreference } from "../lib/preferences";
 import { SUPPORTED_LOCALES, LOCALE_ENDONYM } from "../lib/i18n";
-import { Check, Moon, Sun, X } from "lucide-react";
+import { Check, Monitor, Moon, Sun, X } from "lucide-react";
 
 interface Props {
   onClose: () => void;
 }
 
-const THEMES: { value: Theme; labelKey: "prefs.theme_dark" | "prefs.theme_light"; icon: typeof Moon }[] = [
+type ThemeLabelKey = "prefs.theme_system" | "prefs.theme_dark" | "prefs.theme_light";
+
+const THEMES: { value: ThemePreference; labelKey: ThemeLabelKey; icon: typeof Moon }[] = [
+  { value: "system", labelKey: "prefs.theme_system", icon: Monitor },
   { value: "dark", labelKey: "prefs.theme_dark", icon: Moon },
   { value: "light", labelKey: "prefs.theme_light", icon: Sun },
 ];
@@ -15,7 +18,7 @@ const THEMES: { value: Theme; labelKey: "prefs.theme_dark" | "prefs.theme_light"
 const stopTouch = (e: React.TouchEvent) => e.stopPropagation();
 
 export function PreferencesModal({ onClose }: Props) {
-  const { theme, locale, setTheme, setLocale, t } = usePreferences();
+  const { themePreference, locale, setTheme, setLocale, t } = usePreferences();
 
   return createPortal(
     <div
@@ -49,9 +52,9 @@ export function PreferencesModal({ onClose }: Props) {
             <span className="t-label font-medium text-tertiary">
               {t("prefs.theme")}
             </span>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {THEMES.map(({ value, labelKey, icon: Icon }) => {
-                const active = theme === value;
+                const active = themePreference === value;
                 return (
                   <button
                     key={value}

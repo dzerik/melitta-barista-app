@@ -58,6 +58,7 @@
   "service.evaporating": "Garinimas",
   "service.busy": "Užimtas",
   "prefs.language": "Kalba",
+  "prefs.theme_system": "Sistemos",
   "prefs.theme_dark": "Tamsus",
   "prefs.theme_light": "Šviesus",
   "maint.section_cleaning": "Valymas ir kalkių šalinimas",
