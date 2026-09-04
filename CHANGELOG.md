@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.2.1] — 2026-09-04
+
+### Fixed
+
+- The sign-in screen offered three languages out of the 29 the app ships, as three flag tiles. It now lists every language by its own name — that screen is where someone who does not read English arrives first. (Auto-detection from the browser already covered all 29; only the manual override was short.)
+
 ## [2.2.0] — 2026-09-04
 
 The sommelier's own words, shown as written.

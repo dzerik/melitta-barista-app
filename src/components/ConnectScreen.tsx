@@ -1,20 +1,11 @@
 import { useState } from "react";
 import { getSavedConfig, saveConfig } from "../lib/ha";
 import { usePreferences } from "../lib/preferences";
-import type { Locale } from "../lib/i18n";
+import { SUPPORTED_LOCALES, LOCALE_ENDONYM, type Locale } from "../lib/i18n";
 import type { MismatchDirection } from "../lib/contract";
 import { ShieldCheck } from "lucide-react";
 import logoMelitta from "../assets/logo_melitta.png";
 import machineImg from "../assets/machine.png";
-import flagEn from "../assets/flags/en.png";
-import flagRu from "../assets/flags/ru.png";
-import flagDe from "../assets/flags/de.png";
-
-const LOCALES: { value: Locale; flag: string }[] = [
-  { value: "en", flag: flagEn },
-  { value: "ru", flag: flagRu },
-  { value: "de", flag: flagDe },
-];
 
 interface Props {
   onConnect: (url: string, token: string) => void;
@@ -164,21 +155,29 @@ export function ConnectScreen({ onConnect, error, connecting }: Props) {
           </p>
         </div>
 
-        <div className="flex items-center justify-center gap-2 pt-2">
-          {LOCALES.map(({ value, flag }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setLocale(value)}
-              className={`rounded-lg p-1.5 transition ${
-                locale === value
-                  ? "ring-2 ring-accent opacity-100"
-                  : "opacity-40 hover:opacity-70"
-              }`}
-            >
-              <img src={flag} alt={value} className="h-4 w-auto rounded-sm" draggable={false} />
-            </button>
-          ))}
+        {/* Every shipped language, named in itself — the sign-in screen is
+            where someone who does not read English arrives first. */}
+        <div className="pt-2">
+          <label htmlFor="connect-locale" className="block t-label font-medium text-tertiary mb-1">
+            {t("prefs.language")}
+          </label>
+          <select
+            id="connect-locale"
+            value={locale}
+            onChange={(e) => setLocale(e.target.value as Locale)}
+            className="tap w-full rounded-xl px-4 t-body outline-none ring-1 transition"
+            style={{
+              background: "var(--input-bg)",
+              borderColor: "var(--input-border)",
+              color: "var(--text-primary)",
+            }}
+          >
+            {SUPPORTED_LOCALES.map((value) => (
+              <option key={value} value={value}>
+                {LOCALE_ENDONYM[value]}
+              </option>
+            ))}
+          </select>
         </div>
       </form>
     </div>
