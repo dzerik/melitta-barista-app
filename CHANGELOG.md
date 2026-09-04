@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.4.0] — 2026-09-04
+
+### Added
+
+- **The sign-in screen speaks all 29 languages.** Its wording — the form, the token hint, the security note, the "screen too small" gate and the two version-mismatch screens — existed only in English, Russian and German, so picking any other language on that screen changed the list and nothing else. All of it is now translated. This is the one surface the integration cannot serve strings for, since nothing is connected yet, so the bundles carry it and a test keeps every locale complete.
+
 ## [2.3.1] — 2026-09-04
 
 ### Fixed

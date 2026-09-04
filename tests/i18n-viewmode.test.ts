@@ -49,6 +49,32 @@ const REQUIRED_EVERYWHERE = [
   "sommelier.steps",
 ];
 
+// Everything a person can read before the integration can talk to them: the
+// sign-in form, the "screen too small" gate, the version-mismatch screens.
+// There is no server to serve these strings from at that point, so a gap here
+// is English on the very first screen someone sees.
+const PRE_CONNECTION_KEYS = [
+  "app.disconnect",
+  "app.looking",
+  "app.integration_hint",
+  "app.resolution_title",
+  "app.resolution_desc",
+  "app.resolution_min",
+  "app.resolution_current",
+  "connect.subtitle",
+  "connect.url_label",
+  "connect.token_label",
+  "connect.button",
+  "connect.connecting",
+  "connect.hint",
+  "connect.error",
+  "connect.security",
+  "contract.update_integration_title",
+  "contract.update_integration_desc",
+  "contract.update_app_title",
+  "contract.update_app_desc",
+];
+
 describe("i18n bundle parity", () => {
   it("ships all 29 locales", () => {
     expect(Object.keys(BUNDLES)).toHaveLength(29);
@@ -64,6 +90,14 @@ describe("i18n bundle parity", () => {
     for (const [path, bundle] of Object.entries(BUNDLES)) {
       const orphans = Object.keys(bundle).filter((k) => !enKeys.has(k));
       expect(orphans, localeName(path)).toEqual([]);
+    }
+  });
+
+  it("every locale carries the whole pre-connection surface", () => {
+    for (const [path, bundle] of Object.entries(BUNDLES)) {
+      for (const key of PRE_CONNECTION_KEYS) {
+        expect(bundle[key], `${localeName(path)}.${key}`).toBeTruthy();
+      }
     }
   });
 
