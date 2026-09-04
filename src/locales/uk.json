@@ -138,5 +138,8 @@
   "wizard.machine.failed": "Не вдалося приготувати",
   "wizard.machine.confirm": "Підтвердити",
   "wizard.finish.button": "Закрити",
-  "wizard.close.stay": "Залишитися"
+  "wizard.close.stay": "Залишитися",
+  "sommelier.details": "Подробиці",
+  "sommelier.reasoning": "Чому цей рецепт?",
+  "sommelier.steps": "Кроки"
 }

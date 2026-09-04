@@ -129,5 +129,8 @@
   "wizard.machine.failed": "Priprema nije uspjela",
   "wizard.machine.confirm": "Potvrdi",
   "wizard.finish.button": "Zatvori",
-  "wizard.close.stay": "Ostani"
+  "wizard.close.stay": "Ostani",
+  "sommelier.details": "Detalji",
+  "sommelier.reasoning": "Zašto ovaj recept?",
+  "sommelier.steps": "Koraci"
 }

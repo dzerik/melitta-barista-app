@@ -131,5 +131,8 @@
   "wizard.machine.failed": "Ruošimas nepavyko",
   "wizard.machine.confirm": "Patvirtinti",
   "wizard.finish.button": "Uždaryti",
-  "wizard.close.stay": "Likti"
+  "wizard.close.stay": "Likti",
+  "sommelier.details": "Išsami informacija",
+  "sommelier.reasoning": "Kodėl šis receptas?",
+  "sommelier.steps": "Žingsniai"
 }

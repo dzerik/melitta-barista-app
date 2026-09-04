@@ -126,5 +126,8 @@
   "wizard.machine.failed": "La preparación falló",
   "wizard.machine.confirm": "Confirmar",
   "wizard.finish.button": "Cerrar",
-  "wizard.close.stay": "Quedarme"
+  "wizard.close.stay": "Quedarme",
+  "sommelier.details": "Detalles",
+  "sommelier.reasoning": "¿Por qué esta receta?",
+  "sommelier.steps": "Pasos"
 }

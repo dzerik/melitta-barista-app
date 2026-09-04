@@ -5,6 +5,18 @@ import de from "../src/locales/de.json";
 
 const VIEW_MODE_KEYS = ["brew.view_grid", "brew.view_list", "brew.view_carousel"];
 
+// Every shipped bundle, not just the three we hand-edit most. The narrower
+// en/ru/de check used to pass while 26 locales silently lacked a key, so the
+// gap only surfaced in the UI of a language nobody was testing in.
+const BUNDLES = import.meta.glob<Record<string, string>>("../src/locales/*.json", {
+  eager: true,
+  import: "default",
+});
+
+function localeName(path: string): string {
+  return path.split("/").pop()!.replace(".json", "");
+}
+
 describe("i18n view mode keys", () => {
   it("en.json has all view mode keys", () => {
     for (const key of VIEW_MODE_KEYS) {
@@ -26,24 +38,48 @@ describe("i18n view mode keys", () => {
       expect((de as Record<string, string>)[key]).toBeTruthy();
     }
   });
+});
 
-  it("all locales have the same keys", () => {
-    const enKeys = Object.keys(en).sort();
-    const ruKeys = Object.keys(ru).sort();
-    const deKeys = Object.keys(de).sort();
-    expect(ruKeys).toEqual(enKeys);
-    expect(deKeys).toEqual(enKeys);
+// Keys a bundle must carry itself: the sommelier detail surface reads them
+// while the panel is offline, so an en fallback there would show English to
+// someone who has never seen the app in English.
+const REQUIRED_EVERYWHERE = [
+  "sommelier.details",
+  "sommelier.reasoning",
+  "sommelier.steps",
+];
+
+describe("i18n bundle parity", () => {
+  it("ships all 29 locales", () => {
+    expect(Object.keys(BUNDLES)).toHaveLength(29);
   });
 
-  it("no locale has empty string values", () => {
-    for (const [key, value] of Object.entries(en)) {
-      expect(value, `en.${key}`).not.toBe("");
+  // Bundles are deliberately sparse outside en: `t()` overlays en for any key
+  // a locale lacks, so a translation gap degrades to English rather than to a
+  // raw key. What must never happen is the reverse — a key that exists ONLY
+  // in a translation, which means it was renamed or dropped in en and that
+  // locale now carries dead weight nobody can reach.
+  it("no locale carries a key en does not have", () => {
+    const enKeys = new Set(Object.keys(en));
+    for (const [path, bundle] of Object.entries(BUNDLES)) {
+      const orphans = Object.keys(bundle).filter((k) => !enKeys.has(k));
+      expect(orphans, localeName(path)).toEqual([]);
     }
-    for (const [key, value] of Object.entries(ru)) {
-      expect(value, `ru.${key}`).not.toBe("");
+  });
+
+  it("every locale carries the offline-critical keys", () => {
+    for (const [path, bundle] of Object.entries(BUNDLES)) {
+      for (const key of REQUIRED_EVERYWHERE) {
+        expect(bundle[key], `${localeName(path)}.${key}`).toBeTruthy();
+      }
     }
-    for (const [key, value] of Object.entries(de)) {
-      expect(value, `de.${key}`).not.toBe("");
+  });
+
+  it("no locale has empty or whitespace-only values", () => {
+    for (const [path, bundle] of Object.entries(BUNDLES)) {
+      for (const [key, value] of Object.entries(bundle)) {
+        expect(String(value).trim(), `${localeName(path)}.${key}`).not.toBe("");
+      }
     }
   });
 });

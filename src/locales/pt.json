@@ -128,5 +128,8 @@
   "wizard.machine.failed": "A preparação falhou",
   "wizard.machine.confirm": "Confirmar",
   "wizard.finish.button": "Fechar",
-  "wizard.close.stay": "Ficar"
+  "wizard.close.stay": "Ficar",
+  "sommelier.details": "Detalhes",
+  "sommelier.reasoning": "Porquê esta receita?",
+  "sommelier.steps": "Passos"
 }

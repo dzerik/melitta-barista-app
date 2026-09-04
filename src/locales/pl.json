@@ -129,5 +129,8 @@
   "wizard.machine.failed": "Parzenie nie powiodło się",
   "wizard.machine.confirm": "Potwierdź",
   "wizard.finish.button": "Zamknij",
-  "wizard.close.stay": "Zostań"
+  "wizard.close.stay": "Zostań",
+  "sommelier.details": "Szczegóły",
+  "sommelier.reasoning": "Dlaczego ten przepis?",
+  "sommelier.steps": "Kroki"
 }

@@ -129,5 +129,8 @@
   "wizard.machine.failed": "Priprava ni uspela",
   "wizard.machine.confirm": "Potrdi",
   "wizard.finish.button": "Zapri",
-  "wizard.close.stay": "Ostani"
+  "wizard.close.stay": "Ostani",
+  "sommelier.details": "Podrobnosti",
+  "sommelier.reasoning": "Zakaj ta recept?",
+  "sommelier.steps": "Koraki"
 }

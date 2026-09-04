@@ -121,5 +121,8 @@
   "wizard.machine.failed": "Brygning mislykkedes",
   "wizard.machine.confirm": "Bekræft",
   "wizard.finish.button": "Luk",
-  "wizard.close.stay": "Bliv"
+  "wizard.close.stay": "Bliv",
+  "sommelier.details": "Detaljer",
+  "sommelier.reasoning": "Hvorfor denne opskrift?",
+  "sommelier.steps": "Trin"
 }

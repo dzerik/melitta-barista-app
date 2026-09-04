@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.2.0] — 2026-09-04
+
+The sommelier's own words, shown as written.
+
+### Added
+
+- **Recipes read like a recipe.** Expanding a suggestion now shows why the sommelier chose it, followed by the full preparation sequence in order — the chilled glass, the ice, each pour named by what it dispenses ("Coffee · 40 ml · Strong"), and what to do after. Previously the expander printed the machine's own tokens (`coffee / medium / standard / normal / two / 40ml`), which said nothing a person could act on.
+- **Favorites open up too.** Saved drinks gained the same details view. Reasoning is kept with the favorite from integration 0.94 onward; drinks saved before that show their steps alone.
+
+### Fixed
+
+- The hopper line said "Blend: 1%". `blend` is the hopper selector, not a ratio — it now reads as hopper 1 or hopper 2, and says nothing when the value is neither.
+- The bundle check only compared English, Russian and German, so a key could be missing from the other 26 languages and still pass. It now reads every shipped bundle.
+
 ## [2.1.0] — 2026-09-04
 
 Ships the design pass together with the shared-strings adoption.

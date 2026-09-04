@@ -130,5 +130,8 @@
   "wizard.machine.failed": "Příprava se nezdařila",
   "wizard.machine.confirm": "Potvrdit",
   "wizard.finish.button": "Zavřít",
-  "wizard.close.stay": "Zůstat"
+  "wizard.close.stay": "Zůstat",
+  "sommelier.details": "Podrobnosti",
+  "sommelier.reasoning": "Proč tento recept?",
+  "sommelier.steps": "Kroky"
 }

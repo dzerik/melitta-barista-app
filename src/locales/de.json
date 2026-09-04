@@ -171,6 +171,8 @@
   "sommelier.generating": "Rezepte werden generiert...",
   "sommelier.brew": "Brühen",
   "sommelier.details": "Details",
+  "sommelier.reasoning": "Warum dieses Rezept?",
+  "sommelier.steps": "Schritte",
   "sommelier.roast_light": "Hell",
   "sommelier.roast_medium": "Mittel",
   "sommelier.roast_medium_dark": "Mittel-Dunkel",

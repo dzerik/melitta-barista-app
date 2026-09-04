@@ -126,5 +126,8 @@
   "wizard.machine.failed": "Demleme başarısız oldu",
   "wizard.machine.confirm": "Onayla",
   "wizard.finish.button": "Kapat",
-  "wizard.close.stay": "Kal"
+  "wizard.close.stay": "Kal",
+  "sommelier.details": "Ayrıntılar",
+  "sommelier.reasoning": "Neden bu tarif?",
+  "sommelier.steps": "Adımlar"
 }

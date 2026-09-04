@@ -121,5 +121,8 @@
   "wizard.machine.failed": "Bryggingen mislyktes",
   "wizard.machine.confirm": "Bekreft",
   "wizard.finish.button": "Lukk",
-  "wizard.close.stay": "Bli"
+  "wizard.close.stay": "Bli",
+  "sommelier.details": "Detaljer",
+  "sommelier.reasoning": "Hvorfor denne oppskriften?",
+  "sommelier.steps": "Trinn"
 }

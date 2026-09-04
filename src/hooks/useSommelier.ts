@@ -62,6 +62,8 @@ export interface AiRecipe {
   id: string;
   name: string;
   description: string;
+  /** Why the sommelier suggested this drink (served since 0.91). */
+  reasoning?: string;
   blend: number;
   component1: RecipeComponent;
   component2: RecipeComponent;
@@ -116,6 +118,8 @@ export interface Favorite {
   id: string;
   name: string;
   description: string;
+  /** Kept with the favourite since integration 0.94 (schema v12). */
+  reasoning?: string;
   blend: number;
   component1: RecipeComponent;
   component2: RecipeComponent;

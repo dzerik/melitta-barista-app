@@ -171,6 +171,8 @@
   "sommelier.generating": "Генерация рецептов...",
   "sommelier.brew": "Заварить",
   "sommelier.details": "Детали",
+  "sommelier.reasoning": "Почему этот рецепт?",
+  "sommelier.steps": "Шаги",
   "sommelier.roast_light": "Светлая",
   "sommelier.roast_medium": "Средняя",
   "sommelier.roast_medium_dark": "Средне-тёмная",

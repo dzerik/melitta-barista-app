@@ -1,11 +1,12 @@
 import { useContext, useState } from "react";
-import { Coffee, Trash2, Star } from "lucide-react";
+import { ChevronDown, ChevronUp, Coffee, Trash2, Star } from "lucide-react";
 import { usePreferences } from "../lib/preferences";
 import type { TranslationKey } from "../lib/i18n";
 import type { AiRecipe, Favorite, useSommelier } from "../hooks/useSommelier";
 import { hasPhasePlan } from "../lib/brew-plan";
 import { BrewWizardContext } from "../hooks/useBrewPhase";
 import { BrewWizard } from "./BrewWizard";
+import { pourSummaries, readableSteps } from "../lib/recipe-summary";
 
 type SommelierHook = ReturnType<typeof useSommelier>;
 
@@ -23,11 +24,12 @@ interface Props {
  * path byte-identically.
  */
 export function SommelierFavorites({ sommelier }: Props) {
-  const { t } = usePreferences();
+  const { t, locale } = usePreferences();
   const { favorites, brewFavorite, removeFavorite } = sommelier;
   const [brewingId, setBrewingId] = useState<string | null>(null);
   const wizardEnv = useContext(BrewWizardContext);
   const [wizardFav, setWizardFav] = useState<Favorite | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const wizardBrews = (fav: Favorite) => wizardEnv !== null && hasPhasePlan(fav);
 
@@ -80,7 +82,15 @@ export function SommelierFavorites({ sommelier }: Props) {
               )}
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center shrink-0">
+              <button
+                onClick={() => setOpenId((id) => (id === fav.id ? null : fav.id))}
+                aria-expanded={openId === fav.id}
+                aria-label={t("sommelier.details" as TranslationKey)}
+                className="tap press rounded-xl text-secondary hover:text-primary"
+              >
+                {openId === fav.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              </button>
               <button
                 onClick={() => handleBrew(fav)}
                 disabled={brewingId === fav.id}
@@ -106,6 +116,42 @@ export function SommelierFavorites({ sommelier }: Props) {
               </button>
             </div>
           </div>
+
+          {openId === fav.id && (
+            <div className="mt-3 pt-3 border-t space-y-2" style={{ borderColor: "var(--border)" }}>
+              {fav.reasoning && (
+                <div>
+                  <div className="t-label font-medium text-primary">
+                    {t("sommelier.reasoning" as TranslationKey)}
+                  </div>
+                  <p className="t-label text-secondary mt-0.5">{fav.reasoning}</p>
+                </div>
+              )}
+              {(() => {
+                const steps = readableSteps(locale, fav as never);
+                const pours = pourSummaries(locale, fav as never);
+                return (
+                  <>
+                    {steps.length > 0 && (
+                      <div>
+                        <div className="t-label font-medium text-primary">
+                          {t("sommelier.steps" as TranslationKey)}
+                        </div>
+                        <ol className="mt-1 space-y-1 list-decimal list-inside">
+                          {steps.map((line, i) => (
+                            <li key={i} className="t-label text-secondary">{line}</li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+                    {steps.length === 0 && pours.length > 0 && (
+                      <div className="t-label text-secondary">{pours.join("  +  ")}</div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
         </div>
       ))}
 

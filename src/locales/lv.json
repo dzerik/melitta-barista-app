@@ -131,5 +131,8 @@
   "wizard.machine.failed": "Pagatavošana neizdevās",
   "wizard.machine.confirm": "Apstiprināt",
   "wizard.finish.button": "Aizvērt",
-  "wizard.close.stay": "Palikt"
+  "wizard.close.stay": "Palikt",
+  "sommelier.details": "Detaļas",
+  "sommelier.reasoning": "Kāpēc šī recepte?",
+  "sommelier.steps": "Soļi"
 }

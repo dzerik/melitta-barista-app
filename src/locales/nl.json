@@ -120,5 +120,8 @@
   "wizard.machine.failed": "Zetten mislukt",
   "wizard.machine.confirm": "Bevestigen",
   "wizard.finish.button": "Sluiten",
-  "wizard.close.stay": "Blijven"
+  "wizard.close.stay": "Blijven",
+  "sommelier.details": "Details",
+  "sommelier.reasoning": "Waarom dit recept?",
+  "sommelier.steps": "Stappen"
 }

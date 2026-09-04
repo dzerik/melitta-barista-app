@@ -134,5 +134,8 @@
   "wizard.machine.failed": "Приготвянето не бе успешно",
   "wizard.machine.confirm": "Потвърди",
   "wizard.finish.button": "Затвори",
-  "wizard.close.stay": "Остани"
+  "wizard.close.stay": "Остани",
+  "sommelier.details": "Подробности",
+  "sommelier.reasoning": "Защо тази рецепта?",
+  "sommelier.steps": "Стъпки"
 }

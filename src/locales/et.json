@@ -130,5 +130,8 @@
   "wizard.machine.failed": "Valmistamine nurjus",
   "wizard.machine.confirm": "Kinnita",
   "wizard.finish.button": "Sulge",
-  "wizard.close.stay": "Jää"
+  "wizard.close.stay": "Jää",
+  "sommelier.details": "Üksikasjad",
+  "sommelier.reasoning": "Miks see retsept?",
+  "sommelier.steps": "Sammud"
 }

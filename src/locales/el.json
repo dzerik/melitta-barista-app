@@ -130,5 +130,8 @@
   "wizard.machine.failed": "Η παρασκευή απέτυχε",
   "wizard.machine.confirm": "Επιβεβαίωση",
   "wizard.finish.button": "Κλείσιμο",
-  "wizard.close.stay": "Παραμονή"
+  "wizard.close.stay": "Παραμονή",
+  "sommelier.details": "Λεπτομέρειες",
+  "sommelier.reasoning": "Γιατί αυτή η συνταγή;",
+  "sommelier.steps": "Βήματα"
 }

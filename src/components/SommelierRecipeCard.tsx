@@ -7,6 +7,7 @@ import { hasPhasePlan } from "../lib/brew-plan";
 import { BrewWizardContext } from "../hooks/useBrewPhase";
 import { BrewWizard } from "./BrewWizard";
 import { suggestionLabel } from "../lib/sommelier-vocab";
+import { pourSummaries, readableSteps, hopperNumber } from "../lib/recipe-summary";
 
 interface Props {
   recipe: AiRecipe;
@@ -32,14 +33,11 @@ export function SommelierRecipeCard({ recipe, onBrew, onFavorite, isFavorited, b
   const [wizardOpen, setWizardOpen] = useState(false);
   const wizardBrew = wizardEnv !== null && hasPhasePlan(recipe);
 
-  const c1 = recipe.component1;
-  const c2 = recipe.component2;
-  const summary = [
-    c1.process !== "none" && `${c1.process} ${c1.intensity} ${c1.portion_ml}ml`,
-    c2.process !== "none" && `${c2.process} ${c2.portion_ml}ml`,
-  ].filter(Boolean).join(" + ");
+  const summary = pourSummaries(locale, recipe as never).join("  +  ");
 
   const extras = recipe.extras;
+  const steps = expanded ? readableSteps(locale, recipe as never) : [];
+  const hopper = hopperNumber(recipe);
 
   return (
     <div
@@ -132,24 +130,41 @@ export function SommelierRecipeCard({ recipe, onBrew, onFavorite, isFavorited, b
       </button>
 
       {expanded && (
-        <div className="mt-2 pt-2 border-t space-y-1.5" style={{ borderColor: "var(--border)" }}>
-          {[recipe.component1, recipe.component2].map((comp, i) => (
-            comp.process !== "none" && (
-              <div key={i} className="t-label text-secondary">
-                <span className="font-medium text-primary">
-                  {t(`sommelier.component${i + 1}` as TranslationKey)}:
-                </span>{" "}
-                {comp.process} / {comp.intensity} / {comp.aroma} / {comp.temperature} / {comp.shots} / {comp.portion_ml}ml
+        <div className="mt-2 pt-2 border-t space-y-2" style={{ borderColor: "var(--border)" }}>
+          {/* The sommelier's own justification, first — it is the answer to
+              the question the user is actually asking of this card. */}
+          {recipe.reasoning && (
+            <div>
+              <div className="t-label font-medium text-primary">
+                {t("sommelier.reasoning" as TranslationKey)}
               </div>
-            )
-          ))}
-          <div className="t-label text-tertiary">
-            {t("sommelier.blend" as TranslationKey)}: {recipe.blend}%
-          </div>
+              <p className="t-label text-secondary mt-0.5">{recipe.reasoning}</p>
+            </div>
+          )}
+
+          {steps.length > 0 && (
+            <div>
+              <div className="t-label font-medium text-primary">
+                {t("sommelier.steps" as TranslationKey)}
+              </div>
+              <ol className="mt-1 space-y-1 list-decimal list-inside">
+                {steps.map((line, i) => (
+                  <li key={i} className="t-label text-secondary">{line}</li>
+                ))}
+              </ol>
+            </div>
+          )}
+
+          {hopper !== null && (
+            <div className="t-label text-tertiary">
+              {t("sommelier.blend" as TranslationKey)}:{" "}
+              {t(`sommelier.hopper${hopper}` as TranslationKey)}
+            </div>
+          )}
 
           {/* Extras instruction */}
           {extras?.instruction && (
-            <div className="flex items-start gap-1.5 mt-1">
+            <div className="flex items-start gap-1.5">
               <Info size={16} className="shrink-0 mt-0.5" style={{ color: "var(--text-tertiary)" }} />
               <span className="t-label text-secondary italic">
                 {t("sommelier.instruction" as TranslationKey)}: {extras.instruction}

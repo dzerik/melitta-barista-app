@@ -130,5 +130,8 @@
   "wizard.machine.failed": "Valmistus epäonnistui",
   "wizard.machine.confirm": "Vahvista",
   "wizard.finish.button": "Sulje",
-  "wizard.close.stay": "Pysy"
+  "wizard.close.stay": "Pysy",
+  "sommelier.details": "Tiedot",
+  "sommelier.reasoning": "Miksi tämä resepti?",
+  "sommelier.steps": "Vaiheet"
 }

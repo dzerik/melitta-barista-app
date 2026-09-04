@@ -121,5 +121,8 @@
   "wizard.machine.failed": "Bryggningen misslyckades",
   "wizard.machine.confirm": "Bekräfta",
   "wizard.finish.button": "Stäng",
-  "wizard.close.stay": "Stanna"
+  "wizard.close.stay": "Stanna",
+  "sommelier.details": "Detaljer",
+  "sommelier.reasoning": "Varför detta recept?",
+  "sommelier.steps": "Steg"
 }
