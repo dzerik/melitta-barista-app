@@ -1,102 +1,164 @@
 @import "tailwindcss";
 
-/* ═══ Theme tokens ═══ */
+/* ═══════════════════════════════════════════════════════════════════════
+   Melitta Barista — design foundation
+
+   The machine is a warm object in a kitchen, not a dashboard. The palette
+   is roasted-bean dark with a crema/brass accent; the drink photography is
+   the hero and everything around it stays quiet. Type is set in sentence
+   case with tabular numerals for machine data — no tracked-out caps.
+
+   Every interactive element honours --tap (48px), so the same layout works
+   under a mouse pointer and a wet fingertip.
+   ═══════════════════════════════════════════════════════════════════════ */
+
 :root,
 [data-theme="dark"] {
-  --bg: #000000;
-  --bg-elevated: #0a0a0a;
-  --surface: #171717;
-  --surface-card: rgba(255,255,255,0.03);
-  --surface-card-active: rgba(255,255,255,0.06);
-  --surface-elevated: rgba(255,255,255,0.08);
-  --border: rgba(255,255,255,0.06);
-  --border-hover: rgba(255,255,255,0.12);
-  --border-active: rgba(255,255,255,0.15);
-  --text-primary: #ffffff;
-  --text-secondary: #a3a3a3;
-  --text-tertiary: #FFFFFF;
-  --text-inverse: #000000;
-  --accent: #ffffff;
-  --accent-muted: rgba(255,255,255,0.12);
-  --btn-primary-bg: #ffffff;
-  --btn-primary-text: #000000;
-  --btn-primary-hover: #e5e5e5;
-  --btn-secondary-bg: #262626;
-  --btn-secondary-text: #d4d4d4;
-  --btn-secondary-hover: #404040;
-  --toggle-on-bg: #ffffff;
-  --toggle-on-knob: #000000;
-  --toggle-off-bg: #404040;
-  --toggle-off-knob: #a3a3a3;
-  --slider-track: #262626;
-  --slider-thumb: #ffffff;
-  --input-bg: rgba(255,255,255,0.04);
-  --input-border: #404040;
-  --input-focus: #737373;
-  --error-bg: rgba(127,29,29,0.4);
-  --error-text: #f87171;
-  --error-border: #7f1d1d;
-  --overlay-bg: rgba(0,0,0,0.80);
-  --glass-stroke: rgba(255,255,255,0.45);
-  --glass-fill: rgba(255,255,255,0.06);
-  --glass-reflection: rgba(255,255,255,0.18);
-  --recipe-grid-gap: rgba(255,255,255,0.06);
-  --recipe-selected-bg: #171717;
-  --recipe-label-bg: #ffffff;
-  --recipe-label-text: #000000;
-  --profile-bar-bg: #080808;
-  --dk-card-bg: #0a0a0a;
-  --section-divider: rgba(255,255,255,0.06);
+  /* Ground: warm near-black, never pure #000 — pure black flattens the
+     drink photography and reads as cheap OLED default. */
+  --bg: #100e0c;
+  --bg-elevated: #17130f;
+  --surface: #1e1915;
+  --surface-card: #191411;
+  --surface-card-active: #241d18;
+  --surface-elevated: #2a221c;
+
+  /* Hairlines carry a trace of the accent so edges read warm, not grey. */
+  --border: rgba(217, 165, 102, 0.10);
+  --border-hover: rgba(217, 165, 102, 0.24);
+  --border-active: rgba(217, 165, 102, 0.44);
+  --section-divider: rgba(217, 165, 102, 0.10);
+
+  /* Text: warm creams. Tertiary is genuinely quiet (it used to be pure
+     white, which flattened every hierarchy in the app). */
+  --text-primary: #f7f3ec;
+  --text-secondary: #b5a899;
+  --text-tertiary: #7d7166;
+  --text-inverse: #17130f;
+
+  /* Crema — the amber of a fresh espresso, and the only saturated colour
+     in the interface. Everything else is neutral so it always wins. */
+  --accent: #d9a566;
+  --accent-strong: #e8bc85;
+  --accent-muted: rgba(217, 165, 102, 0.14);
+
+  --btn-primary-bg: #d9a566;
+  --btn-primary-text: #17130f;
+  --btn-primary-hover: #e8bc85;
+  --btn-secondary-bg: #251e19;
+  --btn-secondary-text: #e3d9cc;
+  --btn-secondary-hover: #322820;
+
+  --toggle-on-bg: #d9a566;
+  --toggle-on-knob: #17130f;
+  --toggle-off-bg: #3a302a;
+  --toggle-off-knob: #9c8f83;
+
+  --slider-track: #2a221c;
+  --slider-thumb: #d9a566;
+
+  --input-bg: rgba(255, 255, 255, 0.04);
+  --input-border: rgba(217, 165, 102, 0.20);
+  --input-focus: #d9a566;
+
+  --success: #7fb069;
+  --warning: #e0a458;
+  --error-bg: rgba(120, 40, 34, 0.30);
+  --error-text: #f0938a;
+  --error-border: rgba(200, 80, 68, 0.45);
+
+  --overlay-bg: rgba(10, 8, 7, 0.86);
+  --glass-stroke: rgba(255, 255, 255, 0.42);
+  --glass-fill: rgba(255, 255, 255, 0.05);
+  --glass-reflection: rgba(255, 255, 255, 0.16);
+
+  --recipe-grid-gap: rgba(217, 165, 102, 0.08);
+  --recipe-selected-bg: #1f1813;
+  --recipe-label-bg: #d9a566;
+  --recipe-label-text: #17130f;
+  --profile-bar-bg: #0c0a09;
+  --dk-card-bg: #17130f;
+
+  --shadow-lift: 0 18px 48px -24px rgba(0, 0, 0, 0.9);
+  color-scheme: dark;
 }
 
 [data-theme="light"] {
-  --bg: #f5f0eb;
-  --bg-elevated: #faf7f4;
+  /* Porcelain: the cup, not paper. */
+  --bg: #f4f0e9;
+  --bg-elevated: #fbf8f3;
   --surface: #ffffff;
-  --surface-card: rgba(0,0,0,0.03);
-  --surface-card-active: rgba(0,0,0,0.06);
-  --surface-elevated: rgba(0,0,0,0.05);
-  --border: rgba(0,0,0,0.08);
-  --border-hover: rgba(0,0,0,0.15);
-  --border-active: rgba(0,0,0,0.20);
-  --text-primary: #1a1a1a;
-  --text-secondary: #6b6b6b;
-  --text-tertiary: #a3a3a3;
-  --text-inverse: #ffffff;
-  --accent: #6b4c3b;
-  --accent-muted: rgba(107,76,59,0.12);
-  --btn-primary-bg: #3d2b1f;
-  --btn-primary-text: #ffffff;
-  --btn-primary-hover: #5a3e2e;
-  --btn-secondary-bg: #e8e0d8;
-  --btn-secondary-text: #4a4a4a;
-  --btn-secondary-hover: #d9cfc5;
-  --toggle-on-bg: #6b4c3b;
+  --surface-card: #ffffff;
+  --surface-card-active: #f6efe4;
+  --surface-elevated: #f1e9dd;
+
+  --border: rgba(42, 30, 20, 0.12);
+  --border-hover: rgba(42, 30, 20, 0.24);
+  --border-active: rgba(169, 113, 58, 0.55);
+  --section-divider: rgba(42, 30, 20, 0.12);
+
+  --text-primary: #211c18;
+  --text-secondary: #6a5f55;
+  --text-tertiary: #97897c;
+  --text-inverse: #fbf8f3;
+
+  --accent: #a9713a;
+  --accent-strong: #8d5c2c;
+  --accent-muted: rgba(169, 113, 58, 0.12);
+
+  --btn-primary-bg: #2a231d;
+  --btn-primary-text: #f7f3ec;
+  --btn-primary-hover: #3d332a;
+  --btn-secondary-bg: #ece3d6;
+  --btn-secondary-text: #3d332a;
+  --btn-secondary-hover: #e0d4c3;
+
+  --toggle-on-bg: #a9713a;
   --toggle-on-knob: #ffffff;
-  --toggle-off-bg: #d4cdc6;
+  --toggle-off-bg: #d6cabb;
   --toggle-off-knob: #ffffff;
-  --slider-track: #e0d8d0;
-  --slider-thumb: #6b4c3b;
-  --input-bg: rgba(0,0,0,0.03);
-  --input-border: #d4cdc6;
-  --input-focus: #6b4c3b;
-  --error-bg: rgba(254,226,226,0.6);
-  --error-text: #dc2626;
-  --error-border: #fca5a5;
-  --overlay-bg: rgba(245,240,235,0.85);
-  --glass-stroke: rgba(0,0,0,0.25);
-  --glass-fill: rgba(0,0,0,0.04);
-  --glass-reflection: rgba(255,255,255,0.35);
-  --recipe-grid-gap: rgba(0,0,0,0.08);
+
+  --slider-track: #e2d8c9;
+  --slider-thumb: #a9713a;
+
+  --input-bg: rgba(42, 30, 20, 0.03);
+  --input-border: rgba(42, 30, 20, 0.18);
+  --input-focus: #a9713a;
+
+  --success: #4d7c3f;
+  --warning: #a9713a;
+  --error-bg: rgba(220, 38, 38, 0.08);
+  --error-text: #b3261e;
+  --error-border: rgba(179, 38, 30, 0.35);
+
+  --overlay-bg: rgba(244, 240, 233, 0.90);
+  --glass-stroke: rgba(42, 30, 20, 0.28);
+  --glass-fill: rgba(42, 30, 20, 0.04);
+  --glass-reflection: rgba(255, 255, 255, 0.40);
+
+  --recipe-grid-gap: rgba(42, 30, 20, 0.10);
   --recipe-selected-bg: #ffffff;
-  --recipe-label-bg: #3d2b1f;
-  --recipe-label-text: #ffffff;
-  --profile-bar-bg: #2c1e14;
-  --dk-card-bg: #faf7f4;
-  --section-divider: rgba(0,0,0,0.12);
+  --recipe-label-bg: #2a231d;
+  --recipe-label-text: #f7f3ec;
+  --profile-bar-bg: #2a231d;
+  --dk-card-bg: #fbf8f3;
+
+  --shadow-lift: 0 16px 40px -24px rgba(42, 30, 20, 0.45);
+  color-scheme: light;
 }
 
-/* ═══ Utility classes using tokens ═══ */
+/* ═══ Geometry: one scale of hit targets, radii and rhythm ═══ */
+:root {
+  --tap: 48px;        /* every control's smallest dimension */
+  --tap-lg: 60px;     /* primary actions, tab bar */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-pill: 999px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ═══ Token utilities ═══ */
 .text-primary { color: var(--text-primary); }
 .text-secondary { color: var(--text-secondary); }
 .text-tertiary { color: var(--text-tertiary); }
@@ -111,46 +173,84 @@
 .ring-accent { --tw-ring-color: var(--accent); }
 .border-border { border-color: var(--border); }
 
+/* ═══ Touch & pointer parity ═══
+   `tap` guarantees the 48px minimum without forcing the visual box to grow:
+   small glyph buttons keep their painted size and gain invisible reach. */
+.tap {
+  min-height: var(--tap);
+  min-width: var(--tap);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.tap-lg { min-height: var(--tap-lg); }
+
+/* Pressed feedback replaces hover on touch, where hover never happens. */
+.press { transition: transform 0.12s var(--ease), background-color 0.16s ease, color 0.16s ease; }
+.press:active { transform: scale(0.97); }
+
+/* One focus treatment everywhere, visible only for keyboard users. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+/* ═══ Type ═══
+   No bundled webfont (the app must work offline on a kitchen tablet), so
+   personality comes from scale, weight and rhythm rather than an exotic
+   face. Machine data is always tabular so digits never jitter. */
 html, body, #root {
   height: 100%;
   margin: 0;
 }
 
 body {
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
   background: var(--bg);
   color: var(--text-primary);
   -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
   user-select: none;
   overflow: hidden;
 }
 
-/* Range slider thumb — theme-aware */
+.t-display {
+  font-size: 1.75rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+.t-title {
+  font-size: 1.25rem;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+.t-body { font-size: 0.9375rem; line-height: 1.45; }
+.t-label { font-size: 0.8125rem; line-height: 1.3; font-weight: 500; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ═══ Controls ═══ */
+input[type="range"] {
+  height: var(--tap);
+  accent-color: var(--accent);
+}
 input[type="range"]::-webkit-slider-thumb {
   background: var(--slider-thumb) !important;
 }
 
-/* Recipe overlay animations */
+/* ═══ Motion — reserved for what a person just did ═══ */
 @keyframes recipe-overlay-in {
-  from {
-    opacity: 0;
-    backdrop-filter: blur(0);
-  }
-  to {
-    opacity: 1;
-    backdrop-filter: blur(1px);
-  }
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to { opacity: 1; backdrop-filter: blur(1px); }
 }
 
 @keyframes recipe-item-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  from { opacity: 0; transform: translateY(8px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes recipe-icon-shrink {
@@ -158,110 +258,36 @@ input[type="range"]::-webkit-slider-thumb {
   to   { transform: scale(0.85); opacity: 0.3; }
 }
 
-.recipe-overlay-enter {
-  animation: recipe-overlay-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
+.recipe-overlay-enter { animation: recipe-overlay-in 0.35s var(--ease) both; }
+.recipe-item-enter { animation: recipe-item-in 0.4s var(--ease) both; }
+.recipe-icon-fade { animation: recipe-icon-shrink 0.35s var(--ease) both; }
 
-.recipe-item-enter {
-  animation: recipe-item-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.recipe-icon-fade {
-  animation: recipe-icon-shrink 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-/* Settings card staggered entrance */
 @keyframes settings-card-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
+.settings-card-enter { animation: settings-card-in 0.45s var(--ease) both; }
 
-.settings-card-enter {
-  animation: settings-card-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-/* Settings apply bar slide up */
 @keyframes settings-bar-in {
-  from {
-    opacity: 0;
-    transform: translateY(100%);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
 }
+.settings-bar-enter { animation: settings-bar-in 0.35s var(--ease) both; }
 
-.settings-bar-enter {
-  animation: settings-bar-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-/* Settings section header fade */
 @keyframes settings-header-in {
-  from {
-    opacity: 0;
-    transform: translateX(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
 }
+.settings-header-enter { animation: settings-header-in 0.4s var(--ease) both; }
 
-.settings-header-enter {
-  animation: settings-header-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-/* Custom scrollbar */
-.custom-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-hover) transparent;
-}
-.custom-scroll::-webkit-scrollbar {
-  width: 4px;
-}
-.custom-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-.custom-scroll::-webkit-scrollbar-thumb {
-  background: var(--border-hover);
-  border-radius: 2px;
-  transition: background 0.2s;
-}
-.custom-scroll::-webkit-scrollbar-thumb:hover {
-  background: var(--border-active);
-}
-.custom-scroll::-webkit-scrollbar-thumb:active {
-  background: var(--text-tertiary);
-}
-
-/* Status overlay animations */
 @keyframes status-overlay-in {
-  from {
-    opacity: 0;
-    backdrop-filter: blur(0);
-  }
-  to {
-    opacity: 1;
-    backdrop-filter: blur(12px);
-  }
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to { opacity: 1; backdrop-filter: blur(12px); }
 }
 
 @keyframes status-content-in {
-  from {
-    opacity: 0;
-    transform: scale(0.9) translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+  from { opacity: 0; transform: scale(0.9) translateY(16px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 @keyframes status-icon-pulse {
@@ -269,15 +295,28 @@ input[type="range"]::-webkit-slider-thumb {
   50% { transform: scale(1.08); opacity: 0.7; }
 }
 
-.status-overlay-enter {
-  animation: status-overlay-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+.status-overlay-enter { animation: status-overlay-in 0.4s var(--ease) both; }
+.status-content-enter { animation: status-content-in 0.5s var(--ease) 0.1s both; }
+.status-icon-pulse { animation: status-icon-pulse 2s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
-.status-content-enter {
-  animation: status-content-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+/* ═══ Scrollbar — present for a mouse, invisible to a finger ═══ */
+.custom-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-hover) transparent;
 }
-
-.status-icon-pulse {
-  animation: status-icon-pulse 2s ease-in-out infinite;
+.custom-scroll::-webkit-scrollbar { width: 6px; }
+.custom-scroll::-webkit-scrollbar-track { background: transparent; }
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-hover);
+  border-radius: var(--r-pill);
+  transition: background 0.2s;
 }
-
+.custom-scroll::-webkit-scrollbar-thumb:hover { background: var(--border-active); }

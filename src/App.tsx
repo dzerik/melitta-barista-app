@@ -217,11 +217,15 @@ export default function App() {
         </div>
       </div>
 
-      {/* Tab bar */}
-      <div className="relative flex border-t border-border">
-        {/* Sliding indicator */}
+      {/* Tab bar — every tab is a full-height 60px target, so the same row
+          works under a pointer and a thumb. */}
+      <nav
+        className="relative flex border-t border-border"
+        style={{ background: "var(--bg-elevated)" }}
+      >
+        {/* Sliding indicator: tracks the pager so a drag shows where it lands */}
         <div
-          className="absolute top-0 h-px"
+          className="absolute top-0 h-[2px] rounded-full"
           style={{
             width: `${100 / visibleTabs.length}%`,
             transform: `translateX(${(-pager.offsetPx / pageWidth) * 100}%)`,
@@ -236,18 +240,19 @@ export default function App() {
             key={tt}
             onClick={() => onPageChange(i)}
             disabled={hasAction && tt !== tab}
-            className={`flex-1 py-3 text-xs font-medium tracking-wider uppercase transition ${
+            aria-current={tt === tab ? "page" : undefined}
+            className={`tap tap-lg press flex-1 t-label ${
               hasAction && tt !== tab
                 ? "text-tertiary cursor-not-allowed opacity-30"
                 : tt === tab
-                  ? "text-primary"
+                  ? "text-primary font-semibold"
                   : "text-secondary hover:text-primary"
             }`}
           >
             {t(TAB_LABEL_KEYS[tt])}
           </button>
         ))}
-      </div>
+      </nav>
 
       <StatusOverlay conn={connection} entities={entities} prefix={prefix} />
       {prefsOpen && <PreferencesModal onClose={() => setPrefsOpen(false)} />}

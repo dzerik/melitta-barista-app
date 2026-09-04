@@ -68,7 +68,7 @@ function RecipePickerModal({
           <span className="text-sm font-semibold text-primary tracking-wide">
             {titleText}
           </span>
-          <button onClick={onClose} className="text-tertiary hover:text-primary transition p-1">
+          <button onClick={onClose} className="tap press rounded-xl text-secondary hover:text-primary">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
               <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
             </svg>
@@ -86,11 +86,11 @@ function RecipePickerModal({
                 <button
                   key={name}
                   onClick={() => { if (details) onPick(name, details); }}
-                  className="flex flex-col items-center justify-center p-2 transition active:scale-[0.96]"
+                  className="tap press flex flex-col items-center justify-center p-2"
                   style={{ background: "var(--bg)" }}
                 >
                   <CoffeeIcon recipe={name} size={72} />
-                  <span className="text-[11px] text-secondary font-medium mt-1 truncate w-full text-center">
+                  <span className="t-label text-secondary font-medium mt-1 truncate w-full text-center">
                     {name}
                   </span>
                   {totalMl > 0 && (
@@ -132,7 +132,7 @@ function SegmentPicker({
           <button
             key={opt}
             onClick={() => onChange(opt)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition"
+            className="tap press flex-1 flex items-center justify-center gap-2 t-label"
             style={
               opt === value
                 ? { background: "var(--btn-primary-bg)", color: "var(--btn-primary-text)", fontWeight: 700 }
@@ -142,7 +142,7 @@ function SegmentPicker({
             {imgSrc ? (
               <img src={imgSrc} alt={opt} className="w-3.5 h-3.5 object-contain" draggable={false} />
             ) : (
-              <Ban size={14} />
+              <Ban size={18} />
             )}
             {displayName(opt)}
           </button>
@@ -175,7 +175,7 @@ function SliderRow({
 
   return (
     <div className={`space-y-1.5 transition-opacity ${disabled ? "opacity-20 pointer-events-none" : ""}`}>
-      <span className="text-xs text-primary uppercase tracking-wider">{label}</span>
+      <span className="text-xs text-primary">{label}</span>
       <input
         type="range"
         min={0}
@@ -193,7 +193,7 @@ function SliderRow({
         {options.map((opt) => (
           <span
             key={opt}
-            className="text-[10px] transition"
+            className="t-label transition"
             style={{ color: opt === value ? "var(--text-primary)" : "var(--text-tertiary)", fontWeight: opt === value ? 700 : 400 }}
           >
             {displayName(opt)}
@@ -224,7 +224,7 @@ function PortionSlider({
   return (
     <div className={`space-y-1.5 transition-opacity ${disabled ? "opacity-20 pointer-events-none" : ""}`}>
       <div className="flex justify-between">
-        <span className="text-xs text-primary uppercase tracking-wider">{label}</span>
+        <span className="text-xs text-primary">{label}</span>
         <span className="text-xs text-primary font-bold tabular-nums">{value} ml</span>
       </div>
       <input
@@ -311,7 +311,7 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
     <div className="flex h-full flex-col">
       <div className="flex-1 min-h-0 flex items-stretch">
         <div className="flex-1 flex flex-col justify-center gap-4 px-6 py-4">
-          <div className="text-xs font-bold text-primary uppercase tracking-[0.2em]">
+          <div className="text-xs font-bold text-primary">
             {t("freestyle.component1")}
           </div>
           <SegmentPicker family="process" options={processOpts1} value={fs.process1} onChange={(v) => update("process1", v)} />
@@ -326,7 +326,7 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
           {recipeOptions.length > 0 && (
             <button
               onClick={() => setPickerOpen(true)}
-              className="mb-2 flex items-center gap-1.5 text-xs text-tertiary hover:text-secondary transition"
+              className="tap press mb-1 flex items-center gap-2 t-label text-secondary hover:text-primary"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
                 <path d="M12 5v14M5 12h14" strokeLinecap="round" />
@@ -389,7 +389,7 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
         </div>
 
         <div className="flex-1 flex flex-col justify-center gap-4 px-6 py-4">
-          <div className="text-xs font-bold text-primary uppercase tracking-[0.2em]">
+          <div className="text-xs font-bold text-primary">
             {t("freestyle.component2")}
           </div>
           <SegmentPicker family="process" options={processOpts2} value={fs.process2} onChange={(v) => update("process2", v)} />

@@ -1,12 +1,111 @@
-import en from "../locales/en.json";
-import ru from "../locales/ru.json";
+import bg from "../locales/bg.json";
+import bs from "../locales/bs.json";
+import cs from "../locales/cs.json";
+import da from "../locales/da.json";
 import de from "../locales/de.json";
+import el from "../locales/el.json";
+import en from "../locales/en.json";
+import es from "../locales/es.json";
+import et from "../locales/et.json";
+import fi from "../locales/fi.json";
+import fr from "../locales/fr.json";
+import hr from "../locales/hr.json";
+import hu from "../locales/hu.json";
+import it from "../locales/it.json";
+import lt from "../locales/lt.json";
+import lv from "../locales/lv.json";
+import mk from "../locales/mk.json";
+import nb from "../locales/nb.json";
+import nl from "../locales/nl.json";
+import pl from "../locales/pl.json";
+import pt from "../locales/pt.json";
+import ro from "../locales/ro.json";
+import ru from "../locales/ru.json";
+import sk from "../locales/sk.json";
+import sl from "../locales/sl.json";
+import sr from "../locales/sr.json";
+import sv from "../locales/sv.json";
+import tr from "../locales/tr.json";
+import uk from "../locales/uk.json";
 import { serverString } from "./server-strings";
 
 export type TranslationKey = keyof typeof en;
-export type Locale = "en" | "ru" | "de";
+export type Locale =
+  | "bg"
+  | "bs"
+  | "cs"
+  | "da"
+  | "de"
+  | "el"
+  | "en"
+  | "es"
+  | "et"
+  | "fi"
+  | "fr"
+  | "hr"
+  | "hu"
+  | "it"
+  | "lt"
+  | "lv"
+  | "mk"
+  | "nb"
+  | "nl"
+  | "pl"
+  | "pt"
+  | "ro"
+  | "ru"
+  | "sk"
+  | "sl"
+  | "sr"
+  | "sv"
+  | "tr"
+  | "uk";
 
-const translations: Record<Locale, Record<string, string>> = { en, ru, de };
+const translations: Record<Locale, Record<string, string>> = {
+  bg, bs, cs, da, de, el, en, es, et, fi, fr, hr, hu, it, lt, lv, mk, nb, nl, pl, pt, ro, ru, sk, sl, sr, sv, tr, uk,
+};
+
+/** Every locale the app ships, in the integration's own order. */
+export const SUPPORTED_LOCALES: readonly Locale[] = Object.freeze([
+  "bg", "bs", "cs", "da", "de", "el", "en", "es", "et", "fi", "fr", "hr", "hu", "it", "lt", "lv", "mk", "nb", "nl", "pl", "pt", "ro", "ru", "sk", "sl", "sr", "sv", "tr", "uk",
+]);
+
+
+/**
+ * Language names in their own language. Endonyms need no translation and
+ * carry no nationality baggage — a flag can never stand for a language.
+ */
+export const LOCALE_ENDONYM: Readonly<Record<Locale, string>> = Object.freeze({
+  bg: "Български",
+  bs: "Bosanski",
+  cs: "Čeština",
+  da: "Dansk",
+  de: "Deutsch",
+  el: "Ελληνικά",
+  en: "English",
+  es: "Español",
+  et: "Eesti",
+  fi: "Suomi",
+  fr: "Français",
+  hr: "Hrvatski",
+  hu: "Magyar",
+  it: "Italiano",
+  lt: "Lietuvių",
+  lv: "Latviešu",
+  mk: "Македонски",
+  nb: "Norsk bokmål",
+  nl: "Nederlands",
+  pl: "Polski",
+  pt: "Português",
+  ro: "Română",
+  ru: "Русский",
+  sk: "Slovenčina",
+  sl: "Slovenščina",
+  sr: "Српски",
+  sv: "Svenska",
+  tr: "Türkçe",
+  uk: "Українська",
+});
 
 /** Bundle-only lookup (legacy path, unchanged): locale bundle → en bundle → the key itself. */
 export function t(locale: Locale, key: TranslationKey): string {

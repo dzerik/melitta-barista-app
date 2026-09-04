@@ -113,7 +113,7 @@ function SegmentPicker({
           <button
             key={opt}
             onClick={() => onChange(opt)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition"
+            className="tap press flex-1 flex items-center justify-center gap-2 t-label"
             style={
               opt === value
                 ? { background: "var(--btn-primary-bg)", color: "var(--btn-primary-text)", fontWeight: 700 }
@@ -123,7 +123,7 @@ function SegmentPicker({
             {imgSrc ? (
               <img src={imgSrc} alt={opt} className="w-3.5 h-3.5 object-contain" draggable={false} />
             ) : (
-              <Ban size={14} />
+              <Ban size={18} />
             )}
             {displayName(opt)}
           </button>
@@ -155,7 +155,7 @@ function SliderRow({
 
   return (
     <div className={`space-y-1.5 transition-opacity ${disabled ? "opacity-20 pointer-events-none" : ""}`}>
-      <span className="text-xs text-primary uppercase tracking-wider">{label}</span>
+      <span className="text-xs text-primary">{label}</span>
       <input
         type="range"
         min={0}
@@ -173,7 +173,7 @@ function SliderRow({
         {options.map((opt) => (
           <span
             key={opt}
-            className="text-[10px] transition"
+            className="t-label transition"
             style={{ color: opt === value ? "var(--text-primary)" : "var(--text-tertiary)", fontWeight: opt === value ? 700 : 400 }}
           >
             {displayName(opt)}
@@ -204,7 +204,7 @@ function PortionSlider({
   return (
     <div className={`space-y-1.5 transition-opacity ${disabled ? "opacity-20 pointer-events-none" : ""}`}>
       <div className="flex justify-between">
-        <span className="text-xs text-primary uppercase tracking-wider">{label}</span>
+        <span className="text-xs text-primary">{label}</span>
         <span className="text-xs text-primary font-bold tabular-nums">{value} ml</span>
       </div>
       <input
@@ -304,7 +304,7 @@ export function RecipeEditModal({ conn, brewEntityId, category, categoryLabel, r
           <span className="text-sm font-semibold text-primary tracking-wide">
             {t("brew.edit_recipe")}: {categoryLabel}
           </span>
-          <button onClick={onClose} className="text-tertiary hover:text-primary transition p-1">
+          <button onClick={onClose} className="tap press rounded-xl text-secondary hover:text-primary">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
               <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
             </svg>
@@ -316,7 +316,7 @@ export function RecipeEditModal({ conn, brewEntityId, category, categoryLabel, r
           <div className="flex items-stretch min-h-[400px]">
             {/* Component 1 */}
             <div className="flex-1 flex flex-col justify-center gap-4 px-6 py-4">
-              <div className="text-xs font-bold text-primary uppercase tracking-[0.2em]">
+              <div className="text-xs font-bold text-primary">
                 {t("freestyle.component1")}
               </div>
               <SegmentPicker family="process" options={processOpts1} value={state.process1} onChange={(v) => update("process1", v)} />
@@ -350,7 +350,7 @@ export function RecipeEditModal({ conn, brewEntityId, category, categoryLabel, r
 
             {/* Component 2 */}
             <div className="flex-1 flex flex-col justify-center gap-4 px-6 py-4">
-              <div className="text-xs font-bold text-primary uppercase tracking-[0.2em]">
+              <div className="text-xs font-bold text-primary">
                 {t("freestyle.component2")}
               </div>
               <SegmentPicker family="process" options={processOpts2} value={state.process2} onChange={(v) => update("process2", v)} />

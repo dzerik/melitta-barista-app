@@ -52,7 +52,7 @@ export function VersionMismatchScreen({ direction, onDisconnect }: MismatchProps
         {onDisconnect && (
           <button
             onClick={onDisconnect}
-            className="mt-4 rounded-lg px-4 py-2 text-sm text-secondary ring-1 ring-border hover:ring-border-hover transition"
+            className="tap press mt-4 rounded-xl px-5 t-body text-secondary ring-1 ring-border hover:ring-border-hover"
           >
             {t("app.disconnect")}
           </button>
@@ -158,8 +158,8 @@ export function ConnectScreen({ onConnect, error, connecting }: Props) {
         </p>
 
         <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "var(--surface)" }}>
-          <ShieldCheck size={14} className="text-green-500 shrink-0" />
-          <p className="text-[10px] text-tertiary leading-tight">
+          <ShieldCheck size={18} className="text-green-500 shrink-0" />
+          <p className="t-label text-tertiary leading-tight">
             {t("connect.security")}
           </p>
         </div>

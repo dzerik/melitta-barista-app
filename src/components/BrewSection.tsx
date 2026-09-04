@@ -38,7 +38,6 @@ import iconNotConnected from "../assets/icons/not_connected.png";
 import iconService from "../assets/icons/service.png";
 import iconTwoCups from "../assets/icons/two_cups.png";
 import iconTwoCupsWhite from "../assets/icons/two_cups_white.png";
-import iconAroma from "../assets/icons/aroma.png";
 
 interface Props {
   conn: Connection;
@@ -128,7 +127,7 @@ function RecipeInfo({ details, vertical, animated, compact, t }: {
         {components.map((c, i) => (
           <div
             key={i}
-            className={`flex items-center gap-1.5 text-[11px] ${animated ? "recipe-item-enter" : ""}`}
+            className={`flex items-center gap-1.5 t-label ${animated ? "recipe-item-enter" : ""}`}
             style={animated ? { animationDelay: `${i * 60 + 80}ms` } : undefined}
           >
             <ProcessIcon process={c.process} className="w-3.5 h-3.5 shrink-0" />
@@ -261,7 +260,6 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
   const [editingDk, setEditingDk] = useState<{ category: DirectKeyCategory; recipe: DirectKeyRecipe } | null>(null);
   const [selectedDk, setSelectedDk] = useState<DirectKeyCategory | null>(null);
   const [twoCups, setTwoCups] = useState(false);
-  const [aromaIntense, setAromaIntense] = useState(false);
   const [editingProfileIdx, setEditingProfileIdx] = useState<number | null>(null);
   const [editingProfileName, setEditingProfileName] = useState("");
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -461,7 +459,7 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
           </div>
           <button
             onClick={() => safeCall(() => pressButton(conn, cancelId))}
-            className="rounded-lg px-8 py-2.5 text-sm font-medium text-secondary ring-1 ring-border hover:ring-border-hover transition active:scale-[0.98]"
+            className="tap tap-lg press rounded-2xl px-8 t-body font-medium text-secondary ring-1 ring-border hover:ring-border-hover"
           >
             {t("brew.cancel")}
           </button>
@@ -551,7 +549,7 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
                   onPointerUp={cancelLongPress}
                   onPointerLeave={cancelLongPress}
                   onContextMenu={(e) => e.preventDefault()}
-                  className="relative flex-1 min-w-[80px] px-4 py-3 text-[11px] tracking-widest uppercase font-medium transition-opacity whitespace-nowrap"
+                  className="relative flex-1 min-w-[80px] px-4 py-3 t-label tracking-widest font-medium transition-opacity whitespace-nowrap"
                   style={{ letterSpacing: "0.12em", color: isActive ? "#ffffff" : "rgba(255,255,255,0.4)" }}
                 >
                   {isEditing ? (
@@ -566,7 +564,7 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
                         if (e.key === "Escape") setEditingProfileIdx(null);
                       }}
                       onClick={(e) => e.stopPropagation()}
-                      className="w-full text-center text-[11px] tracking-widest uppercase font-medium outline-none bg-transparent border-b"
+                      className="w-full text-center t-label tracking-widest font-medium outline-none bg-transparent border-b"
                       style={{ color: "#ffffff", borderColor: "rgba(255,255,255,0.5)" }}
                     />
                   ) : (
@@ -589,8 +587,14 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
       {isReady && hasDkRecipes && (
         <div className="shrink-0">
           <div
-            className="grid grid-cols-8 sm:grid-cols-8 md:grid-cols-8"
-            style={{ gap: "1px", background: "var(--section-divider)" }}
+            className="grid"
+            style={{
+              gap: "1px",
+              background: "var(--section-divider)",
+              // Auto-fit keeps every cell above the tap floor and never
+              // leaves a hole when a category is hidden (milk on the TS).
+              gridTemplateColumns: "repeat(auto-fit, minmax(96px, 1fr))",
+            }}
           >
             {/* Served category order (§9.3.6 rule 2); machine_button false →
                 hidden, matching the legacy hard omission of milk (§9.3.1 —
@@ -611,7 +615,7 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
                   onPointerUp={cancelDkLongPress}
                   onPointerLeave={cancelDkLongPress}
                   onContextMenu={(e) => e.preventDefault()}
-                  className="relative flex flex-col items-center justify-center p-1.5 pb-5 transition-colors duration-300 active:scale-[0.97] overflow-hidden"
+                  className="tap press relative flex flex-col items-center justify-center p-2 pb-7 overflow-hidden"
                   style={{ background: isSelected ? "var(--recipe-selected-bg)" : "var(--dk-card-bg)" }}
                 >
                   <div className={isSelected && hasDetails ? "recipe-icon-fade" : ""}>
@@ -630,7 +634,7 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
                     </div>
                   )}
                   <span
-                    className="absolute bottom-0 left-0 right-0 text-center text-[10px] py-1.5 transition-all duration-300 z-10 truncate"
+                    className="absolute bottom-0 left-0 right-0 text-center t-label py-1.5 transition-all duration-300 z-10 truncate px-1"
                     style={
                       isSelected
                         ? { background: "var(--recipe-label-bg)", color: "var(--recipe-label-text)", fontWeight: 600 }
@@ -646,7 +650,7 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
             {/* 2x toggle — brew two cups */}
             <button
               onClick={() => setTwoCups((v) => !v)}
-              className="relative flex flex-col items-center justify-center p-1.5 pb-5 transition-all duration-300 active:scale-[0.97] overflow-hidden"
+              className="tap press relative flex flex-col items-center justify-center p-2 pb-7 overflow-hidden"
               style={{ background: twoCups ? "var(--recipe-selected-bg)" : "var(--dk-card-bg)" }}
             >
               <div className="flex items-center justify-center" style={{ width: 64, height: 64 }}>
@@ -663,7 +667,7 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
                 />
               </div>
               <span
-                className="absolute bottom-0 left-0 right-0 text-center text-[10px] py-1.5 transition-all duration-300 z-10 truncate"
+                className="absolute bottom-0 left-0 right-0 text-center t-label py-1.5 transition-all duration-300 z-10 truncate px-1"
                 style={
                   twoCups
                     ? { background: "var(--recipe-label-bg)", color: "var(--recipe-label-text)", fontWeight: 600 }
@@ -674,36 +678,6 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
               </span>
             </button>
 
-            {/* Aroma toggle — intense aroma */}
-            <button
-              onClick={() => setAromaIntense((v) => !v)}
-              className="relative flex flex-col items-center justify-center p-1.5 pb-5 transition-all duration-300 active:scale-[0.97] overflow-hidden"
-              style={{ background: aromaIntense ? "var(--recipe-selected-bg)" : "var(--dk-card-bg)" }}
-            >
-              <div className="flex items-center justify-center" style={{ width: 64, height: 64 }}>
-                <img
-                  src={iconAroma}
-                  alt="aroma"
-                  className="object-contain transition-all duration-300"
-                  style={{
-                    width: aromaIntense ? 52 : 44,
-                    height: aromaIntense ? 52 : 44,
-                    opacity: aromaIntense ? 1 : 0.4,
-                  }}
-                  draggable={false}
-                />
-              </div>
-              <span
-                className="absolute bottom-0 left-0 right-0 text-center text-[10px] py-1.5 transition-all duration-300 z-10 truncate"
-                style={
-                  aromaIntense
-                    ? { background: "var(--recipe-label-bg)", color: "var(--recipe-label-text)", fontWeight: 600 }
-                    : { background: "transparent", color: "var(--text-tertiary)", fontWeight: 500 }
-                }
-              >
-                {aromaIntense ? t("brew.aroma_on") : t("brew.aroma")}
-              </span>
-            </button>
           </div>
         </div>
       )}
@@ -732,7 +706,7 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
           <div className="shrink-0 flex items-center gap-3 px-5 py-1.5" style={{ background: "var(--bg)" }}>
             <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, var(--section-divider), transparent)" }} />
             {hasDkRecipes && (
-              <span className="text-[9px] tracking-[0.2em] uppercase font-medium" style={{ color: "var(--text-secondary)", opacity: 0.6 }}>
+              <span className="t-label" style={{ color: "var(--text-secondary)" }}>
                 {t("brew.all_recipes")}
               </span>
             )}
@@ -764,7 +738,7 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
                         onClick={() => handleCarouselSelect(opt)}
                         onPointerEnter={() => setHoveredRecipe(opt)}
                         onPointerLeave={() => setHoveredRecipe((h) => h === opt ? null : h)}
-                        className="w-full flex items-center gap-3 px-4 py-2 transition-all duration-300 active:scale-[0.99]"
+                        className="tap press w-full flex items-center gap-3 px-4"
                         style={{
                           background: isSelected
                             ? "linear-gradient(90deg, var(--recipe-selected-bg), transparent)"
@@ -775,11 +749,10 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
                       >
                         <CoffeeIcon recipe={opt} size={36} />
                         <span
-                          className={`text-xs tracking-widest uppercase text-left truncate transition-all duration-300 ${isSelected ? "font-medium" : "font-light"}`}
+                          className={`text-xs tracking-widest text-left truncate transition-all duration-300 ${isSelected ? "font-medium" : "font-light"}`}
                           style={{
                             color: isSelected ? "var(--text-primary)" : "var(--text-tertiary)",
-                            letterSpacing: "0.12em",
-                          }}
+                                                      }}
                         >
                           {opt}
                         </span>
@@ -810,13 +783,13 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
                     className="pt-4 px-4 pb-3 h-full"
                   />
                   {/* Brew button */}
-                  <div className="shrink-0 pb-3">
+                  <div className="shrink-0 px-4 pb-3 flex justify-center">
                     <button
-                      className="py-2.5 px-8 text-xs tracking-widest uppercase font-semibold transition-all duration-200 active:scale-[0.98]"
+                      className="tap tap-lg press w-full max-w-xl mx-auto rounded-2xl t-title"
                       style={{
-                        background: "var(--recipe-label-bg)",
-                        color: "var(--recipe-label-text)",
-                        letterSpacing: "0.12em",
+                        background: "var(--btn-primary-bg)",
+                        color: "var(--btn-primary-text)",
+                        boxShadow: "var(--shadow-lift)",
                       }}
                       onClick={handleCarouselBrew}
                     >

@@ -62,11 +62,12 @@ describe("ViewModeToggle", () => {
     expect(buttons[2]).toHaveAttribute("aria-checked", "true");
   });
 
-  it("has correct aria-label attributes", () => {
+  it("names each radio with its localized label, never the raw token", () => {
     renderWithProviders(<ViewModeToggle />);
-    expect(screen.getByRole("radio", { name: "grid" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "list" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "carousel" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Grid" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "List" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Carousel" })).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "grid" })).not.toBeInTheDocument();
   });
 
   it("renders radiogroup container", () => {

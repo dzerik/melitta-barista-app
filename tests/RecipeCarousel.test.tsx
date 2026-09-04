@@ -223,10 +223,12 @@ describe("RecipeCarousel", () => {
   it("background highlights only when isSelected AND isCurrent", () => {
     const { container } = renderWithProviders(<RecipeCarousel {...defaultProps} />);
     const cards = container.querySelectorAll("button[class*='cursor-pointer']");
-    // First card: current + selected → gradient with recipe-selected-bg
-    expect((cards[0] as HTMLElement).style.background).toContain("linear-gradient");
-    // Second card: not current → transparent
+    // First card: current + selected → raised surface plus the selection ring
+    expect((cards[0] as HTMLElement).style.background).toBe("var(--surface-card-active)");
+    expect((cards[0] as HTMLElement).style.boxShadow).toContain("var(--border-active)");
+    // Second card: not current → no fill, no ring
     expect(cards[1]).toHaveStyle({ background: "transparent" });
+    expect((cards[1] as HTMLElement).style.boxShadow).toBe("none");
   });
 });
 

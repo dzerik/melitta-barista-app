@@ -39,7 +39,7 @@ export function SommelierHistory({ sommelier }: Props) {
     <div className="space-y-5">
       {Object.entries(groups).map(([date, sessions]) => (
         <div key={date}>
-          <div className="text-[10px] font-medium text-tertiary uppercase tracking-wider mb-2">
+          <div className="t-label font-medium text-tertiary mb-2">
             {date}
           </div>
           <div className="space-y-2">
@@ -52,16 +52,16 @@ export function SommelierHistory({ sommelier }: Props) {
                 {/* Session header */}
                 <div className="flex items-center gap-2 mb-2">
                   {session.mode === "surprise_me" ? (
-                    <Shuffle size={14} className="text-tertiary" />
+                    <Shuffle size={18} className="text-tertiary" />
                   ) : (
-                    <Sparkles size={14} className="text-tertiary" />
+                    <Sparkles size={18} className="text-tertiary" />
                   )}
                   <span className="text-xs font-medium text-secondary">
                     {session.mode === "surprise_me"
                       ? t("sommelier.surprise_me" as TranslationKey)
                       : session.preference || t("sommelier.generate" as TranslationKey)}
                   </span>
-                  <span className="text-[10px] text-tertiary ml-auto tabular-nums">
+                  <span className="t-label text-tertiary ml-auto tabular-nums">
                     {new Date(session.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </span>
                 </div>
@@ -71,9 +71,9 @@ export function SommelierHistory({ sommelier }: Props) {
                   {session.recipes.map((recipe) => (
                     <div key={recipe.id} className="flex items-center gap-2 py-0.5">
                       {recipe.brewed ? (
-                        <Check size={12} style={{ color: "var(--success)" }} />
+                        <Check size={16} style={{ color: "var(--success)" }} />
                       ) : (
-                        <X size={12} className="text-tertiary opacity-40" />
+                        <X size={16} className="text-tertiary opacity-40" />
                       )}
                       <span className={`text-xs ${recipe.brewed ? "text-primary font-medium" : "text-tertiary"}`}>
                         {recipe.name}
@@ -91,7 +91,7 @@ export function SommelierHistory({ sommelier }: Props) {
       {history.length >= 20 && (
         <button
           onClick={loadMoreHistory}
-          className="w-full rounded-xl py-2.5 text-sm font-medium ring-1 ring-border transition active:scale-[0.97]"
+          className="tap tap-lg press w-full rounded-2xl t-body font-medium ring-1 ring-border"
           style={{ background: "var(--surface-card)", color: "var(--text-secondary)" }}
         >
           {t("sommelier.load_more" as TranslationKey)}

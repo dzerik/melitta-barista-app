@@ -51,14 +51,14 @@ export function SommelierGenerate({ sommelier }: Props) {
   };
 
   const renderHopper = (num: 1 | 2) => {
-    const hopper = num === 1 ? hoppers.hopper1 : hoppers.hopper2;
+    const hopper = num === 1 ? hoppers?.hopper1 : hoppers?.hopper2;
     const bean = hopper?.bean;
     return (
       <div
         className="flex-1 rounded-xl ring-1 ring-border p-3"
         style={{ background: "var(--surface-card)" }}
       >
-        <div className="text-[10px] font-medium text-tertiary uppercase tracking-wider mb-1.5">
+        <div className="t-label text-secondary mb-2">
           {t(`sommelier.hopper${num}` as TranslationKey)}
         </div>
         {bean ? (
@@ -67,14 +67,17 @@ export function SommelierGenerate({ sommelier }: Props) {
             <div className="text-xs text-secondary truncate">{bean.product}</div>
             <div className="flex flex-wrap gap-1 mt-1.5">
               {bean.flavor_notes.slice(0, 3).map((note) => (
-                <span key={note} className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--surface)", color: "var(--text-tertiary)" }}>
+                <span key={note} className="t-label px-1.5 py-0.5 rounded-full" style={{ background: "var(--surface)", color: "var(--text-tertiary)" }}>
                   {suggestionLabel(locale, "note_", note)}
                 </span>
               ))}
             </div>
           </>
         ) : (
-          <div className="text-xs text-tertiary italic">{t("sommelier.not_configured" as TranslationKey)}</div>
+          <div className="t-label text-tertiary">
+            {t("sommelier.not_configured" as TranslationKey)}
+            <span className="block mt-0.5">{t("sommelier.configure_in_ha" as TranslationKey)}</span>
+          </div>
         )}
       </div>
     );
@@ -97,12 +100,12 @@ export function SommelierGenerate({ sommelier }: Props) {
       {/* Milk tags */}
       {milkTypes.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          <span className="text-[10px] font-medium text-tertiary uppercase tracking-wider self-center mr-1">
+          <span className="t-label text-secondary self-center mr-1">
             {t("sommelier.milk" as TranslationKey)}:
           </span>
           {milkTypes.map((m) => (
-            <span key={m} className="text-[11px] px-2 py-0.5 rounded-full ring-1 ring-border" style={{ background: "var(--surface-card)", color: "var(--text-secondary)" }}>
-              {m}
+            <span key={m} className="t-label px-3 py-1 rounded-full ring-1 ring-border" style={{ background: "var(--surface-card)", color: "var(--text-secondary)" }}>
+              {suggestionLabel(locale, "milk_", m)}
             </span>
           ))}
         </div>
@@ -110,7 +113,7 @@ export function SommelierGenerate({ sommelier }: Props) {
 
       {/* Mood selector */}
       <div>
-        <div className="text-[10px] font-medium text-tertiary uppercase tracking-wider mb-2">
+        <div className="t-label text-secondary mb-2">
           {t("sommelier.mood" as TranslationKey)}
         </div>
         <div className="flex flex-wrap gap-2">
@@ -120,7 +123,7 @@ export function SommelierGenerate({ sommelier }: Props) {
               onClick={() => setMood(mood === m ? "" : m)}
               aria-pressed={mood === m}
               aria-label={sommelierLabel(locale, "mood", m)}
-              className="rounded-full px-3 py-1.5 text-xs font-medium transition active:scale-95 ring-1"
+              className="tap press rounded-full px-4 t-label ring-1"
               style={chipStyle(mood === m)}
             >
               {sommelierLabel(locale, "mood", m)}
@@ -131,7 +134,7 @@ export function SommelierGenerate({ sommelier }: Props) {
 
       {/* Occasion selector */}
       <div>
-        <div className="text-[10px] font-medium text-tertiary uppercase tracking-wider mb-2">
+        <div className="t-label text-secondary mb-2">
           {t("sommelier.occasion" as TranslationKey)}
         </div>
         <div className="flex flex-wrap gap-2">
@@ -141,7 +144,7 @@ export function SommelierGenerate({ sommelier }: Props) {
               onClick={() => setOccasion(occasion === o ? "" : o)}
               aria-pressed={occasion === o}
               aria-label={sommelierLabel(locale, "occasion", o)}
-              className="rounded-full px-3 py-1.5 text-xs font-medium transition active:scale-95 ring-1"
+              className="tap press rounded-full px-4 t-label ring-1"
               style={chipStyle(occasion === o)}
             >
               {sommelierLabel(locale, "occasion", o)}
@@ -153,7 +156,7 @@ export function SommelierGenerate({ sommelier }: Props) {
       {/* Temperature toggle — show only if extras exist (ice available) */}
       {hasIce && (
         <div>
-          <div className="text-[10px] font-medium text-tertiary uppercase tracking-wider mb-2">
+          <div className="t-label text-secondary mb-2">
             {t("sommelier.temp_pref" as TranslationKey)}
           </div>
           <div className="flex gap-2">
@@ -163,7 +166,7 @@ export function SommelierGenerate({ sommelier }: Props) {
                 onClick={() => setTemperature(tmp)}
                 aria-pressed={temperature === tmp}
                 aria-label={sommelierLabel(locale, "temperature", tmp)}
-                className="rounded-full px-3 py-1.5 text-xs font-medium transition active:scale-95 ring-1"
+                className="tap press rounded-full px-4 t-label ring-1"
                 style={chipStyle(temperature === tmp)}
               >
                 {sommelierLabel(locale, "temperature", tmp)}
@@ -175,7 +178,7 @@ export function SommelierGenerate({ sommelier }: Props) {
 
       {/* Servings */}
       <div className="flex items-center gap-3">
-        <span className="text-[10px] font-medium text-tertiary uppercase tracking-wider">
+        <span className="t-label text-secondary">
           {t("sommelier.servings" as TranslationKey)}
         </span>
         <div className="flex gap-1.5">
@@ -209,7 +212,7 @@ export function SommelierGenerate({ sommelier }: Props) {
         <button
           onClick={handleSurprise}
           disabled={generating}
-          className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition active:scale-[0.97]"
+          className="tap tap-lg press flex-1 flex items-center justify-center gap-2 rounded-2xl t-body font-semibold"
           style={{ background: "var(--btn-primary-bg)", color: "var(--btn-primary-text)", opacity: generating ? 0.5 : 1 }}
         >
           <Shuffle size={16} />
@@ -218,7 +221,7 @@ export function SommelierGenerate({ sommelier }: Props) {
         <button
           onClick={handleGenerate}
           disabled={generating}
-          className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold ring-1 ring-border transition active:scale-[0.97]"
+          className="tap tap-lg press flex-1 flex items-center justify-center gap-2 rounded-2xl t-body font-semibold ring-1 ring-border"
           style={{ background: "var(--surface-card)", color: "var(--text-primary)", opacity: generating ? 0.5 : 1 }}
         >
           <Sparkles size={16} />
@@ -227,7 +230,7 @@ export function SommelierGenerate({ sommelier }: Props) {
         <select
           value={count}
           onChange={(e) => setCount(Number(e.target.value))}
-          className="rounded-xl px-3 py-3 text-sm ring-1 ring-border outline-none"
+          className="tap tap-lg rounded-2xl px-4 t-body ring-1 ring-border outline-none"
           style={{ background: "var(--surface-card)", color: "var(--text-primary)" }}
         >
           {[1, 2, 3, 4, 5].map((n) => (
@@ -247,7 +250,7 @@ export function SommelierGenerate({ sommelier }: Props) {
       {/* Generated recipes */}
       {currentSession && !generating && (
         <div className="space-y-3">
-          <div className="text-[10px] font-medium text-tertiary uppercase tracking-wider">
+          <div className="t-label text-secondary">
             {t("sommelier.results" as TranslationKey)} ({currentSession.recipes.length})
           </div>
           {currentSession.recipes.map((recipe) => (

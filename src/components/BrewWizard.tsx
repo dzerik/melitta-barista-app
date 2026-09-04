@@ -128,7 +128,7 @@ export function BrewWizard({
   const badge = (text: string, key: string) => (
     <span
       key={key}
-      className="text-[10px] px-2 py-0.5 rounded-full"
+      className="t-label px-2 py-0.5 rounded-full"
       style={{ background: "var(--surface)", color: "var(--text-tertiary)" }}
     >
       {text}
@@ -153,7 +153,7 @@ export function BrewWizard({
   const hints = (step: MachineWizardStep) =>
     step.hints.length > 0 && (
       <div
-        className="mt-2 rounded-xl px-3 py-2 text-[11px]"
+        className="mt-2 rounded-xl px-3 py-2 t-label"
         style={{ background: "var(--surface)", color: "var(--text-secondary)" }}
       >
         <div className="font-medium text-tertiary">{t("wizard.machine.during_hint")}</div>
@@ -180,7 +180,7 @@ export function BrewWizard({
 
   const promptCard = m.prompt !== null && (
     <div
-      className="mt-2 rounded-xl px-3 py-2 text-[11px] ring-1 space-y-2"
+      className="mt-2 rounded-xl px-3 py-2 t-label ring-1 space-y-2"
       style={
         {
           // Uses the error surface as the app's one attention surface.
@@ -220,7 +220,7 @@ export function BrewWizard({
               onClick={() => void phase.startPhase(step, recipe as BrewPlanRecipe, target)}
             >
               <span className="flex items-center gap-1.5">
-                <Coffee size={14} />
+                <Coffee size={18} />
                 {step.legacyFull
                   ? t("wizard.machine.start_full")
                   : t("wizard.machine.start")}
@@ -235,7 +235,7 @@ export function BrewWizard({
         <>
           <div
             role="alert"
-            className="mt-1 rounded-xl px-3 py-2 text-[11px]"
+            className="mt-1 rounded-xl px-3 py-2 t-label"
             style={{ background: "var(--error-bg)", color: "var(--error-text)" }}
           >
             {t("wizard.machine.failed")}: {m.error}
@@ -268,11 +268,11 @@ export function BrewWizard({
               style={{ width: `${m.progress}%`, background: "var(--btn-primary-bg)" }}
             />
           </div>
-          <span className="text-[11px] text-tertiary tabular-nums">
+          <span className="t-label text-tertiary tabular-nums">
             {Math.round(m.progress)}%
           </span>
         </div>
-        <p className="mt-1 text-[11px] text-tertiary">
+        <p className="mt-1 t-label text-tertiary">
           {fmt(t("wizard.machine.estimated"), { sec: m.estimated })}
         </p>
         {hints(step)}
@@ -287,8 +287,8 @@ export function BrewWizard({
               {t("wizard.machine.im_done")}
             </button>
           ) : (
-            <span className="flex items-center gap-1.5 text-[11px] text-tertiary">
-              <Loader2 size={12} className="animate-spin" />
+            <span className="flex items-center gap-1.5 t-label text-tertiary">
+              <Loader2 size={16} className="animate-spin" />
               {t("wizard.machine.waiting")}
             </span>
           )}
@@ -309,7 +309,7 @@ export function BrewWizard({
     return (
       <li key={i} className="flex gap-3 py-2">
         <span
-          className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[11px] tabular-nums ring-1 ring-border mt-0.5"
+          className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center t-label tabular-nums ring-1 ring-border mt-0.5"
           style={
             state === "active"
               ? { background: "var(--btn-primary-bg)", color: "var(--btn-primary-text)" }
@@ -318,7 +318,7 @@ export function BrewWizard({
                 : { background: "var(--surface)", color: "var(--text-tertiary)" }
           }
         >
-          {state === "done" ? <Check size={12} /> : i + 1}
+          {state === "done" ? <Check size={16} /> : i + 1}
         </span>
         <div className="flex-1 min-w-0">
           <div
@@ -331,7 +331,7 @@ export function BrewWizard({
               {step.kind === "manual" ? (
                 <>
                   {step.notes && (
-                    <div className="text-[11px] text-tertiary">{step.notes}</div>
+                    <div className="t-label text-tertiary">{step.notes}</div>
                   )}
                   <div className="mt-2 flex justify-end">
                     <button className={primaryBtn} style={primaryStyle} onClick={advance}>
@@ -355,7 +355,7 @@ export function BrewWizard({
       {recipe.extras?.instruction && (
         <p className="mt-2 text-xs text-secondary italic">{recipe.extras.instruction}</p>
       )}
-      <p className="mt-2 text-[11px] text-tertiary">{t("wizard.finish.message")}</p>
+      <p className="mt-2 t-label text-tertiary">{t("wizard.finish.message")}</p>
       <div className="mt-3 flex justify-end">
         <button
           className={primaryBtn}
@@ -381,7 +381,7 @@ export function BrewWizard({
         style={{ background: "var(--surface-card)" }}
       >
         <h3 className="text-sm font-semibold text-primary">{t("wizard.close.title")}</h3>
-        <p className="mt-1 text-[11px] text-secondary">{t("wizard.close.message")}</p>
+        <p className="mt-1 t-label text-secondary">{t("wizard.close.message")}</p>
         <div className="mt-3 flex justify-end gap-2">
           <button
             className={ghostBtn}
@@ -426,14 +426,14 @@ export function BrewWizard({
           </span>
           <div className="flex items-center gap-2 shrink-0">
             {total > 0 && !finished && (
-              <span className="text-[11px] text-tertiary tabular-nums">
+              <span className="t-label text-tertiary tabular-nums">
                 {fmt(t("wizard.step_of"), { n: current, m: total })}
               </span>
             )}
             <button
               aria-label={t("wizard.close.title")}
               onClick={requestClose}
-              className="text-tertiary hover:text-primary transition p-1"
+              className="tap press rounded-xl text-secondary hover:text-primary"
             >
               <X size={18} />
             </button>
@@ -442,7 +442,7 @@ export function BrewWizard({
         <div className="flex-1 overflow-y-auto p-5">
           {resumed && !finished && (
             <div
-              className="mb-3 flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-[11px]"
+              className="mb-3 flex items-center justify-between gap-2 rounded-xl px-3 py-2 t-label"
               style={{ background: "var(--surface)", color: "var(--text-secondary)" }}
             >
               <span>{t("wizard.resumed")}</span>

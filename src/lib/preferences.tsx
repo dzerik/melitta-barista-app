@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
-import { t, type Locale, type TranslationKey } from "./i18n";
+import { t, SUPPORTED_LOCALES, type Locale, type TranslationKey } from "./i18n";
 
 export type Theme = "dark" | "light";
 export type ViewMode = "grid" | "list" | "carousel";
@@ -31,13 +31,16 @@ function getInitialViewMode(): ViewMode {
   return "grid";
 }
 
+function isSupported(value: string | null): value is Locale {
+  return value !== null && (SUPPORTED_LOCALES as readonly string[]).includes(value);
+}
+
 function getInitialLocale(): Locale {
   const saved = localStorage.getItem(LOCALE_KEY);
-  if (saved === "en" || saved === "ru" || saved === "de") return saved;
-  const lang = navigator.language.slice(0, 2);
-  if (lang === "ru") return "ru";
-  if (lang === "de") return "de";
-  return "en";
+  if (isSupported(saved)) return saved;
+  // "de-CH" and "de" both resolve to the German bundle.
+  const lang = navigator.language.slice(0, 2).toLowerCase();
+  return isSupported(lang) ? lang : "en";
 }
 
 const PreferencesContext = createContext<PreferencesContextValue>(null!);

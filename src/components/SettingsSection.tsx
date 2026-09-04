@@ -321,7 +321,7 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium text-primary">{settingLabel(locale, entry.setting)}</div>
           {description !== null && (
-            <div className="text-[11px] text-tertiary leading-tight mt-0.5">{description}</div>
+            <div className="t-label text-tertiary leading-tight mt-0.5">{description}</div>
           )}
         </div>
         <button
@@ -367,7 +367,7 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium text-primary">{settingLabel(locale, entry.setting)}</div>
             {description !== null && (
-              <div className="text-[11px] text-tertiary leading-tight mt-0.5">{description}</div>
+              <div className="t-label text-tertiary leading-tight mt-0.5">{description}</div>
             )}
           </div>
           <span className="text-sm font-semibold text-primary tabular-nums whitespace-nowrap">
@@ -434,7 +434,7 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium text-primary">{settingLabel(locale, entry.setting)}</div>
           {description !== null && (
-            <div className="text-[11px] text-tertiary leading-tight mt-0.5">{description}</div>
+            <div className="t-label text-tertiary leading-tight mt-0.5">{description}</div>
           )}
         </div>
         <select
@@ -492,7 +492,7 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium text-primary">{settingLabel(locale, entry.setting)}</div>
           {description !== null && (
-            <div className="text-[11px] text-tertiary leading-tight mt-0.5">{description}</div>
+            <div className="t-label text-tertiary leading-tight mt-0.5">{description}</div>
           )}
         </div>
         <span className="text-sm font-semibold text-secondary tabular-nums whitespace-nowrap">
@@ -534,7 +534,7 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
           return (
             <div key={group}>
               <div
-                className="settings-header-enter text-[10px] font-medium text-tertiary uppercase tracking-[0.2em] mb-3"
+                className="settings-header-enter t-label font-medium text-tertiary mb-3"
                 style={stagger(headerIdx)}
               >
                 {settingGroupLabel(locale, group)}
@@ -548,7 +548,7 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
       ) : (
         <>
           <div
-            className="settings-header-enter text-[10px] font-medium text-tertiary uppercase tracking-[0.2em] mb-3"
+            className="settings-header-enter t-label font-medium text-tertiary mb-3"
           >
             {t("settings.toggles")}
           </div>
@@ -580,7 +580,7 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-primary">{t(labelKey)}</div>
-                    <div className="text-[11px] text-tertiary leading-tight mt-0.5">{t(descKey)}</div>
+                    <div className="t-label text-tertiary leading-tight mt-0.5">{t(descKey)}</div>
                   </div>
                   <button
                     onClick={() => toggleLocal(suffix)}
@@ -601,7 +601,7 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
           </div>
 
           <div
-            className="settings-header-enter text-[10px] font-medium text-tertiary uppercase tracking-[0.2em] mb-3"
+            className="settings-header-enter t-label font-medium text-tertiary mb-3"
             style={stagger(cardIndex)}
           >
             {t("settings.adjustments")}
@@ -637,7 +637,7 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-primary">{t(labelKey)}</div>
-                      <div className="text-[11px] text-tertiary leading-tight mt-0.5">{t(descKey)}</div>
+                      <div className="t-label text-tertiary leading-tight mt-0.5">{t(descKey)}</div>
                     </div>
                     <span className="text-sm font-semibold text-primary tabular-nums whitespace-nowrap">
                       {displayValue}
@@ -669,7 +669,7 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
         <div className="settings-bar-enter sticky bottom-0 mt-4 flex gap-2">
           <button
             onClick={handleReset}
-            className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium transition active:scale-[0.97]"
+            className="tap tap-lg press flex-1 flex items-center justify-center gap-2 rounded-2xl t-body font-medium"
             style={{ background: "var(--btn-secondary-bg)", color: "var(--btn-secondary-text)" }}
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -686,7 +686,7 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
         </div>
       )}
 
-      <div className="mt-auto pt-6 pb-2 text-center text-[10px] text-tertiary opacity-50">
+      <div className="mt-auto pt-6 pb-2 text-center t-label text-tertiary opacity-50">
         {integrationVersion
           ? `Melitta Barista HA v${integrationVersion}`
           : "Melitta Barista"}

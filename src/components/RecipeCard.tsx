@@ -48,47 +48,37 @@ export function RecipeCard({
       onClick={onClick}
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
-      className={`flex flex-col items-center w-full transition-all duration-300 active:scale-[0.97] cursor-pointer ${className}`}
+      aria-pressed={recipe.isSelected}
+      // Three fixed bands — drink, name, composition — so names and figures
+      // line up across a row no matter how many components a recipe has.
+      className={`press group grid w-full rounded-2xl cursor-pointer justify-items-center ${
+        isLarge ? "gap-3 p-4" : "gap-2 p-3"
+      } ${className}`}
       style={{
-        opacity: active ? 1 : !dimInactive ? 1 : hovered ? 1 : 0.35,
-        background: active
-          ? `linear-gradient(to top, ${recipe.isSelected ? "var(--recipe-selected-bg)" : "var(--surface)"}, transparent 80%)`
-          : "transparent",
-        border: "1px solid transparent",
-        ...(active ? {
-          borderImage: "linear-gradient(180deg, transparent, rgba(255,255,255,0.3), transparent) 4",
-        } : {}),
+        gridTemplateRows: `1fr auto ${isLarge ? "3rem" : "2.75rem"}`,
+        // Unselected cards stay legible: a confident interface does not
+        // hide its own content behind 35% opacity.
+        opacity: active || hovered || !dimInactive ? 1 : 0.72,
+        background: active ? "var(--surface-card-active)" : "transparent",
+        boxShadow: recipe.isSelected ? "inset 0 0 0 1px var(--border-active)" : "none",
+        transition: "opacity 0.25s var(--ease), background-color 0.25s ease, box-shadow 0.25s ease, transform 0.12s var(--ease)",
       }}
     >
-      {/* Name */}
+      {/* The drink itself leads — everything else describes it. */}
+      <div className="flex-1 flex items-center justify-center w-full min-h-0">
+        <CoffeeIcon recipe={recipe.name} size={resolvedIconSize} icon={recipe.icon} nameKey={recipe.nameKey} />
+      </div>
+
       <span
-        className={`tracking-widest uppercase text-center transition-all duration-300 shrink-0 truncate w-full ${
-          isLarge ? "text-base" : "text-sm"
-        } ${active ? "font-medium" : "font-light"}`}
-        style={{
-          color: active ? "var(--text-primary)" : "var(--text-tertiary)",
-          letterSpacing: "0.12em",
-        }}
+        className={`text-center shrink-0 truncate w-full ${isLarge ? "t-title" : "t-body font-medium"}`}
+        style={{ color: recipe.isSelected ? "var(--accent)" : "var(--text-primary)" }}
       >
         {label}
       </span>
 
-      {/* Icon */}
-      <div className={`flex-1 flex items-center justify-center w-full min-h-0 ${isLarge ? "py-4" : "py-2"}`}>
-        <CoffeeIcon recipe={recipe.name} size={resolvedIconSize} icon={recipe.icon} nameKey={recipe.nameKey} />
+      <div className="flex items-start justify-center w-full">
+        {recipe.details && renderInfo ? renderInfo(recipe.details) : null}
       </div>
-
-      {/* Divider + recipe details */}
-      {recipe.details && renderInfo ? (
-        <div className="shrink-0 w-full">
-          <div className="h-px my-2" style={{ background: "linear-gradient(90deg, transparent, var(--border-hover), transparent)" }} />
-          <div className={`flex justify-center ${isLarge ? "pb-2" : ""}`}>
-            {renderInfo(recipe.details)}
-          </div>
-        </div>
-      ) : (
-        <div className="shrink-0 h-3" />
-      )}
     </button>
   );
 }

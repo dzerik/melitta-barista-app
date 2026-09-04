@@ -48,7 +48,7 @@ export function StatsSection({ entities, prefix }: Props) {
         <span className="text-6xl font-extralight text-primary tabular-nums tracking-tight">
           {total.toLocaleString()}
         </span>
-        <span className="text-[10px] font-medium text-tertiary uppercase tracking-[0.2em]">
+        <span className="t-label font-medium text-tertiary">
           {t("stats.total_cups")}
         </span>
       </div>
@@ -73,7 +73,7 @@ export function StatsSection({ entities, prefix }: Props) {
                 />
                 <div className="relative z-10 flex flex-col items-center px-3 pt-3 pb-2.5 w-full">
                   <CoffeeIcon recipe={name} size={64} />
-                  <span className="text-[11px] text-secondary font-medium mt-1 truncate w-full text-center leading-tight">
+                  <span className="t-label text-secondary font-medium mt-1 truncate w-full text-center leading-tight">
                     {name}
                   </span>
                   <span className={`text-lg tabular-nums font-light mt-0.5 ${isTop ? "text-primary" : "text-secondary"}`}>

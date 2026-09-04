@@ -57,21 +57,27 @@ export function RecipeGrid({ recipes, onSelect, onBrew, renderInfo, brewLabel, c
 
   return (
     <div className="flex flex-col h-full">
-      {/* Page dots — top */}
+      {/* Page dots — the dot stays small, its reach does not */}
       {pages.length > 1 && (
-        <div className="flex justify-center gap-1.5 py-2 shrink-0">
+        <div className="flex justify-center shrink-0">
           {pages.map((_, idx) => (
             <button
               key={idx}
               onClick={() => emblaApi?.scrollTo(idx)}
               aria-label={`Go to page ${idx + 1}`}
-              className="w-1.5 h-1.5 rounded-full transition-all duration-300"
-              style={{
-                background: idx === selectedPage ? "var(--accent)" : "var(--text-tertiary)",
-                opacity: idx === selectedPage ? 1 : 0.3,
-                transform: idx === selectedPage ? "scale(1.3)" : "scale(1)",
-              }}
-            />
+              aria-current={idx === selectedPage ? "true" : undefined}
+              className="tap press w-10"
+            >
+              <span
+                className="block rounded-full transition-all duration-300"
+                style={{
+                  width: idx === selectedPage ? 22 : 8,
+                  height: 8,
+                  background: idx === selectedPage ? "var(--accent)" : "var(--text-tertiary)",
+                  opacity: idx === selectedPage ? 1 : 0.4,
+                }}
+              />
+            </button>
           ))}
         </div>
       )}
@@ -112,15 +118,16 @@ export function RecipeGrid({ recipes, onSelect, onBrew, renderInfo, brewLabel, c
         </div>
       </div>
 
-      {/* Brew button */}
+      {/* Brew — the one action this screen exists for, so it gets the width
+          and the only saturated colour on the page. */}
       {selectedRecipe && (
-        <div className="flex justify-center shrink-0 px-1">
+        <div className="shrink-0 px-4 pb-3 pt-1 flex justify-center">
           <button
-            className="py-2.5 px-8 text-xs tracking-widest uppercase font-semibold transition-all duration-200 active:scale-[0.98]"
+            className="tap tap-lg press w-full max-w-xl mx-auto rounded-2xl t-title"
             style={{
-              background: "var(--recipe-label-bg)",
-              color: "var(--recipe-label-text)",
-              letterSpacing: "0.12em",
+              background: "var(--btn-primary-bg)",
+              color: "var(--btn-primary-text)",
+              boxShadow: "var(--shadow-lift)",
             }}
             onClick={onBrew}
           >

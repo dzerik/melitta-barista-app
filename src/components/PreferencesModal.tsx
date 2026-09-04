@@ -1,10 +1,7 @@
 import { createPortal } from "react-dom";
 import { usePreferences, type Theme } from "../lib/preferences";
-import type { Locale } from "../lib/i18n";
-import { Moon, Sun, X } from "lucide-react";
-import flagEn from "../assets/flags/en.png";
-import flagRu from "../assets/flags/ru.png";
-import flagDe from "../assets/flags/de.png";
+import { SUPPORTED_LOCALES, LOCALE_ENDONYM } from "../lib/i18n";
+import { Check, Moon, Sun, X } from "lucide-react";
 
 interface Props {
   onClose: () => void;
@@ -13,12 +10,6 @@ interface Props {
 const THEMES: { value: Theme; labelKey: "prefs.theme_dark" | "prefs.theme_light"; icon: typeof Moon }[] = [
   { value: "dark", labelKey: "prefs.theme_dark", icon: Moon },
   { value: "light", labelKey: "prefs.theme_light", icon: Sun },
-];
-
-const LOCALES: { value: Locale; labelKey: "prefs.lang_en" | "prefs.lang_ru" | "prefs.lang_de"; flag: string }[] = [
-  { value: "en", labelKey: "prefs.lang_en", flag: flagEn },
-  { value: "ru", labelKey: "prefs.lang_ru", flag: flagRu },
-  { value: "de", labelKey: "prefs.lang_de", flag: flagDe },
 ];
 
 const stopTouch = (e: React.TouchEvent) => e.stopPropagation();
@@ -45,7 +36,7 @@ export function PreferencesModal({ onClose }: Props) {
           </span>
           <button
             onClick={onClose}
-            className="text-tertiary hover:text-primary transition p-1"
+            className="tap press rounded-xl text-secondary hover:text-primary"
           >
             <X size={20} />
           </button>
@@ -55,7 +46,7 @@ export function PreferencesModal({ onClose }: Props) {
         <div className="p-5 space-y-6">
           {/* Theme */}
           <div className="space-y-2">
-            <span className="text-[10px] font-medium text-tertiary uppercase tracking-[0.2em]">
+            <span className="t-label font-medium text-tertiary">
               {t("prefs.theme")}
             </span>
             <div className="grid grid-cols-2 gap-2">
@@ -88,33 +79,26 @@ export function PreferencesModal({ onClose }: Props) {
 
           {/* Locale */}
           <div className="space-y-2">
-            <span className="text-[10px] font-medium text-tertiary uppercase tracking-[0.2em]">
+            <span className="t-label font-medium text-tertiary">
               {t("prefs.language")}
             </span>
-            <div className="grid grid-cols-3 gap-2">
-              {LOCALES.map(({ value, labelKey, flag }) => {
+            <div className="max-h-64 overflow-y-auto custom-scroll rounded-xl ring-1 ring-border">
+              {SUPPORTED_LOCALES.map((value) => {
                 const active = locale === value;
                 return (
                   <button
                     key={value}
                     onClick={() => setLocale(value)}
-                    className={`flex flex-col items-center gap-2 rounded-xl py-3.5 px-2 transition-all duration-200 ${
-                      active
-                        ? "surface-elevated ring-2 ring-accent"
-                        : "surface-card ring-1 ring-border hover:ring-border-hover"
-                    }`}
+                    aria-current={active ? "true" : undefined}
+                    className="tap press w-full flex items-center justify-between gap-3 px-4 t-body"
+                    style={{
+                      background: active ? "var(--surface-elevated)" : "transparent",
+                      color: active ? "var(--text-primary)" : "var(--text-secondary)",
+                      fontWeight: active ? 600 : 400,
+                    }}
                   >
-                    <img
-                      src={flag}
-                      alt={value}
-                      className="h-5 w-auto rounded-sm object-contain"
-                      draggable={false}
-                    />
-                    <span
-                      className={`text-[11px] font-medium ${active ? "text-primary" : "text-secondary"}`}
-                    >
-                      {t(labelKey)}
-                    </span>
+                    <span>{LOCALE_ENDONYM[value]}</span>
+                    {active && <Check size={18} style={{ color: "var(--accent)" }} />}
                   </button>
                 );
               })}

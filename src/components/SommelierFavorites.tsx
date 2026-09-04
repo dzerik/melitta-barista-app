@@ -65,7 +65,7 @@ export function SommelierFavorites({ sommelier }: Props) {
                 <span className="text-sm font-semibold text-primary truncate">{fav.name}</span>
                 {fav.brew_count > 0 && (
                   <span
-                    className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular-nums"
+                    className="shrink-0 t-label font-bold px-1.5 py-0.5 rounded-full tabular-nums"
                     style={{ background: "var(--surface)", color: "var(--text-tertiary)" }}
                   >
                     x{fav.brew_count}
@@ -74,7 +74,7 @@ export function SommelierFavorites({ sommelier }: Props) {
               </div>
               <p className="text-xs text-secondary mt-1 line-clamp-2">{fav.description}</p>
               {fav.last_brewed_at && (
-                <div className="text-[10px] text-tertiary mt-1.5">
+                <div className="t-label text-tertiary mt-1.5">
                   {t("sommelier.last_brewed" as TranslationKey)}: {new Date(fav.last_brewed_at).toLocaleDateString()}
                 </div>
               )}
@@ -84,7 +84,7 @@ export function SommelierFavorites({ sommelier }: Props) {
               <button
                 onClick={() => handleBrew(fav)}
                 disabled={brewingId === fav.id}
-                className="rounded-xl px-3 py-2 text-xs font-semibold transition active:scale-95"
+                className="tap press rounded-xl px-4 t-label font-semibold"
                 style={{
                   background: "var(--btn-primary-bg)",
                   color: "var(--btn-primary-text)",
@@ -93,14 +93,14 @@ export function SommelierFavorites({ sommelier }: Props) {
               >
                 {brewingId === fav.id ? "..." : (
                   <span className="flex items-center gap-1.5">
-                    <Coffee size={14} />
+                    <Coffee size={18} />
                     {t("sommelier.brew" as TranslationKey)}
                   </span>
                 )}
               </button>
               <button
                 onClick={() => removeFavorite(fav.id)}
-                className="p-2 rounded-lg text-tertiary hover:text-red-400 transition"
+                className="tap press rounded-xl text-tertiary hover:text-red-400"
               >
                 <Trash2 size={16} />
               </button>

@@ -161,16 +161,11 @@ async function wsCommand<T>(conn: Connection, type: string, data?: object): Prom
  * pickers fall back to their hardcoded lists (§9.2.6.1).
  */
 export function useSommelier(conn: Connection | null, contractStringsVersion?: string | null) {
-  const [beans, setBeans] = useState<CoffeeBean[]>([]);
   const [hoppers, setHoppers] = useState<Hoppers>({ hopper1: null, hopper2: null });
   const [milkTypes, setMilkTypes] = useState<string[]>([]);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [history, setHistory] = useState<GenerationSession[]>([]);
-  const [presets, setPresets] = useState<CoffeePreset[]>([]);
-  const [settings, setSettings] = useState<SommelierSettings>({});
   const [extras, setExtrasState] = useState<UserExtras>({ syrups: [], toppings: [], liqueurs: [] });
-  const [preferences, setPreferencesState] = useState<UserPreferences>({});
-  const [profiles, setProfiles] = useState<SommelierProfile[]>([]);
   const [currentSession, setCurrentSession] = useState<GenerationSession | null>(null);
   const [generating, setGenerating] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -193,33 +188,29 @@ export function useSommelier(conn: Connection | null, contractStringsVersion?: s
   const refresh = useCallback(async () => {
     if (!conn) return;
     try {
-      const [beansRes, hoppersRes, milkRes, favsRes, histRes, presetsRes, settingsRes, extrasRes, prefsRes, profilesRes] = await Promise.all([
-        wsCommand<{ beans: CoffeeBean[] }>(conn, "melitta_barista/sommelier/beans/list"),
+      const [hoppersRes, milkRes, favsRes, histRes, extrasRes] = await Promise.all([
         wsCommand<Hoppers>(conn, "melitta_barista/sommelier/hoppers/get"),
         wsCommand<{ milk_types: string[] }>(conn, "melitta_barista/sommelier/milk/get"),
         wsCommand<{ favorites: Favorite[] }>(conn, "melitta_barista/sommelier/favorites/list"),
         wsCommand<{ sessions: GenerationSession[] }>(conn, "melitta_barista/sommelier/history/list", { limit: 20 }),
-        wsCommand<{ presets: CoffeePreset[] }>(conn, "melitta_barista/sommelier/presets/list"),
-        wsCommand<{ settings: SommelierSettings }>(conn, "melitta_barista/sommelier/settings/get"),
         wsCommand<{ extras: UserExtras }>(conn, "melitta_barista/sommelier/extras/get"),
-        wsCommand<{ preferences: UserPreferences }>(conn, "melitta_barista/sommelier/preferences/get"),
-        wsCommand<{ profiles: SommelierProfile[] }>(conn, "melitta_barista/sommelier/profiles/list"),
       ]);
-      setBeans(beansRes.beans);
-      setHoppers(hoppersRes);
-      setMilkTypes(milkRes.milk_types);
-      setFavorites(favsRes.favorites);
-      setHistory(histRes.sessions);
-      setPresets(presetsRes.presets);
-      setSettings(settingsRes.settings);
-      const ex = extrasRes.extras ?? {} as Partial<UserExtras>;
+      // Every response is treated as possibly absent: a backend that answers
+      // some commands and not others (demo transport, partial rollout) must
+      // leave the state at its safe defaults instead of poisoning it with
+      // `undefined` — the sommelier views read these fields unguarded.
+      if (hoppersRes?.hopper1 !== undefined || hoppersRes?.hopper2 !== undefined) {
+        setHoppers(hoppersRes);
+      }
+      if (Array.isArray(milkRes?.milk_types)) setMilkTypes(milkRes.milk_types);
+      if (Array.isArray(favsRes?.favorites)) setFavorites(favsRes.favorites);
+      if (Array.isArray(histRes?.sessions)) setHistory(histRes.sessions);
+      const ex = extrasRes?.extras ?? {} as Partial<UserExtras>;
       setExtrasState({
         syrups: ex.syrups ?? [],
         toppings: ex.toppings ?? [],
         liqueurs: ex.liqueurs ?? [],
       });
-      setPreferencesState(prefsRes.preferences);
-      setProfiles(profilesRes.profiles ?? []);
       setError(null);
     } catch (e) {
       console.warn("[sommelier] Failed to load data:", e);
@@ -238,49 +229,9 @@ export function useSommelier(conn: Connection | null, contractStringsVersion?: s
 
   // ── Beans CRUD ─────────────────────────────────────────────────
 
-  const addBean = useCallback(async (data: CoffeeBeanInput) => {
-    if (!conn) return null;
-    const res = await wsCommand<{ bean: CoffeeBean }>(conn, "melitta_barista/sommelier/beans/add", data);
-    setBeans((prev) => [res.bean, ...prev]);
-    return res.bean;
-  }, [conn]);
-
-  const updateBean = useCallback(async (beanId: string, data: Partial<CoffeeBeanInput>) => {
-    if (!conn) return;
-    const res = await wsCommand<{ bean: CoffeeBean }>(conn, "melitta_barista/sommelier/beans/update", { bean_id: beanId, ...data });
-    setBeans((prev) => prev.map((b) => (b.id === beanId ? res.bean : b)));
-  }, [conn]);
-
-  const deleteBean = useCallback(async (beanId: string) => {
-    if (!conn) return;
-    await wsCommand(conn, "melitta_barista/sommelier/beans/delete", { bean_id: beanId });
-    setBeans((prev) => prev.filter((b) => b.id !== beanId));
-    // Also clear hopper if this bean was assigned
-    setHoppers((h) => ({
-      hopper1: h.hopper1?.bean?.id === beanId ? { ...h.hopper1, bean: null } : h.hopper1,
-      hopper2: h.hopper2?.bean?.id === beanId ? { ...h.hopper2, bean: null } : h.hopper2,
-    }));
-  }, [conn]);
-
   // ── Hoppers ────────────────────────────────────────────────────
 
-  const assignHopper = useCallback(async (hopperId: 1 | 2, beanId: string | null) => {
-    if (!conn) return;
-    await wsCommand(conn, "melitta_barista/sommelier/hoppers/assign", { hopper_id: hopperId, bean_id: beanId });
-    const bean = beanId ? beans.find((b) => b.id === beanId) ?? null : null;
-    setHoppers((h) => ({
-      ...h,
-      [`hopper${hopperId}`]: { assigned_at: new Date().toISOString(), bean },
-    }));
-  }, [conn, beans]);
-
   // ── Milk ───────────────────────────────────────────────────────
-
-  const setMilk = useCallback(async (types: string[]) => {
-    if (!conn) return;
-    await wsCommand(conn, "melitta_barista/sommelier/milk/set", { milk_types: types });
-    setMilkTypes(types);
-  }, [conn]);
 
   // ── Generate ───────────────────────────────────────────────────
 
@@ -346,12 +297,6 @@ export function useSommelier(conn: Connection | null, contractStringsVersion?: s
 
   // ── Settings ───────────────────────────────────────────────────
 
-  const setSetting = useCallback(async (key: string, value: string) => {
-    if (!conn) return;
-    await wsCommand(conn, "melitta_barista/sommelier/settings/set", { key, value });
-    setSettings((prev) => ({ ...prev, [key]: value }));
-  }, [conn]);
-
   // ── History ────────────────────────────────────────────────────
 
   const loadMoreHistory = useCallback(async () => {
@@ -365,66 +310,17 @@ export function useSommelier(conn: Connection | null, contractStringsVersion?: s
 
   // ── Extras ─────────────────────────────────────────────────────
 
-  const setExtras = useCallback(async (category: string, items: string[]) => {
-    if (!conn) return;
-    await wsCommand(conn, "melitta_barista/sommelier/extras/set", { category, items });
-    setExtrasState((prev) => ({ ...prev, [category]: items }));
-  }, [conn]);
-
   // ── Preferences ───────────────────────────────────────────────
-
-  const getPreferences = useCallback(async () => {
-    if (!conn) return {};
-    const res = await wsCommand<{ preferences: UserPreferences }>(conn, "melitta_barista/sommelier/preferences/get");
-    setPreferencesState(res.preferences);
-    return res.preferences;
-  }, [conn]);
-
-  const setPreference = useCallback(async (key: string, value: string) => {
-    if (!conn) return;
-    await wsCommand(conn, "melitta_barista/sommelier/preferences/set", { key, value });
-    setPreferencesState((prev) => ({ ...prev, [key]: value }));
-  }, [conn]);
 
   // ── Profiles ──────────────────────────────────────────────────
 
-  const addProfile = useCallback(async (data: ProfileInput) => {
-    if (!conn) return null;
-    const res = await wsCommand<{ profile: SommelierProfile }>(conn, "melitta_barista/sommelier/profiles/add", data);
-    setProfiles((prev) => [...prev, res.profile]);
-    return res.profile;
-  }, [conn]);
-
-  const updateProfile = useCallback(async (profileId: string, data: Partial<ProfileInput>) => {
-    if (!conn) return;
-    const res = await wsCommand<{ profile: SommelierProfile }>(conn, "melitta_barista/sommelier/profiles/update", { profile_id: profileId, ...data });
-    setProfiles((prev) => prev.map((p) => (p.id === profileId ? res.profile : p)));
-  }, [conn]);
-
-  const deleteProfile = useCallback(async (profileId: string) => {
-    if (!conn) return;
-    await wsCommand(conn, "melitta_barista/sommelier/profiles/delete", { profile_id: profileId });
-    setProfiles((prev) => prev.filter((p) => p.id !== profileId));
-  }, [conn]);
-
-  const activateProfile = useCallback(async (profileId: string) => {
-    if (!conn) return;
-    await wsCommand(conn, "melitta_barista/sommelier/profiles/activate", { profile_id: profileId });
-    setProfiles((prev) => prev.map((p) => ({ ...p, is_active: p.id === profileId })));
-  }, [conn]);
-
   return {
     // Data
-    beans, hoppers, milkTypes, favorites, history, presets, settings,
-    extras, preferences, profiles, vocab,
+    hoppers, milkTypes, favorites, history, extras, vocab,
     currentSession, generating, loading, error,
     // Actions
-    addBean, updateBean, deleteBean,
-    assignHopper, setMilk,
     generate, brewRecipe, brewFavorite,
     addFavorite, removeFavorite,
-    setSetting, loadMoreHistory, refresh,
-    setExtras, getPreferences, setPreference,
-    addProfile, updateProfile, deleteProfile, activateProfile,
+    loadMoreHistory, refresh,
   };
 }

@@ -140,13 +140,12 @@ export function RecipeCarousel({ recipes, onSelect, onBrew, renderInfo, brewLabe
       {currentRecipe && (
         <div className="flex justify-center shrink-0 px-1">
           <button
-            className="py-2.5 text-xs tracking-widest uppercase font-semibold transition-all duration-200 active:scale-[0.98]"
+            className="py-2.5 text-xs tracking-widest font-semibold transition-all duration-200 active:scale-[0.98]"
             style={{
               width: "28%",
               background: "var(--recipe-label-bg)",
               color: "var(--recipe-label-text)",
-              letterSpacing: "0.12em",
-            }}
+                          }}
             onClick={() => {
               if (currentRecipe.isSelected) {
                 onBrew(currentRecipe.name);

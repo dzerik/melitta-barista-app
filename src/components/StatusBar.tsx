@@ -25,29 +25,31 @@ export function StatusBar({ entities, prefix, onDisconnect, onOpenPrefs }: Props
   const view = deriveMachineStatus(entities, prefix, locale);
 
   return (
-    <div className="flex items-center justify-between px-6 py-3 border-b border-border">
-      <div className="flex items-center gap-3">
-        <img src={logoMelitta} alt="Melitta" className="h-6 object-contain" draggable={false} />
-        <div className="flex items-center gap-1.5 text-xs">
+    <div className="flex items-center justify-between gap-4 pl-6 pr-3 border-b border-border">
+      <div className="flex items-center gap-4 min-w-0">
+        <img src={logoMelitta} alt="Melitta" className="h-6 object-contain shrink-0" draggable={false} />
+        <div className="flex items-center gap-2 min-w-0">
           <img
             src={view.connected ? iconBtConnected : iconBtDisconnected}
-            alt={view.connected ? "connected" : "disconnected"}
-            className="w-3.5 h-3.5 object-contain"
+            alt=""
+            aria-hidden="true"
+            className="w-4 h-4 object-contain shrink-0"
             draggable={false}
           />
-          <span className="text-secondary">{view.statusLabel}</span>
+          <span className="t-label text-secondary truncate">{view.statusLabel}</span>
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center">
         <button
           onClick={onOpenPrefs}
-          className="rounded-lg p-2 text-tertiary hover:text-secondary transition"
+          aria-label={t("prefs.title")}
+          className="tap press rounded-xl text-secondary hover:text-primary"
         >
-          <Settings size={16} />
+          <Settings size={20} />
         </button>
         <button
           onClick={onDisconnect}
-          className="rounded-lg px-3 py-1.5 text-xs text-secondary ring-1 ring-border hover:ring-border-hover transition"
+          className="tap press rounded-xl px-4 t-label text-secondary hover:text-primary"
         >
           {t("app.disconnect")}
         </button>

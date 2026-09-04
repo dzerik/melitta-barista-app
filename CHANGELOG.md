@@ -1,5 +1,25 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- **Design pass.** The interface is rebuilt around the drink photography: a warm espresso ground (never pure black) with a single crema accent, sentence-case type instead of tracked-out capitals, and recipe cards laid out in fixed bands so names and compositions line up across a row. Light theme becomes porcelain rather than paper.
+- **Touch and pointer parity.** Every control now honours a 48px minimum target (60px for primary actions and the tab bar) without inflating its painted size; icons start at 16px, text at 13px. Brew is a single wide bar instead of a small floating pill, page dots keep a full-size reach, and the language picker is a list of native language names rather than three flag tiles.
+- **Sommelier is user-facing only.** Bean, milk, add-in and taste-profile management moved out of the app — those belong to the Melitta panel in Home Assistant. The tab keeps Generate, Favorites and History; hopper cards now say where beans are configured.
+
+### Added
+
+- All 29 integration languages ship in the app (was English, Russian, German). Machine-domain wording is reused from the integration's own translations; remaining app-specific strings fall back to English per key until translated.
+
+### Fixed
+
+- Multi-phase favorites open the step wizard instead of one-shot brewing (recipe cards already did).
+- The sommelier loader no longer writes `undefined` into its state when a backend answers only some commands — the tab used to crash instead of degrading.
+- Removed the intense-aroma toggle: it was never sent anywhere, so it silently did nothing.
+- View-mode buttons announce localized names instead of raw tokens; known milk and add-in values render localized instead of raw.
+
+
 ## [2.0.0] - 2026-09-04
 
 Full UI Contract port (v1 + v2 + v3): the app is now a first-class contract client of the Melitta Barista integration (0.93+), with per-feature fallback to its previous hardcoded tables against any contract-serving integration that omits a block.

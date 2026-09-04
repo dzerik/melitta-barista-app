@@ -178,7 +178,7 @@ function ActionCard({
             {label}
           </div>
           {description !== null && (
-            <div className="text-[11px] text-tertiary leading-tight mt-0.5">
+            <div className="t-label text-tertiary leading-tight mt-0.5">
               {description}
             </div>
           )}
@@ -186,7 +186,7 @@ function ActionCard({
         <button
           onClick={onPress}
           disabled={disabled}
-          className="shrink-0 rounded-xl px-4 py-2 text-xs font-semibold transition-all duration-200 active:scale-95"
+          className="tap press shrink-0 rounded-xl px-5 t-label font-semibold"
           style={{
             background: danger
               ? "var(--error-bg)"
@@ -279,7 +279,7 @@ export function MaintenanceSection({ conn, entities, prefix, contract = null }: 
   ) => (
     <>
       <div
-        className="settings-header-enter text-[10px] font-medium text-tertiary uppercase tracking-[0.2em] mb-3"
+        className="settings-header-enter t-label font-medium text-tertiary mb-3"
         style={stagger(startIndex)}
       >
         {t(title)}
@@ -315,7 +315,7 @@ export function MaintenanceSection({ conn, entities, prefix, contract = null }: 
   ) => (
     <div key={group}>
       <div
-        className="settings-header-enter text-[10px] font-medium text-tertiary uppercase tracking-[0.2em] mb-3"
+        className="settings-header-enter t-label font-medium text-tertiary mb-3"
         style={stagger(startIndex)}
       >
         {actionGroupLabel(locale, group)}
