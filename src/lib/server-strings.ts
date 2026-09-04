@@ -180,7 +180,7 @@ function sanitizeVocab(raw: Record<string, unknown> | undefined): ServerVocab {
  * session's contract document, when one is available: a persisted entry for
  * the same locale matching it is revalidated for free — no WS round-trip.
  * Otherwise one `melitta_barista/i18n/get` runs (omitting `domains` = all
- * domains, the six 0.93 keyspaces included); a durable `unknown_command`
+ * domains, the seven keyspaces including `wizard`); a durable `unknown_command`
  * (pre-0.92 server) or transient failure degrades to the persisted cache if
  * any, else to `null` — display strings only, never token semantics.
  *

@@ -13,8 +13,11 @@
  *   `native_value` string matching, byte-identical to the pre-contract app.
  *
  * Labels follow the §6.3.5.1 per-key preference order: server string →
- * en/ru/de bundle → humanized token. Pure module: no hooks, no HA imports
- * beyond types.
+ * en/ru/de bundle → humanized token. The §6.3.7 state descriptions
+ * (`status.process.<TOKEN>.description`, `status.sub_process.<TOKEN>.description`)
+ * ride along as `processDescription` / `activityDescription` — server-only,
+ * null when unserved, so call sites keep their own generic copy. Pure
+ * module: no hooks, no HA imports beyond types.
  */
 import type { HassEntities } from "home-assistant-js-websocket";
 import {
@@ -64,6 +67,20 @@ export interface MachineStatusView {
   statusLabel: string;
   /** Current sub-activity label, or null when idle. */
   activityLabel: string | null;
+  /**
+   * Served one-sentence description of the process token
+   * (`status.process.<TOKEN>.description`, §6.3.7), or null when the server
+   * doesn't say — callers then keep their own copy. Server-only by design:
+   * the description families have no per-token bundle equivalent, so the
+   * client tier is whatever generic line the call site already showed.
+   */
+  processDescription: string | null;
+  /**
+   * Served description of the sub-process token
+   * (`status.sub_process.<TOKEN>.description`, §6.3.7), or null. Served
+   * "only where it adds meaning over the label", so absence is normal.
+   */
+  activityDescription: string | null;
   /** A user action is required (manipulation / action_required sensor). */
   hasAction: boolean;
   /** Localized action title (legacy mode: the raw English sensor string). */
@@ -199,6 +216,11 @@ function fromTokens(
     processToken: tok,
     statusLabel,
     activityLabel,
+    // An unmapped raw code borrows BUSY's description, mirroring the
+    // neutral-busy label above (§5.3.2 rule 2).
+    processDescription: serverString(`status.process.${tok ?? "BUSY"}.description`) ?? null,
+    activityDescription:
+      sub === null ? null : (serverString(`status.sub_process.${sub}.description`) ?? null),
     hasAction,
     actionLabel,
     actionHint: null,
@@ -220,6 +242,8 @@ function offlineView(source: "tokens" | "legacy", connected: boolean): MachineSt
     // The frozen legacy StatusBar placeholder — kept byte-identical.
     statusLabel: "offline",
     activityLabel: null,
+    processDescription: null,
+    activityDescription: null,
     hasAction: false,
     actionLabel: null,
     actionHint: null,
@@ -257,6 +281,9 @@ function fromLegacy(
     processToken: null,
     statusLabel: machineState,
     activityLabel: getState(entities, prefix, "sensor", "activity"),
+    // Legacy mode has no tokens to key the served descriptions by.
+    processDescription: null,
+    activityDescription: null,
     hasAction,
     actionLabel: hasAction ? actionRequired : null,
     actionHint: hasAction && hintKey ? t(locale, hintKey) : null,

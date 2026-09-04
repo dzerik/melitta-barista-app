@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 import type { Connection } from "home-assistant-js-websocket";
-import { t, type Locale } from "../lib/i18n";
+import { tServer, type Locale } from "../lib/i18n";
 import { pressButton } from "../lib/ha";
 import {
   applyStatusPoll,
@@ -201,7 +201,7 @@ export function useBrewPhase(env: BrewWizardEnv | null, locale: Locale) {
   /** Press the machine's Confirm Prompt button on the user's behalf. */
   const confirmPrompt = useCallback(async () => {
     if (env === null || env.confirmEntityId === null) {
-      patch({ confirmError: t(locale, "wizard.machine.confirm_manual") });
+      patch({ confirmError: tServer(locale, "wizard.machine.confirm_manual") });
       return;
     }
     patch({ confirmBusy: true, confirmError: "" });
@@ -211,7 +211,7 @@ export function useBrewPhase(env: BrewWizardEnv | null, locale: Locale) {
     } catch (e) {
       patch({
         confirmBusy: false,
-        confirmError: `${t(locale, "wizard.machine.confirm_failed")}: ${wsErrorMessage(e)}`,
+        confirmError: `${tServer(locale, "wizard.machine.confirm_failed")}: ${wsErrorMessage(e)}`,
       });
     }
   }, [env, locale, patch]);

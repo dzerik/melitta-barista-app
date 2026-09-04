@@ -1,8 +1,12 @@
 # Changelog
 
-## [Unreleased]
+## [2.1.0] — 2026-09-04
+
+Ships the design pass together with the shared-strings adoption.
 
 ### Changed
+
+- Machine wording now comes from the integration (0.94+) over `i18n/get`: brew-guide vocabulary, machine-state descriptions, sommelier error hints and labels for known milk kinds, syrups, toppings, liqueurs and flavour notes are translated once, server-side, in all 29 languages. The app's bundles remain the offline and pre-0.94 fallback, and text a user typed themselves still renders exactly as typed.
 
 - **Design pass.** The interface is rebuilt around the drink photography: a warm espresso ground (never pure black) with a single crema accent, sentence-case type instead of tracked-out capitals, and recipe cards laid out in fixed bands so names and compositions line up across a row. Light theme becomes porcelain rather than paper.
 - **Touch and pointer parity.** Every control now honours a 48px minimum target (60px for primary actions and the tab bar) without inflating its painted size; icons start at 16px, text at 13px. Brew is a single wide bar instead of a small floating pill, page dots keep a full-size reach, and the language picker is a list of native language names rather than three flag tiles.

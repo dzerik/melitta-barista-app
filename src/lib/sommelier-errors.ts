@@ -7,12 +7,16 @@
  * asymmetry: `vocab/get` is admin-free but generate/brew stay admin-gated).
  * home-assistant-js-websocket rejects those as plain `{code, message}`
  * objects — which the legacy hook collapsed into a generic "Generation
- * failed". This module maps exactly the five contract-listed codes to
- * localized guidance; every other rejection passes through untouched, so
- * behavior against pre-contract integrations stays byte-identical.
+ * failed". This module maps such codes to localized guidance: server-authored
+ * for whatever the integration serves under §6.3.7 `sommelier.error.<code>`
+ * (today five codes, tomorrow more without a client release), else the client
+ * bundle for the three pre-flight codes it carries. Every other rejection
+ * passes through untouched, so behavior against pre-contract integrations
+ * stays byte-identical.
  */
 import type { Connection } from "home-assistant-js-websocket";
 import { t, type Locale, type TranslationKey } from "./i18n";
+import { serverString } from "./server-strings";
 
 /** The five mapped codes (§10.2 P-H) → their client-bundle hint keys. */
 export const SOMMELIER_ERROR_KEYS: Readonly<Record<string, TranslationKey>> = {
@@ -43,13 +47,23 @@ export function wsErrorMessage(e: unknown): string {
 }
 
 /**
- * Localized actionable hint for a mapped sommelier error, or null when the
- * code is not one of the five mapped ones (callers then keep their current
- * behavior). `no_llm_agent` appends the `sommelier.configure_llm` guidance.
+ * Localized actionable hint for a sommelier error, or null when neither tier
+ * has wording for the code (callers then keep their current behavior).
+ *
+ * Resolution is the §6.3.5.1 chain over the §6.3.7 `sommelier.error.<code>`
+ * family, and the server is asked FIRST — for any code, not only the five
+ * this client happens to know. The bundle allowlist below guards the bundle
+ * tier alone; gating the server probe on it would make a sixth served code
+ * invisible until every client shipped a new list, which is the opposite of
+ * what a server-owned family is for. The served sentence is self-contained —
+ * it already names the fix, so the bundle's separate `sommelier.configure_llm`
+ * tail is appended only on the bundle tier, where `no_llm_agent` stops short.
  */
 export function sommelierErrorHint(locale: Locale, e: unknown): string | null {
   const code = wsErrorCode(e);
   if (code === null) return null;
+  const served = serverString(`sommelier.error.${code}`);
+  if (served !== undefined) return served;
   const key = SOMMELIER_ERROR_KEYS[code];
   if (key === undefined) return null;
   const hint = t(locale, key);

@@ -23,7 +23,7 @@
  * All state transitions live here as pure functions; `useBrewPhase` wraps
  * them with timers and the WS calls, and `BrewWizard.tsx` stays thin.
  */
-import { t, tServer, type Locale } from "./i18n";
+import { tServer, type Locale } from "./i18n";
 import { sommelierLabel, cupVolumesHint } from "./sommelier-vocab";
 
 // ---------------------------------------------------------------------------
@@ -197,7 +197,7 @@ export function buildBrewPlan(
     steps.push({
       kind: "manual",
       synthetic: true,
-      title: fmt(t(locale, "wizard.step.cup"), {
+      title: fmt(tServer(locale, "wizard.step.cup"), {
         cup: sommelierLabel(locale, "cup_size", recipe.cup_type),
         ml,
       }),
@@ -367,7 +367,7 @@ export function applyStatusPoll(
       status.awaiting_confirmation === true
         ? typeof status.manipulation === "string" && status.manipulation
           ? tServer(locale, `status.manipulation.${status.manipulation}`)
-          : t(locale, "wizard.machine.prompt_generic")
+          : tServer(locale, "wizard.machine.prompt_generic")
         : null,
   };
   if (status.is_brewing === true) {

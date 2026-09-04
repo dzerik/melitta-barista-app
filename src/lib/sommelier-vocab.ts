@@ -15,9 +15,10 @@
  * pre-contract `sommelier.<prefix><token>` en/ru/de entries) → humanized
  * token. Free-form families (milk, flavor notes, extras items — §9.2.4) are
  * never vocab: their lists are client-local *suggestions* over free-form
- * input, labelled bundle-first with the user's own text rendered verbatim.
+ * input, labelled server-first over the §6.3.7 `sommelier.<family>.<token>`
+ * keys with the user's own text rendered verbatim.
  */
-import { vocabFamily } from "./server-strings";
+import { serverString, vocabFamily } from "./server-strings";
 import { tServer, bundleString, type Locale } from "./i18n";
 
 // ---------------------------------------------------------------------------
@@ -109,12 +110,34 @@ export function sommelierLabel(locale: Locale, family: string, token: string): s
 }
 
 /**
+ * Legacy bundle prefix → the §6.3.7 served family for the five
+ * suggestion-value keyspaces (`sommelier.milk.<token>` & co).
+ */
+const SUGGESTION_FAMILY: Readonly<Record<string, string>> = Object.freeze({
+  milk_: "milk",
+  syrup_: "syrup",
+  topping_: "topping",
+  liqueur_: "liqueur",
+  note_: "note",
+});
+
+/**
  * Label for a client-local suggestion value over a free-form field (§9.2.4:
- * milk, flavor notes, extras items — never vocab). Known suggestion tokens
- * keep their bundle label; anything else is the user's own text and renders
- * verbatim (never humanized — "Ультрапастеризованное 3%" stays as typed).
+ * milk, flavor notes, extras items — never vocab).
+ *
+ * Known suggestion tokens resolve server-first (§6.3.7 `sommelier.<family>.<token>`,
+ * byte-equal key, never case-folded) and then through their bundle entry.
+ * Anything else is the user's own text: no served key, no bundle key, so it
+ * renders verbatim (never humanized — "Ультрапастеризованное 3%" stays as
+ * typed). A served label is display sugar over an open field and never
+ * narrows what the field accepts.
  */
 export function suggestionLabel(locale: Locale, bundlePrefix: string, value: string): string {
+  const family = SUGGESTION_FAMILY[bundlePrefix];
+  if (family !== undefined) {
+    const served = serverString(`sommelier.${family}.${value}`);
+    if (served !== undefined) return served;
+  }
   return bundleString(locale, `sommelier.${bundlePrefix}${value}`) ?? value;
 }
 

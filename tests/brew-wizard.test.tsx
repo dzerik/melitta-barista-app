@@ -801,3 +801,137 @@ describe("SommelierSection generate error banner", () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// §6.3.7 — machine-domain strings served over i18n/get
+// ---------------------------------------------------------------------------
+
+describe("wizard vocabulary from the server (§6.3.7 domain `wizard`)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("prefers the served string per key; unserved keys keep the bundle tier", () => {
+    setServerStrings({ "wizard.step_of": "Schritt {n} von {m}" });
+    const { conn } = makeConn();
+    renderWizard(makeEnv(conn), phasedRecipe());
+    expect(screen.getByText("Schritt 1 von 6")).toBeInTheDocument();
+    // wizard.step.done is unserved → the client bundle still supplies it.
+    expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+  });
+
+  it("substitutes {n}/{m} into the served step titles (fmt() still runs)", () => {
+    setServerStrings({
+      "wizard.step.machine_n": "Guss {n}/{m}",
+      "wizard.step_of": "{n}/{m}",
+    });
+    const { conn } = makeConn();
+    renderWizard(makeEnv(conn), phasedRecipe());
+    expect(screen.getByText("1/6")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Done" })); // cup
+    fireEvent.click(screen.getByRole("button", { name: "Done" })); // pre
+    expect(screen.getByText("Guss 1/2")).toBeInTheDocument();
+  });
+
+  it("buildBrewPlan takes the served cup step with {cup} and {ml} filled in", () => {
+    setServerStrings({
+      "wizard.step.cup": "Stelle deine {cup} ({ml}) unter den Auslauf",
+      "sommelier.cup_size.mug": "Becher",
+    });
+    const steps = buildBrewPlan("en", phasedRecipe() as BrewPlanRecipe);
+    expect(steps[0]).toMatchObject({
+      title: "Stelle deine Becher (150 ml) unter den Auslauf",
+    });
+  });
+
+  it("applyStatusPoll takes the served generic prompt", () => {
+    setServerStrings({ "wizard.machine.prompt_generic": "Die Maschine wartet" });
+    const m = { ...freshMachineState(), state: "brewing" as const };
+    expect(applyStatusPoll("en", m, { awaiting_confirmation: true }).patch.prompt).toBe(
+      "Die Maschine wartet",
+    );
+  });
+
+  it("uses the served failure copy on a machine step, Retry/Skip included", async () => {
+    setServerStrings({
+      "wizard.machine.failed": "Brühen fehlgeschlagen",
+      "wizard.machine.retry": "Nochmal",
+      "wizard.machine.skip": "Überspringen",
+    });
+    const { conn } = makeConn(async (msg) => {
+      if (msg.type === "melitta_barista/sommelier/brew_phase") {
+        throw { code: "brew_failed", message: "busy" };
+      }
+      return {};
+    });
+    renderWizard(makeEnv(conn), phasedRecipe());
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Start this pour/ }));
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent("Brühen fehlgeschlagen: busy");
+    expect(screen.getByRole("button", { name: "Nochmal" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Überspringen" })).toBeInTheDocument();
+  });
+
+  it("passes machine text through the served {prompt} line verbatim", async () => {
+    vi.useFakeTimers();
+    setServerStrings({
+      "wizard.machine.prompt": "Die Maschine fragt: {prompt}",
+      "wizard.machine.confirm_manual": "Am Display der Maschine bestätigen.",
+    });
+    const { conn } = makeConn(async (msg) => {
+      if (msg.type === "melitta_barista/status") {
+        return {
+          status: { is_brewing: true, awaiting_confirmation: true, manipulation: "CONFIRM_MILK" },
+        };
+      }
+      return {};
+    });
+    // No confirm-button entity → the manual-confirm line stands in for it.
+    renderWizard(makeEnv(conn, { confirmEntityId: null }), phasedRecipe());
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Start this pour/ }));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2100);
+    });
+    expect(screen.getByText("Die Maschine fragt: Confirm milk")).toBeInTheDocument();
+    expect(screen.getByText("Am Display der Maschine bestätigen.")).toBeInTheDocument();
+  });
+});
+
+describe("sommelier error hints from the server (§6.3.7 `sommelier.error.<code>`)", () => {
+  it("prefers the served sentence, without the bundle-tier configure_llm tail", () => {
+    const served =
+      "No AI conversation agent is installed in Home Assistant. Add an LLM integration to use the sommelier.";
+    setServerStrings({ "sommelier.error.no_llm_agent": served });
+    const hint = sommelierErrorHint("en", { code: "no_llm_agent" });
+    expect(hint).toBe(served);
+    expect(hint).not.toContain("Configure a conversation agent in HA");
+  });
+
+  it("falls back to the bundle per key — an unserved code is unaffected", () => {
+    setServerStrings({ "sommelier.error.timeout": "Zeitüberschreitung der KI" });
+    expect(sommelierErrorHint("de", { code: "timeout" })).toBe("Zeitüberschreitung der KI");
+    expect(sommelierErrorHint("en", { code: "unauthorized" })).toBe(
+      "Sommelier generation requires a Home Assistant admin user.",
+    );
+  });
+
+  it("renders a code the server serves but the client bundle has never heard of", () => {
+    // A sixth served code must reach the user without a PWA release: the
+    // client key map guards the bundle tier only, never the server probe.
+    setServerStrings({ "sommelier.error.brew_failed": "Brühen fehlgeschlagen" });
+    expect(sommelierErrorHint("en", { code: "brew_failed", message: "busy" })).toBe(
+      "Brühen fehlgeschlagen",
+    );
+  });
+
+  it("still invents nothing for an unmapped code the server does not serve", () => {
+    expect(sommelierErrorHint("en", { code: "brew_failed", message: "busy" })).toBeNull();
+  });
+});

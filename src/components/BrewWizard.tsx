@@ -2,7 +2,7 @@ import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Check, Coffee, Loader2 } from "lucide-react";
 import { usePreferences } from "../lib/preferences";
-import { displayNameFor } from "../lib/i18n";
+import { displayNameFor, tServer } from "../lib/i18n";
 import {
   buildBrewPlan,
   clearWizardPosition,
@@ -49,7 +49,14 @@ export function BrewWizard({
   onClose,
 }: Props) {
   const env = useContext(BrewWizardContext);
-  const { t, locale } = usePreferences();
+  const { locale } = usePreferences();
+  /**
+   * Brew-guide vocabulary (§6.3.7 domain `wizard`): served string → the
+   * identically-named bundle entry → humanized token. The bundle keys are
+   * byte-equal to the served ones, so `tServer` needs no alias map; results
+   * still flow through `fmt()` wherever the string carries placeholders.
+   */
+  const tw = (key: string) => tServer(locale, key);
   const phase = useBrewPhase(env, locale);
   const steps = useMemo(
     () => buildBrewPlan(locale, recipe as BrewPlanRecipe),
@@ -156,7 +163,7 @@ export function BrewWizard({
         className="mt-2 rounded-xl px-3 py-2 t-label"
         style={{ background: "var(--surface)", color: "var(--text-secondary)" }}
       >
-        <div className="font-medium text-tertiary">{t("wizard.machine.during_hint")}</div>
+        <div className="font-medium text-tertiary">{tw("wizard.machine.during_hint")}</div>
         <ul className="mt-1 list-disc pl-4 space-y-0.5">
           {step.hints.map((h, i) => (
             <li key={i}>{h}</li>
@@ -190,7 +197,7 @@ export function BrewWizard({
         } as React.CSSProperties
       }
     >
-      <div>{fmt(t("wizard.machine.prompt"), { prompt: m.prompt })}</div>
+      <div>{fmt(tw("wizard.machine.prompt"), { prompt: m.prompt })}</div>
       {env?.confirmEntityId ? (
         <button
           className={primaryBtn}
@@ -198,10 +205,10 @@ export function BrewWizard({
           disabled={m.confirmBusy}
           onClick={() => void phase.confirmPrompt()}
         >
-          {t("wizard.machine.confirm")}
+          {tw("wizard.machine.confirm")}
         </button>
       ) : (
-        <div>{t("wizard.machine.confirm_manual")}</div>
+        <div>{tw("wizard.machine.confirm_manual")}</div>
       )}
       {m.confirmError && <div>{m.confirmError}</div>}
     </div>
@@ -222,8 +229,8 @@ export function BrewWizard({
               <span className="flex items-center gap-1.5">
                 <Coffee size={18} />
                 {step.legacyFull
-                  ? t("wizard.machine.start_full")
-                  : t("wizard.machine.start")}
+                  ? tw("wizard.machine.start_full")
+                  : tw("wizard.machine.start")}
               </span>
             </button>
           </div>
@@ -238,18 +245,18 @@ export function BrewWizard({
             className="mt-1 rounded-xl px-3 py-2 t-label"
             style={{ background: "var(--error-bg)", color: "var(--error-text)" }}
           >
-            {t("wizard.machine.failed")}: {m.error}
+            {tw("wizard.machine.failed")}: {m.error}
           </div>
           <div className="mt-2 flex justify-end gap-2">
             <button className={ghostBtn} style={ghostStyle} onClick={advance}>
-              {t("wizard.machine.skip")}
+              {tw("wizard.machine.skip")}
             </button>
             <button
               className={primaryBtn}
               style={primaryStyle}
               onClick={() => void phase.startPhase(step, recipe as BrewPlanRecipe, target)}
             >
-              {t("wizard.machine.retry")}
+              {tw("wizard.machine.retry")}
             </button>
           </div>
         </>
@@ -273,7 +280,7 @@ export function BrewWizard({
           </span>
         </div>
         <p className="mt-1 t-label text-tertiary">
-          {fmt(t("wizard.machine.estimated"), { sec: m.estimated })}
+          {fmt(tw("wizard.machine.estimated"), { sec: m.estimated })}
         </p>
         {hints(step)}
         {promptCard}
@@ -284,12 +291,12 @@ export function BrewWizard({
               style={primaryStyle}
               onClick={phase.finishManually}
             >
-              {t("wizard.machine.im_done")}
+              {tw("wizard.machine.im_done")}
             </button>
           ) : (
             <span className="flex items-center gap-1.5 t-label text-tertiary">
               <Loader2 size={16} className="animate-spin" />
-              {t("wizard.machine.waiting")}
+              {tw("wizard.machine.waiting")}
             </span>
           )}
         </div>
@@ -300,8 +307,8 @@ export function BrewWizard({
   const stepTitle = (step: WizardStep) => {
     if (step.kind === "manual") return step.title;
     return step.pourCount > 1
-      ? fmt(t("wizard.step.machine_n"), { n: step.pourN, m: step.pourCount })
-      : t("wizard.step.machine");
+      ? fmt(tw("wizard.step.machine_n"), { n: step.pourN, m: step.pourCount })
+      : tw("wizard.step.machine");
   };
 
   const renderStep = (step: WizardStep, i: number) => {
@@ -335,7 +342,7 @@ export function BrewWizard({
                   )}
                   <div className="mt-2 flex justify-end">
                     <button className={primaryBtn} style={primaryStyle} onClick={advance}>
-                      {t("wizard.step.done")}
+                      {tw("wizard.step.done")}
                     </button>
                   </div>
                 </>
@@ -351,11 +358,11 @@ export function BrewWizard({
 
   const finishView = (
     <div className="p-1">
-      <h3 className="text-sm font-semibold text-primary">{t("wizard.finish.title")}</h3>
+      <h3 className="text-sm font-semibold text-primary">{tw("wizard.finish.title")}</h3>
       {recipe.extras?.instruction && (
         <p className="mt-2 text-xs text-secondary italic">{recipe.extras.instruction}</p>
       )}
-      <p className="mt-2 t-label text-tertiary">{t("wizard.finish.message")}</p>
+      <p className="mt-2 t-label text-tertiary">{tw("wizard.finish.message")}</p>
       <div className="mt-3 flex justify-end">
         <button
           className={primaryBtn}
@@ -365,7 +372,7 @@ export function BrewWizard({
             close();
           }}
         >
-          {t("wizard.finish.button")}
+          {tw("wizard.finish.button")}
         </button>
       </div>
     </div>
@@ -380,15 +387,15 @@ export function BrewWizard({
         className="rounded-2xl ring-1 ring-border p-4 max-w-xs surface"
         style={{ background: "var(--surface-card)" }}
       >
-        <h3 className="text-sm font-semibold text-primary">{t("wizard.close.title")}</h3>
-        <p className="mt-1 t-label text-secondary">{t("wizard.close.message")}</p>
+        <h3 className="text-sm font-semibold text-primary">{tw("wizard.close.title")}</h3>
+        <p className="mt-1 t-label text-secondary">{tw("wizard.close.message")}</p>
         <div className="mt-3 flex justify-end gap-2">
           <button
             className={ghostBtn}
             style={ghostStyle}
             onClick={() => setConfirmClose(false)}
           >
-            {t("wizard.close.stay")}
+            {tw("wizard.close.stay")}
           </button>
           <button
             className={primaryBtn}
@@ -398,7 +405,7 @@ export function BrewWizard({
               close();
             }}
           >
-            {t("wizard.close.leave")}
+            {tw("wizard.close.leave")}
           </button>
         </div>
       </div>
@@ -422,16 +429,16 @@ export function BrewWizard({
       >
         <div className="flex items-center justify-between gap-2 px-5 py-4 border-b border-border">
           <span className="text-sm font-semibold text-primary truncate">
-            {recipe.name || t("wizard.title")}
+            {recipe.name || tw("wizard.title")}
           </span>
           <div className="flex items-center gap-2 shrink-0">
             {total > 0 && !finished && (
               <span className="t-label text-tertiary tabular-nums">
-                {fmt(t("wizard.step_of"), { n: current, m: total })}
+                {fmt(tw("wizard.step_of"), { n: current, m: total })}
               </span>
             )}
             <button
-              aria-label={t("wizard.close.title")}
+              aria-label={tw("wizard.close.title")}
               onClick={requestClose}
               className="tap press rounded-xl text-secondary hover:text-primary"
             >
@@ -445,9 +452,9 @@ export function BrewWizard({
               className="mb-3 flex items-center justify-between gap-2 rounded-xl px-3 py-2 t-label"
               style={{ background: "var(--surface)", color: "var(--text-secondary)" }}
             >
-              <span>{t("wizard.resumed")}</span>
+              <span>{tw("wizard.resumed")}</span>
               <button className={ghostBtn} style={ghostStyle} onClick={restart}>
-                {t("wizard.restart")}
+                {tw("wizard.restart")}
               </button>
             </div>
           )}

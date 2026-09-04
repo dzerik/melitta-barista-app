@@ -487,13 +487,16 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
   if (serviceKeys && !isReady && !isBrewing) {
     const serviceTitle =
       statusView.source === "tokens" ? statusView.statusLabel : t(serviceKeys.labelKey);
+    // The service-cycle sublabel is machine-domain wording (§6.3.7): the
+    // served process description when there is one, else our own copy.
+    const serviceSub = statusView.processDescription ?? t(serviceKeys.subKey);
     return (
       <div className="flex h-full flex-col items-center justify-center px-8">
         <div className="flex flex-col items-center gap-6 max-w-sm">
           <img src={iconService} alt="service" className="w-20 h-20 object-contain opacity-70" draggable={false} />
           <div className="text-center">
             <div className="text-xl font-light text-primary tracking-wide">{serviceTitle}</div>
-            <div className="text-sm text-tertiary mt-2 leading-relaxed">{t(serviceKeys.subKey)}</div>
+            <div className="text-sm text-tertiary mt-2 leading-relaxed">{serviceSub}</div>
           </div>
           {progress && (
             <div className="w-48 flex items-center gap-3">

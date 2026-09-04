@@ -115,11 +115,15 @@ export function StatusOverlay({ entities, prefix, conn }: Props) {
       ? t(statusConfig.labelKey)
       : view.statusLabel;
 
+  // Description: the machine-domain sentence when the server has one
+  // (§6.3.7 `status.*.description`), else the app's own generic copy. While
+  // brewing, the sub-process is the more specific thing to say — its served
+  // description first, then the plain activity label, as before.
   const description = view.hasAction
     ? view.actionLabel || t(statusConfig.descKey)
     : isBrewing && view.activityLabel
-      ? view.activityLabel
-      : t(statusConfig.descKey);
+      ? (view.activityDescription ?? view.activityLabel)
+      : (view.processDescription ?? t(statusConfig.descKey));
 
   return createPortal(
     <div

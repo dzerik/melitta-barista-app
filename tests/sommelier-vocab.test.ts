@@ -212,6 +212,44 @@ describe("suggestionLabel", () => {
     expect(suggestionLabel("en", "milk_", "Ультрапастеризованное 3%")).toBe("Ультрапастеризованное 3%");
     expect(suggestionLabel("en", "note_", "burnt_toast")).toBe("burnt_toast");
   });
+
+  it("prefers the served label for the five §6.3.7 suggestion families", () => {
+    setServerStrings({
+      "sommelier.milk.oat": "Hafermilch",
+      "sommelier.syrup.vanilla": "Vanille",
+      "sommelier.topping.whipped_cream": "Schlagsahne",
+      "sommelier.liqueur.amaretto": "Amaretto-Likör",
+      "sommelier.note.citrus": "Zitrus",
+    });
+    expect(suggestionLabel("en", "milk_", "oat")).toBe("Hafermilch");
+    expect(suggestionLabel("en", "syrup_", "vanilla")).toBe("Vanille");
+    expect(suggestionLabel("en", "topping_", "whipped_cream")).toBe("Schlagsahne");
+    expect(suggestionLabel("en", "liqueur_", "amaretto")).toBe("Amaretto-Likör");
+    expect(suggestionLabel("en", "note_", "citrus")).toBe("Zitrus");
+  });
+
+  it("falls back to the bundle per key — an unserved token is unaffected", () => {
+    setServerStrings({ "sommelier.milk.oat": "Hafermilch" });
+    expect(suggestionLabel("en", "milk_", "oat")).toBe("Hafermilch");
+    expect(suggestionLabel("en", "milk_", "soy")).toBe("Soy");
+    expect(suggestionLabel("ru", "milk_", "soy")).toBe("Соевое");
+  });
+
+  it("keeps user text verbatim while served labels are loaded (§9.2.4 stays open)", () => {
+    setServerStrings({
+      "sommelier.milk.oat": "Hafermilch",
+      "sommelier.note.citrus": "Zitrus",
+    });
+    expect(suggestionLabel("en", "milk_", "Ультрапастеризованное 3%")).toBe("Ультрапастеризованное 3%");
+    expect(suggestionLabel("en", "note_", "burnt toast")).toBe("burnt toast");
+    // Keys are byte-significant — a case-folded token is not a served token.
+    expect(suggestionLabel("en", "milk_", "Oat")).toBe("Oat");
+  });
+
+  it("ignores served keys for prefixes outside the five families", () => {
+    setServerStrings({ "sommelier.extra.foam": "Schaum" });
+    expect(suggestionLabel("en", "extra_", "foam")).toBe("foam");
+  });
 });
 
 // ---------------------------------------------------------------------------

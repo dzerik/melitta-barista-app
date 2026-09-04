@@ -156,6 +156,22 @@ describe("syncServerStrings (i18n/get fetch + §6.3.2 caching)", () => {
     expect(send).toHaveBeenCalledWith({ type: "melitta_barista/i18n/get", locale: "de" });
   });
 
+  it("never sends a domains filter, so the 0.94 `wizard` domain arrives too (§6.3.7)", async () => {
+    const { conn, send } = mockConn([
+      i18nResponse({
+        strings: { ...SERVED, "wizard.title": "Brühanleitung", "sommelier.milk.oat": "Hafer" },
+      }),
+    ]);
+    await syncServerStrings(conn, "de");
+    // A client that DID send an explicit list would have to add "wizard";
+    // omitting the parameter is what keeps every served domain flowing.
+    expect(send.mock.calls[0][0]).not.toHaveProperty("domains");
+    expect(serverString("wizard.title")).toBe("Brühanleitung");
+    expect(tServer("en", "wizard.title")).toBe("Brühanleitung");
+    // Unserved wizard keys keep the identically-named bundle entry (tier 2).
+    expect(tServer("en", "wizard.step.done")).toBe("Done");
+  });
+
   it("stores the served map verbatim — the en overlay is server-side, no client merge", async () => {
     const { conn } = mockConn([i18nResponse()]);
     const result = await syncServerStrings(conn, "de");

@@ -181,6 +181,21 @@ describe("deriveMachineStatus — legacy fallback", () => {
     expect(view.source).toBe("legacy");
     expect(view.brewing).toBe(true);
   });
+
+  it("never serves token-keyed descriptions in legacy mode", () => {
+    setServerStrings({
+      "status.process.READY.description": "The machine is on and ready to brew.",
+      "status.sub_process.GRINDING.description": "Grinding beans from the selected hopper.",
+    });
+    const view = deriveMachineStatus(
+      makeEntities({ state: "Ready", activity: "Grinding" }),
+      "melitta",
+      "en",
+    );
+    expect(view.source).toBe("legacy");
+    expect(view.processDescription).toBeNull();
+    expect(view.activityDescription).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -338,6 +353,52 @@ describe("deriveMachineStatus — token mode", () => {
       deriveMachineStatus(tokenEntities({ sub_process_token: "COFFEE" }), "melitta", "en")
         .activityLabel,
     ).toBe("Extraktion");
+  });
+
+  it("carries the served state descriptions (§6.3.7), null when unserved", () => {
+    // Unserved: the view says nothing and the call site keeps its own copy.
+    const plain = deriveMachineStatus(
+      tokenEntities({ process_token: "PRODUCT", is_brewing: true, sub_process_token: "GRINDING" }),
+      "melitta",
+      "en",
+    );
+    expect(plain.processDescription).toBeNull();
+    expect(plain.activityDescription).toBeNull();
+
+    setServerStrings({
+      "status.process.PRODUCT.description": "The machine is preparing a drink.",
+      "status.sub_process.GRINDING.description": "Grinding beans from the selected hopper.",
+    });
+    const served = deriveMachineStatus(
+      tokenEntities({ process_token: "PRODUCT", is_brewing: true, sub_process_token: "GRINDING" }),
+      "melitta",
+      "en",
+    );
+    expect(served.processDescription).toBe("The machine is preparing a drink.");
+    expect(served.activityDescription).toBe("Grinding beans from the selected hopper.");
+    // The label keyspace is untouched by the .description keys.
+    expect(served.statusLabel).toBe("Brewing");
+    expect(served.activityLabel).toBe("Grinding");
+  });
+
+  it("descriptions are looked up by exact key — a missing one is not an error", () => {
+    setServerStrings({ "status.process.READY.description": "The machine is on and ready to brew." });
+    const ready = deriveMachineStatus(tokenEntities(), "melitta", "en");
+    expect(ready.processDescription).toBe("The machine is on and ready to brew.");
+    expect(ready.activityDescription).toBeNull();
+    const cleaning = deriveMachineStatus(
+      tokenEntities({ process_token: "CLEANING" }),
+      "melitta",
+      "en",
+    );
+    expect(cleaning.processDescription).toBeNull();
+  });
+
+  it("an unmapped raw code borrows BUSY's description, mirroring its label", () => {
+    setServerStrings({ "status.process.BUSY.description": "The machine is working. Wait for it to finish." });
+    const view = deriveMachineStatus(tokenEntities({ process_token: null }), "melitta", "en");
+    expect(view.statusLabel).toBe("Busy");
+    expect(view.processDescription).toBe("The machine is working. Wait for it to finish.");
   });
 
   it("null sub-process token means idle (null activity)", () => {
