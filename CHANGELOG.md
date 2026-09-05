@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.1] — 2026-09-05
+
+### Fixed
+
+- Installing the app asked the browser for `/icon-192.png` at the site root, which is a 404 anywhere the app is not served from `/` — GitHub Pages and the `/melitta/` deployment both. The manifest now points at its icons relatively, so they resolve wherever the app lives.
+- The manifest's theme and background colours were black; they are the espresso ground the app actually paints, so the splash screen no longer flashes a different colour than the app.
+
 ## [2.4.0] — 2026-09-04
 
 ### Added
