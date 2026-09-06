@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.0.0] — 2026-09-07
+
+The app is drawn the way a coffee machine's own panel is drawn.
+
+### Changed
+
+- **No rounded frames, anywhere.** Every rectangle in the app is square. The only curves left are true circles — pagination dots, step markers — and the drawn contour of a glass. The capsule chips that carried every choice, and the rounded bordered cards that held every drink, are gone.
+- **No background fills.** A control is a word, a glyph, a meter or a rule; a container is bounded by a hairline, by the 1px gap of its own grid, or by nothing at all. Four things may still paint: the scrim under a modal, one flat neutral panel per modal, the single committing rectangle on a screen, and the filled segments of a meter — where the paint *is* the value being shown.
+- **Selection is the word, not a box.** The chosen option turns white over a lit 1px accent underline, in a slot that is always reserved so nothing shifts when you choose. The accent is spent in four places — the one commit, the lit underline, position and progress marks, and the label half of a value pair — and withheld everywhere else.
+- **One set of controls for the whole app.** Option, OptionRow, Commit, Meter, TickRing, DrinkStage and Rule live in one place, and all six tabs are built on them, so the same choice is drawn the same way whether it sits in Settings, in a recipe or in the sommelier.
+- **Drinks are lit against the ground.** Each one gets a neutral glow, a reflection and a contact shading — never a plate, a ring or a shadow — and is sized by its role: 280px as the hero of a page, 140px in a grid cell, 64px in a mosaic tile. The drink never carries the selection state; that is what the name and its underline are for.
+- **Progress follows the machine.** Brewing keeps the drink, its name and its composition on screen and adds a segmented meter along the bottom, exactly as the Barista TS does; the tick ring is reserved for maintenance programmes, where the duration is known and announced before you commit to it.
+- Settings, service and the sommelier are laid out as rows separated by hairlines at one pitch, rather than as stacks of cards.
+
+### Why
+
+The interface had drifted into the default shapes of a generic UI kit. Read against the panels of Franke, WMF, Jura, De'Longhi and Melitta's own machine, not one of them draws a drink in a tile, a fill or a bordered box: cells are separated by 1px hairlines, filled shapes are rationed to one or two per screen, and selection is a fill swap on the same shape or a marker in the gutter. The app's own Recipes and "Свой рецепт" pages already worked that way; this release brings the rest of the app to them.
+
 ## [2.5.1] — 2026-09-06
 
 ### Changed
