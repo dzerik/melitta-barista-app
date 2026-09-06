@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.5.0] — 2026-09-06
+
+The sommelier looks like the rest of the app, and history is a place you can order from.
+
+### Added
+
+- **Brew from history.** Past suggestions were a read-only log — a grey name with a cross beside it — so a drink you liked on Tuesday could only be had again by generating until it came back. Every row is now a full recipe card with the same Brew and the same ♥ as everywhere else, multi-phase drinks included (they open the step wizard, as they should).
+- **Drinks are drawn.** Every sommelier recipe now shows the glass its composition describes, using the icon the integration has been serving since 0.91 and the app was ignoring. Suggestions, favourites and history look like the machine's own recipes because they are described the same way.
+
+### Changed
+
+- **One card for all three tabs.** Suggestions, favourites and history each drew their own thing from the same data; they now share a card with one hierarchy — drink, name, what it is, what it is made of, and an action bar that lines up across a row.
+- **Generate reads as a brief, not a form.** The two hopper cards and the milk row collapse into one quiet strip of what the machine is loaded with; the free-text wish leads; mood, occasion, temperature, servings and the number of suggestions became labelled rows of the same rank. The bare native dropdown for the suggestion count is gone, as are the two competing primary buttons — Generate is primary, Surprise me is secondary.
+- The sommelier content column is capped and laid out in a responsive grid, so descriptions stop running the full width of a desktop screen.
+
+### Fixed
+
+- Dates and times in history and favourites followed the browser's language, not the app's — a Russian interface printed `9/3/2026`. They now read `3 сентября 2026 г.`
+- A favourite's brew count was a cryptic `x1`; it now says how many times it was brewed and when it was last made.
+- The delete button on a favourite sat outside the card's frame, and the Brew button was dark-on-dark in the dark theme.
+
 ## [2.4.1] — 2026-09-05
 
 ### Fixed

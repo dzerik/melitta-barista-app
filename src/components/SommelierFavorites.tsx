@@ -1,12 +1,10 @@
-import { useContext, useState } from "react";
-import { ChevronDown, ChevronUp, Coffee, Trash2, Star } from "lucide-react";
+import { useState } from "react";
+import { Star } from "lucide-react";
 import { usePreferences } from "../lib/preferences";
 import type { TranslationKey } from "../lib/i18n";
 import type { AiRecipe, Favorite, useSommelier } from "../hooks/useSommelier";
-import { hasPhasePlan } from "../lib/brew-plan";
-import { BrewWizardContext } from "../hooks/useBrewPhase";
-import { BrewWizard } from "./BrewWizard";
-import { pourSummaries, readableSteps } from "../lib/recipe-summary";
+import { fmt } from "../lib/brew-plan";
+import { SommelierRecipeCard } from "./SommelierRecipeCard";
 
 type SommelierHook = ReturnType<typeof useSommelier>;
 
@@ -15,38 +13,45 @@ interface Props {
 }
 
 /**
- * Saved favorites list.
+ * Saved favourites.
  *
- * Brew routing mirrors `SommelierRecipeCard`: a favorite carrying
- * `machine_phases` opens the step-machine wizard (multi-phase drinks must
- * not one-shot brew past their manual steps) whenever a host provides the
- * `BrewWizardContext`; everything else keeps the legacy `favorites/brew`
- * path byte-identically.
+ * Rendered by the shared recipe card, so a favourite looks like the
+ * suggestion it came from. Brewing goes through `favorites/brew` (which is
+ * what keeps the brew count), except for multi-phase drinks, where the card
+ * opens the step wizard — those must not one-shot brew past their manual
+ * steps.
  */
 export function SommelierFavorites({ sommelier }: Props) {
   const { t, locale } = usePreferences();
   const { favorites, brewFavorite, removeFavorite } = sommelier;
   const [brewingId, setBrewingId] = useState<string | null>(null);
-  const wizardEnv = useContext(BrewWizardContext);
-  const [wizardFav, setWizardFav] = useState<Favorite | null>(null);
-  const [openId, setOpenId] = useState<string | null>(null);
 
-  const wizardBrews = (fav: Favorite) => wizardEnv !== null && hasPhasePlan(fav);
-
-  const handleBrew = async (fav: Favorite) => {
-    if (wizardBrews(fav)) {
-      setWizardFav(fav);
-      return;
+  const handleBrew = async (id: string) => {
+    setBrewingId(id);
+    try {
+      await brewFavorite(id);
+    } finally {
+      setBrewingId(null);
     }
-    setBrewingId(fav.id);
-    try { await brewFavorite(fav.id); } finally { setBrewingId(null); }
+  };
+
+  /** "Brewed 3× · last on 2 September" — empty until it has been brewed. */
+  const metaLine = (fav: Favorite): string | null => {
+    if (!fav.brew_count) return null;
+    const times = fmt(t("sommelier.brewed_times" as TranslationKey), { n: fav.brew_count });
+    if (!fav.last_brewed_at) return times;
+    const date = new Date(fav.last_brewed_at).toLocaleDateString(locale, {
+      day: "numeric",
+      month: "long",
+    });
+    return `${times} · ${t("sommelier.last_brewed" as TranslationKey)} ${date}`;
   };
 
   if (favorites.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-4">
         <Star size={40} className="text-tertiary opacity-40" />
-        <div className="text-sm text-tertiary text-center">
+        <div className="t-body text-tertiary text-center">
           {t("sommelier.no_favorites" as TranslationKey)}
         </div>
       </div>
@@ -54,116 +59,17 @@ export function SommelierFavorites({ sommelier }: Props) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(26rem, 1fr))" }}>
       {favorites.map((fav) => (
-        <div
+        <SommelierRecipeCard
           key={fav.id}
-          className="rounded-xl ring-1 ring-border p-4 transition-all duration-200"
-          style={{ background: "var(--surface-card)" }}
-        >
-          <div className="flex items-start gap-3">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-primary truncate">{fav.name}</span>
-                {fav.brew_count > 0 && (
-                  <span
-                    className="shrink-0 t-label font-bold px-1.5 py-0.5 rounded-full tabular-nums"
-                    style={{ background: "var(--surface)", color: "var(--text-tertiary)" }}
-                  >
-                    x{fav.brew_count}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-secondary mt-1 line-clamp-2">{fav.description}</p>
-              {fav.last_brewed_at && (
-                <div className="t-label text-tertiary mt-1.5">
-                  {t("sommelier.last_brewed" as TranslationKey)}: {new Date(fav.last_brewed_at).toLocaleDateString()}
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center shrink-0">
-              <button
-                onClick={() => setOpenId((id) => (id === fav.id ? null : fav.id))}
-                aria-expanded={openId === fav.id}
-                aria-label={t("sommelier.details" as TranslationKey)}
-                className="tap press rounded-xl text-secondary hover:text-primary"
-              >
-                {openId === fav.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-              </button>
-              <button
-                onClick={() => handleBrew(fav)}
-                disabled={brewingId === fav.id}
-                className="tap press rounded-xl px-4 t-label font-semibold"
-                style={{
-                  background: "var(--btn-primary-bg)",
-                  color: "var(--btn-primary-text)",
-                  opacity: brewingId === fav.id ? 0.5 : 1,
-                }}
-              >
-                {brewingId === fav.id ? "..." : (
-                  <span className="flex items-center gap-1.5">
-                    <Coffee size={18} />
-                    {t("sommelier.brew" as TranslationKey)}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => removeFavorite(fav.id)}
-                className="tap press rounded-xl text-tertiary hover:text-red-400"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-          </div>
-
-          {openId === fav.id && (
-            <div className="mt-3 pt-3 border-t space-y-2" style={{ borderColor: "var(--border)" }}>
-              {fav.reasoning && (
-                <div>
-                  <div className="t-label font-medium text-primary">
-                    {t("sommelier.reasoning" as TranslationKey)}
-                  </div>
-                  <p className="t-label text-secondary mt-0.5">{fav.reasoning}</p>
-                </div>
-              )}
-              {(() => {
-                const steps = readableSteps(locale, fav as never);
-                const pours = pourSummaries(locale, fav as never);
-                return (
-                  <>
-                    {steps.length > 0 && (
-                      <div>
-                        <div className="t-label font-medium text-primary">
-                          {t("sommelier.steps" as TranslationKey)}
-                        </div>
-                        <ol className="mt-1 space-y-1 list-decimal list-inside">
-                          {steps.map((line, i) => (
-                            <li key={i} className="t-label text-secondary">{line}</li>
-                          ))}
-                        </ol>
-                      </div>
-                    )}
-                    {steps.length === 0 && pours.length > 0 && (
-                      <div className="t-label text-secondary">{pours.join("  +  ")}</div>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-          )}
-        </div>
-      ))}
-
-      {wizardFav && (
-        <BrewWizard
-          open
-          recipe={{ ...wizardFav, brewed: false } as unknown as AiRecipe}
-          source="favorite"
-          sourceId={wizardFav.id}
-          onClose={() => setWizardFav(null)}
+          recipe={fav as unknown as AiRecipe}
+          onBrew={handleBrew}
+          onRemove={removeFavorite}
+          brewing={brewingId === fav.id}
+          meta={metaLine(fav)}
         />
-      )}
+      ))}
     </div>
   );
 }

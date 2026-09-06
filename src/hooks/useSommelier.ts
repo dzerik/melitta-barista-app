@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { Connection } from "home-assistant-js-websocket";
 import { getVocab, syncVocab, type ServerVocab } from "../lib/server-strings";
+import type { IconSpec } from "../lib/contract";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -62,6 +63,8 @@ export interface AiRecipe {
   id: string;
   name: string;
   description: string;
+  /** Served drink icon (§3.9) — the same spec the recipe catalog carries. */
+  icon?: IconSpec | null;
   /** Why the sommelier suggested this drink (served since 0.91). */
   reasoning?: string;
   blend: number;
@@ -118,6 +121,8 @@ export interface Favorite {
   id: string;
   name: string;
   description: string;
+  /** Served drink icon (§3.9). */
+  icon?: IconSpec | null;
   /** Kept with the favourite since integration 0.94 (schema v12). */
   reasoning?: string;
   blend: number;

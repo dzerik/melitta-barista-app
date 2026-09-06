@@ -87,7 +87,7 @@ export function SommelierSection({ conn, entities, prefix, contract = null }: Pr
       )}
 
       {/* Sub-navigation */}
-      <div className="mx-5 mt-4 flex rounded-xl overflow-hidden ring-1 ring-border">
+      <div className="mx-auto mt-4 w-full max-w-6xl px-5 flex gap-2">
         {SUB_VIEWS.map(({ key, labelKey, icon: Icon }) => {
           const active = subView === key;
           return (
@@ -95,11 +95,11 @@ export function SommelierSection({ conn, entities, prefix, contract = null }: Pr
               key={key}
               onClick={() => setSubView(key)}
               aria-current={active ? "page" : undefined}
-              className="tap press flex-1 flex items-center justify-center gap-2 t-label"
+              className="tap press flex-1 flex items-center justify-center gap-2 rounded-xl t-label ring-1"
               style={
                 active
-                  ? { background: "var(--btn-primary-bg)", color: "var(--btn-primary-text)", fontWeight: 600 }
-                  : { background: "var(--surface)", color: "var(--text-secondary)" }
+                  ? { background: "var(--btn-primary-bg)", color: "var(--btn-primary-text)", fontWeight: 600, "--tw-ring-color": "transparent" } as React.CSSProperties
+                  : { background: "var(--surface-card)", color: "var(--text-secondary)", "--tw-ring-color": "var(--border)" } as React.CSSProperties
               }
             >
               <Icon size={18} />
@@ -109,8 +109,9 @@ export function SommelierSection({ conn, entities, prefix, contract = null }: Pr
         })}
       </div>
 
-      {/* Active sub-view */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
+      {/* Active sub-view — capped like the rest of the app, so lines stay
+          readable instead of running the full width of a desktop screen. */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 w-full max-w-6xl mx-auto">
         {subView === "generate" && <SommelierGenerate sommelier={sommelier} />}
         {subView === "favorites" && <SommelierFavorites sommelier={sommelier} />}
         {subView === "history" && <SommelierHistory sommelier={sommelier} />}
