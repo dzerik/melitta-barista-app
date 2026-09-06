@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.5.1] — 2026-09-06
+
+### Changed
+
+- **The sommelier drops the outlined capsules.** Mood, occasion, temperature, servings and the number of suggestions were rounded chips with a ring each — the default shape of a generic UI kit, and nothing a coffee machine's own screen has ever drawn. They are now plain words in ruled rows, the chosen one lit in crema and underlined. The tabs lost their filled buttons for the same reason: three words with a rule beneath them, the current one lit.
+- **Recipes read as a machine sheet.** A drink is separated from the next by a hairline rather than wrapped in a bordered box; the name is set large and light, and what it is made of runs as one strip of values divided by rules. Caffeine and calories moved into the details, where the steps are now numbered in crema.
+- The wish field is a line to write on instead of a rounded input, and the commit button is a plain rectangle.
+
 ## [2.5.0] — 2026-09-06
 
 The sommelier looks like the rest of the app, and history is a place you can order from.

@@ -87,7 +87,12 @@ export function SommelierSection({ conn, entities, prefix, contract = null }: Pr
       )}
 
       {/* Sub-navigation */}
-      <div className="mx-auto mt-4 w-full max-w-6xl px-5 flex gap-2">
+      {/* Three words with a rule under them; the one you are on is lit. Three
+          filled buttons competing for the eye is a kit, not a machine. */}
+      <div
+        className="mx-auto mt-4 w-full max-w-6xl px-5 flex gap-8 border-b"
+        style={{ borderColor: "var(--border)" }}
+      >
         {SUB_VIEWS.map(({ key, labelKey, icon: Icon }) => {
           const active = subView === key;
           return (
@@ -95,12 +100,11 @@ export function SommelierSection({ conn, entities, prefix, contract = null }: Pr
               key={key}
               onClick={() => setSubView(key)}
               aria-current={active ? "page" : undefined}
-              className="tap press flex-1 flex items-center justify-center gap-2 rounded-xl t-label ring-1"
-              style={
-                active
-                  ? { background: "var(--btn-primary-bg)", color: "var(--btn-primary-text)", fontWeight: 600, "--tw-ring-color": "transparent" } as React.CSSProperties
-                  : { background: "var(--surface-card)", color: "var(--text-secondary)", "--tw-ring-color": "var(--border)" } as React.CSSProperties
-              }
+              className="tap press flex items-center gap-2 t-body -mb-px"
+              style={{
+                color: active ? "var(--accent)" : "var(--text-secondary)",
+                borderBottom: active ? "2px solid var(--accent)" : "2px solid transparent",
+              }}
             >
               <Icon size={18} />
               <span>{t(labelKey as TranslationKey)}</span>

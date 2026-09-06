@@ -12,8 +12,13 @@ interface Props {
   sommelier: SommelierHook;
 }
 
-/** One labelled row of chips. The four selectors differ in content, not rank. */
-function ChipRow({
+/**
+ * One labelled row of choices, in the machine's idiom: a quiet label, the
+ * options as plain words, the chosen one lit in crema and underlined. The
+ * outlined capsule this used to be is the tell of a generic UI kit — a coffee
+ * machine's screen never draws one.
+ */
+function OptionRow({
   label,
   children,
 }: {
@@ -21,9 +26,12 @@ function ChipRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <span className="t-label text-tertiary w-24 shrink-0">{label}</span>
-      <div className="flex flex-wrap gap-2">{children}</div>
+    <div
+      className="flex flex-wrap items-baseline gap-x-6 gap-y-1 border-t"
+      style={{ borderColor: "var(--border)" }}
+    >
+      <span className="t-label text-tertiary w-28 shrink-0">{label}</span>
+      <div className="flex flex-wrap items-baseline gap-x-6">{children}</div>
     </div>
   );
 }
@@ -62,13 +70,7 @@ export function SommelierGenerate({ sommelier }: Props) {
     try { await brewRecipe(id); } finally { setBrewingId(null); }
   };
 
-  const chipStyle = (active: boolean) => ({
-    background: active ? "var(--btn-primary-bg)" : "var(--surface-card)",
-    color: active ? "var(--btn-primary-text)" : "var(--text-secondary)",
-    "--tw-ring-color": active ? "transparent" : "var(--border)",
-  } as React.CSSProperties);
-
-  const chip = (
+  const option = (
     key: string,
     label: string,
     active: boolean,
@@ -79,8 +81,11 @@ export function SommelierGenerate({ sommelier }: Props) {
       onClick={onClick}
       aria-pressed={active}
       aria-label={label}
-      className="tap press rounded-full px-4 t-label ring-1"
-      style={chipStyle(active)}
+      className="tap press t-body"
+      style={{
+        color: active ? "var(--accent)" : "var(--text-secondary)",
+        borderBottom: active ? "1px solid var(--accent)" : "1px solid transparent",
+      }}
     >
       {label}
     </button>
@@ -91,7 +96,10 @@ export function SommelierGenerate({ sommelier }: Props) {
     const hopper = num === 1 ? hoppers?.hopper1 : hoppers?.hopper2;
     const bean = hopper?.bean;
     return (
-      <div className="flex-1 min-w-0">
+      <div
+        className={`flex-1 min-w-0 ${num === 2 ? "border-l pl-6 ml-6" : ""}`}
+        style={num === 2 ? { borderColor: "var(--border)" } : undefined}
+      >
         <div className="t-label text-tertiary">
           {t(`sommelier.hopper${num}` as TranslationKey)}
         </div>
@@ -124,14 +132,11 @@ export function SommelierGenerate({ sommelier }: Props) {
     <div className="space-y-6">
       {/* What the machine is loaded with — one quiet strip, not two cards
           the size of the brief itself. */}
-      <div
-        className="rounded-2xl ring-1 ring-border px-4 py-3 flex flex-wrap gap-x-8 gap-y-3"
-        style={{ background: "var(--surface-card)" }}
-      >
+      <div className="flex flex-wrap gap-y-3">
         {renderHopper(1)}
         {renderHopper(2)}
         {milkTypes.length > 0 && (
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 border-l pl-6 ml-6" style={{ borderColor: "var(--border)" }}>
             <div className="t-label text-tertiary">{t("sommelier.milk" as TranslationKey)}</div>
             <div className="t-body text-primary truncate">
               {milkTypes.map((m) => suggestionLabel(locale, "milk_", m)).join(" · ")}
@@ -148,48 +153,48 @@ export function SommelierGenerate({ sommelier }: Props) {
           value={preference}
           onChange={(e) => setPreference(e.target.value)}
           placeholder={t("sommelier.preference_placeholder" as TranslationKey)}
-          className="tap tap-lg w-full rounded-2xl px-5 t-body ring-1 ring-border outline-none transition focus:ring-2"
-          style={{ background: "var(--surface-card)", color: "var(--text-primary)", "--tw-ring-color": "var(--border)" } as React.CSSProperties}
+          className="tap tap-lg w-full bg-transparent border-b px-0 t-body outline-none transition"
+          style={{ borderColor: "var(--border-hover)", color: "var(--text-primary)" }}
         />
 
         <div className="space-y-3">
-          <ChipRow label={t("sommelier.mood" as TranslationKey)}>
+          <OptionRow label={t("sommelier.mood" as TranslationKey)}>
             {moods.map((m) =>
-              chip(m, sommelierLabel(locale, "mood", m), mood === m, () =>
+              option(m, sommelierLabel(locale, "mood", m), mood === m, () =>
                 setMood(mood === m ? "" : m),
               ),
             )}
-          </ChipRow>
+          </OptionRow>
 
-          <ChipRow label={t("sommelier.occasion" as TranslationKey)}>
+          <OptionRow label={t("sommelier.occasion" as TranslationKey)}>
             {occasions.map((o) =>
-              chip(o, sommelierLabel(locale, "occasion", o), occasion === o, () =>
+              option(o, sommelierLabel(locale, "occasion", o), occasion === o, () =>
                 setOccasion(occasion === o ? "" : o),
               ),
             )}
-          </ChipRow>
+          </OptionRow>
 
           {hasIce && (
-            <ChipRow label={t("sommelier.temp_pref" as TranslationKey)}>
+            <OptionRow label={t("sommelier.temp_pref" as TranslationKey)}>
               {temps.map((tmp) =>
-                chip(tmp, sommelierLabel(locale, "temperature", tmp), temperature === tmp, () =>
+                option(tmp, sommelierLabel(locale, "temperature", tmp), temperature === tmp, () =>
                   setTemperature(tmp),
                 ),
               )}
-            </ChipRow>
+            </OptionRow>
           )}
 
-          <ChipRow label={t("sommelier.servings" as TranslationKey)}>
+          <OptionRow label={t("sommelier.servings" as TranslationKey)}>
             {[1, 2, 3, 4].map((n) =>
-              chip(String(n), String(n), servings === n, () => setServings(n)),
+              option(String(n), String(n), servings === n, () => setServings(n)),
             )}
-          </ChipRow>
+          </OptionRow>
 
-          <ChipRow label={t("sommelier.count" as TranslationKey)}>
+          <OptionRow label={t("sommelier.count" as TranslationKey)}>
             {[1, 2, 3, 4, 5].map((n) =>
-              chip(`c${n}`, String(n), count === n, () => setCount(n)),
+              option(`c${n}`, String(n), count === n, () => setCount(n)),
             )}
-          </ChipRow>
+          </OptionRow>
         </div>
       </div>
 
@@ -198,7 +203,7 @@ export function SommelierGenerate({ sommelier }: Props) {
         <button
           onClick={handleGenerate}
           disabled={generating}
-          className="tap tap-lg press flex-1 min-w-56 flex items-center justify-center gap-2 rounded-2xl t-body font-semibold"
+          className="tap tap-lg press flex items-center justify-center gap-2 rounded-md px-16 t-body font-semibold tracking-wide"
           style={{ background: "var(--btn-primary-bg)", color: "var(--btn-primary-text)", opacity: generating ? 0.5 : 1 }}
         >
           <Sparkles size={18} />
@@ -207,8 +212,8 @@ export function SommelierGenerate({ sommelier }: Props) {
         <button
           onClick={handleSurprise}
           disabled={generating}
-          className="tap tap-lg press flex items-center justify-center gap-2 rounded-2xl px-6 t-body font-medium ring-1 ring-border"
-          style={{ background: "var(--surface-card)", color: "var(--text-secondary)", opacity: generating ? 0.5 : 1 }}
+          className="tap tap-lg press flex items-center justify-center gap-2 rounded-md px-6 t-body border"
+          style={{ borderColor: "var(--border-hover)", color: "var(--text-secondary)", opacity: generating ? 0.5 : 1 }}
         >
           <Shuffle size={18} />
           {t("sommelier.surprise_me" as TranslationKey)}
