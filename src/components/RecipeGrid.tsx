@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, useMemo } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import type { RecipeDetails } from "../lib/entities";
 import { RecipeCard, type RecipeCardData } from "./RecipeCard";
+import { Commit, Rule } from "./ui";
 
 interface Props {
   recipes: RecipeCardData[];
@@ -11,6 +12,37 @@ interface Props {
   brewLabel: string;
   columns?: number;
   rows?: number;
+}
+
+/**
+ * A pagination dot — the one honest curve in the app (§C6b, §S4.6).
+ *
+ * The current page is a solid `--accent` disc at `--dot`; every other page is
+ * the same 8px circle drawn as a 1px `--accent` ring whose `--bg` interior
+ * visibly interrupts the rule passing behind it. No size change between
+ * states, no opacity fade, and above all no growing 22×8 capsule. The painted
+ * mark stays 8px; the reach is 48px via `.tap`.
+ */
+function PagerDot({ current }: { current: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      data-ui="pager-dot"
+      data-current={current ? "true" : "false"}
+      /** A position mark (§8.1c): the paint IS the position. */
+      data-fill="dot"
+      className="block"
+      style={{
+        width: "var(--dot)",
+        height: "var(--dot)",
+        borderRadius: "50%",
+        backgroundColor: current ? "var(--accent)" : "var(--bg)",
+        borderWidth: current ? 0 : "1px",
+        borderStyle: "solid",
+        borderColor: "var(--accent)",
+      }}
+    />
+  );
 }
 
 export function RecipeGrid({ recipes, onSelect, onBrew, renderInfo, brewLabel, columns = 4, rows = 2 }: Props) {
@@ -56,27 +88,22 @@ export function RecipeGrid({ recipes, onSelect, onBrew, renderInfo, brewLabel, c
   const selectedRecipe = recipes.find((r) => r.isSelected);
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Page dots — the dot stays small, its reach does not */}
+    <div className="flex flex-col flex-1 min-h-0">
+      {/* Page dots ride ON the section rule: the dot stays 8px, its reach does
+          not, and the hollow ones interrupt the rule passing behind them. */}
       {pages.length > 1 && (
-        <div className="flex justify-center shrink-0">
+        <div className="relative flex justify-center shrink-0">
+          <Rule rail className="absolute left-0 right-0 top-1/2" />
           {pages.map((_, idx) => (
             <button
               key={idx}
               onClick={() => emblaApi?.scrollTo(idx)}
               aria-label={`Go to page ${idx + 1}`}
               aria-current={idx === selectedPage ? "true" : undefined}
-              className="tap press w-10"
+              className="tap press w-10 relative"
+              style={{ borderRadius: 0 }}
             >
-              <span
-                className="block rounded-full transition-all duration-300"
-                style={{
-                  width: idx === selectedPage ? 22 : 8,
-                  height: 8,
-                  background: idx === selectedPage ? "var(--accent)" : "var(--text-tertiary)",
-                  opacity: idx === selectedPage ? 1 : 0.4,
-                }}
-              />
+              <PagerDot current={idx === selectedPage} />
             </button>
           ))}
         </div>
@@ -103,7 +130,6 @@ export function RecipeGrid({ recipes, onSelect, onBrew, renderInfo, brewLabel, c
                     recipe={recipe}
                     active={recipe.isSelected}
                     hovered={hoveredRecipe === recipe.name}
-                    dimInactive={false}
                     iconSize={140}
                     onClick={() => onSelect(recipe.name)}
                     onPointerEnter={() => setHoveredRecipe(recipe.name)}
@@ -118,21 +144,11 @@ export function RecipeGrid({ recipes, onSelect, onBrew, renderInfo, brewLabel, c
         </div>
       </div>
 
-      {/* Brew — the one action this screen exists for, so it gets the width
-          and the only saturated colour on the page. */}
+      {/* Brew — the one action this screen exists for, so it gets the page
+          column's full width and the only saturated colour on the page. */}
       {selectedRecipe && (
-        <div className="shrink-0 px-4 pb-3 pt-1 flex justify-center">
-          <button
-            className="tap tap-lg press w-full max-w-xl mx-auto rounded-2xl t-title"
-            style={{
-              background: "var(--btn-primary-bg)",
-              color: "var(--btn-primary-text)",
-              boxShadow: "var(--shadow-lift)",
-            }}
-            onClick={onBrew}
-          >
-            {brewLabel}
-          </button>
+        <div className="shrink-0 w-full px-4 pb-3 pt-1">
+          <Commit label={brewLabel} onCommit={onBrew} />
         </div>
       )}
     </div>

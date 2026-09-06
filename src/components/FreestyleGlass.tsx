@@ -646,7 +646,7 @@ export function FreestyleGlass({
       </svg>
 
       {!hideVolume && (
-        <span className="text-sm text-neutral-500 tabular-nums">{totalMl} ml</span>
+        <span className="t-label text-tertiary tabular-nums">{totalMl} ml</span>
       )}
     </div>
   );

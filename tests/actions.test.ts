@@ -1,4 +1,22 @@
+/**
+ * The action catalog (§6.2) as data, plus the MaintenanceSection rows that
+ * render it.
+ *
+ * The component block at the end pins the rebuilt row form: a hairline row on
+ * the page ground with a bare glyph, the duration disclosed before commitment,
+ * and the action as a bare word that escalates to `--error-text` over a 1px
+ * `--error-border` underline once armed. No card, no fill, no ring, no radius
+ * — the two hard rules, asserted node by node.
+ *
+ * It is written with `createElement` rather than JSX because this file is the
+ * catalog's own `.ts` test module and stays one.
+ */
 import { describe, it, expect, beforeEach } from "vitest";
+import { createElement } from "react";
+import { fireEvent, screen } from "@testing-library/react";
+import type { Connection, HassEntities } from "home-assistant-js-websocket";
+import { renderWithProviders } from "./test-utils";
+import { MaintenanceSection } from "../src/components/MaintenanceSection";
 import {
   readActionCatalog,
   resolveActionCatalog,
@@ -327,5 +345,151 @@ describe("display resolution — §6.2.1 icons, §6.3.5.1 labels", () => {
     expect(actionGroupLabel("en", "power")).toBe("Other");
     expect(actionGroupLabel("en", "danger")).toBe("Danger Zone");
     expect(actionGroupLabel("en", "experimental")).toBe("Experimental");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// MaintenanceSection — the rebuilt row form
+// ---------------------------------------------------------------------------
+
+/** Fills the language permits; each must announce itself with `data-fill`. */
+const CARVE_OUTS = new Set([
+  "commit",
+  "meter",
+  "glow",
+  "contact",
+  "rule",
+  "scrim",
+  "panel",
+]);
+
+/**
+ * The two hard rules, asserted on every node: radius 0 (a true circle —
+ * width === height — being the only curve), no undeclared fill, no ring, no
+ * shadow, no tracked-out caps.
+ */
+function assertHardRules(root: HTMLElement) {
+  root.querySelectorAll<HTMLElement>("*").forEach((el) => {
+    const cls = String(el.className);
+    const radius = el.style?.borderRadius ?? "";
+    if (radius !== "" && radius !== "0px") {
+      expect(radius, `${el.tagName} draws a curve that is not a circle`).toBe("50%");
+      expect(el.style.width).toBe(el.style.height);
+    }
+    expect(cls).not.toMatch(/(^|\s)rounded/);
+    expect(cls).not.toMatch(/(^|\s)ring-/);
+    expect(cls).not.toMatch(/shadow-|tracking-|uppercase|backdrop-blur/);
+    const shadow = el.style?.boxShadow ?? "";
+    if (shadow !== "") expect(shadow).toBe("none");
+
+    const painted =
+      (el.style?.backgroundColor ?? "") !== "" ||
+      (el.style?.backgroundImage ?? "") !== "";
+    if (!painted) return;
+    const declared = el.getAttribute("data-fill");
+    expect(
+      declared !== null && CARVE_OUTS.has(declared),
+      `${el.tagName} paints without declaring a carve-out (data-fill=${declared})`,
+    ).toBe(true);
+  });
+}
+
+const CTX = { id: "", user_id: null, parent_id: null };
+const ent = (state: string) => ({
+  entity_id: "",
+  state,
+  attributes: {},
+  last_changed: "",
+  last_updated: "",
+  context: CTX,
+});
+
+/** Legacy mode (no contract): connected + ready, with two anchor buttons. */
+function maintenanceEntities(connection = "Connected"): HassEntities {
+  return {
+    "sensor.mel_connection": ent(connection),
+    "sensor.mel_state": ent("Ready"),
+    "button.mel_easy_clean": ent("unknown"),
+    "button.mel_descaling": ent("unknown"),
+  } as unknown as HassEntities;
+}
+
+const conn = { sendMessagePromise: async () => ({}) } as unknown as Connection;
+
+function renderMaintenance(entities: HassEntities = maintenanceEntities()) {
+  return renderWithProviders(
+    createElement(MaintenanceSection, { conn, entities, prefix: "mel" }),
+  );
+}
+
+describe("MaintenanceSection — hairline rows, no cards", () => {
+  it("draws each action as a hairline row with no fill, ring or radius", () => {
+    const { container } = renderMaintenance();
+
+    const label = screen.getByText("Easy Clean");
+    const row = label.closest<HTMLElement>("div.settings-card-enter")!;
+    expect(row.style.backgroundColor).toBe("");
+    expect(row.style.borderTopColor).toBe("var(--border)");
+    expect(row.style.borderRadius).toBe("0px");
+    // §G2.7: a fixed row pitch, and the glyph carries no plate behind it.
+    expect(row.style.minHeight).toBe("80px");
+    const glyph = row.firstElementChild as HTMLElement;
+    expect(glyph.style.backgroundColor).toBe("");
+    assertHardRules(container);
+  });
+
+  it("keeps the action a bare word whose underline slot is always reserved", () => {
+    renderMaintenance();
+
+    const start = screen.getAllByRole("button", { name: "Start" })[0];
+    expect(start.style.backgroundColor).toBe("");
+    expect(start.style.border).toBe("");
+    expect(start.style.borderBottomWidth).toBe("1px");
+    expect(start.style.borderBottomColor).toBe("transparent");
+    expect(start.style.color).toBe("var(--text-secondary)");
+    expect(start.className).toContain("tap");
+    expect(start.className).toContain("press");
+  });
+
+  it("arms on the first tap: the word escalates, the layout does not move", () => {
+    renderMaintenance();
+
+    const start = screen.getAllByRole("button", { name: "Start" })[0];
+    const widthBefore = start.style.borderBottomWidth;
+    fireEvent.click(start);
+
+    const armed = screen.getByRole("button", { name: "Confirm" });
+    expect(armed.style.borderBottomColor).toBe("var(--accent)");
+    expect(armed.style.borderBottomWidth).toBe(widthBefore);
+    expect(armed.style.backgroundColor).toBe("");
+  });
+
+  it("discloses the programme's served duration before the user commits", () => {
+    setServerStrings({ "actions.easy_clean.duration": "примерно 20 минут" });
+    renderMaintenance();
+
+    const duration = screen.getByText("примерно 20 минут");
+    expect(duration).toHaveAttribute("data-ui", "action-duration");
+    // The row it belongs to is still the Easy Clean row, above its action word.
+    expect(duration.closest("div.settings-card-enter")!.textContent).toContain(
+      "Easy Clean",
+    );
+  });
+
+  it("says nothing about duration when the machine's vocabulary carries none", () => {
+    renderMaintenance();
+    expect(document.querySelector('[data-ui="action-duration"]')).toBeNull();
+  });
+
+  it("renders the offline notice as type between two hairlines, not a box", () => {
+    const { container } = renderMaintenance(maintenanceEntities("Disconnected"));
+
+    const notice = screen.getByText(
+      "Machine is offline. Connect to perform maintenance.",
+    );
+    expect(notice.style.backgroundColor).toBe("");
+    expect(notice.previousElementSibling).toHaveAttribute("data-ui", "rule");
+    expect(notice.nextElementSibling).toHaveAttribute("data-ui", "rule");
+    assertHardRules(container);
   });
 });

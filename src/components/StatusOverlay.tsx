@@ -5,6 +5,7 @@ import { deriveMachineStatus, type MachineStatusView } from "../lib/status";
 import { pressButton, safeCall } from "../lib/ha";
 import { usePreferences } from "../lib/preferences";
 import { X } from "lucide-react";
+import { Meter, TickRing } from "./ui";
 import type { TranslationKey } from "../lib/i18n";
 import iconBrewCup from "../assets/icons/brew_cup.png";
 import iconMaintenance from "../assets/icons/maintenance.png";
@@ -77,11 +78,23 @@ function overlayConfig(view: MachineStatusView): StatusConfig | null {
 
 const stop = (e: React.TouchEvent | React.MouseEvent) => e.stopPropagation();
 
+/** §7.4: the status word sits exactly 59px below the ring, and nowhere else. */
+const STATUS_WORD_OFFSET = 59;
+
 /**
  * Full-screen machine-status overlay (brewing/maintenance/off/action).
  *
  * Status is token-first via `deriveMachineStatus` (UI Contract §3.4 B) with
  * the legacy English-string matching as the pre-contract fallback.
+ *
+ * PROGRESS FORM (owner decision 4). A brew's end is only ever ESTIMATED, so
+ * the pour is drawn the way the reference machine draws it: the screen keeps
+ * its content and a horizontal segmented meter is pinned to the bottom edge
+ * between the rails — no ring, no spinner, and one explicitly labelled abort
+ * as the only control while it runs. A maintenance programme whose progress
+ * the machine actually reports is a known-duration countdown, and that is the
+ * one case the §9.1 tick ring exists for; it is drawn desaturated (§9.4) with
+ * the process glyph in its centre moat and the status word 59px below it.
  */
 export function StatusOverlay({ entities, prefix, conn }: Props) {
   const { t, locale } = usePreferences();
@@ -125,50 +138,110 @@ export function StatusOverlay({ entities, prefix, conn }: Props) {
       ? (view.activityDescription ?? view.activityLabel)
       : (view.processDescription ?? t(statusConfig.descKey));
 
+  // A running service programme that reports a figure IS a known-duration
+  // countdown — the ring's one licensed use. Everything else keeps the glyph.
+  const showServiceRing =
+    !isBrewing && !view.hasAction && !!statusConfig.pulse && progressNum !== null;
+
+  const pulseClass = statusConfig.pulse ? "status-icon-pulse" : "";
+
   return createPortal(
     <div
-      className="status-overlay-enter fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md"
-      style={{ background: "var(--overlay-bg)" }}
+      className="status-overlay-enter fixed inset-0 z-50 flex flex-col backdrop-blur-md"
+      /** §5.A: a scrim is the removal of the page, not a container fill. */
+      data-fill="scrim"
+      style={{ backgroundColor: "var(--overlay-bg)" }}
       onTouchStart={stop}
       onTouchMove={stop}
       onTouchEnd={stop}
       onClick={stop}
     >
-      <div className="status-content-enter flex flex-col items-center gap-6 px-8">
-        <img
-          src={statusConfig.imgSrc}
-          alt=""
-          className={`w-20 h-20 object-contain ${statusConfig.pulse ? "status-icon-pulse" : ""}`}
-          draggable={false}
-        />
+      <div className="status-content-enter flex flex-1 flex-col items-center justify-center gap-6 px-8">
+        {showServiceRing ? (
+          <div className="flex flex-col items-center">
+            <TickRing value={progressNum} tone="service" ariaLabel={title}>
+              <img
+                src={statusConfig.imgSrc}
+                alt=""
+                className={`w-[50px] h-[50px] object-contain ${pulseClass}`}
+                draggable={false}
+              />
+            </TickRing>
+            <h2
+              className="t-label text-primary text-center"
+              style={{ marginTop: STATUS_WORD_OFFSET }}
+            >
+              {title}
+            </h2>
+          </div>
+        ) : (
+          <>
+            <img
+              src={statusConfig.imgSrc}
+              alt=""
+              className={`w-20 h-20 object-contain ${pulseClass}`}
+              draggable={false}
+            />
+            <h2 className="t-title text-primary text-center">{title}</h2>
+          </>
+        )}
 
-        <h2 className="text-xl font-semibold text-primary tracking-wide">
-          {title}
-        </h2>
-
-        <p className="text-sm text-secondary text-center max-w-[260px]">
+        <p className="t-body text-secondary text-center max-w-[32ch]">
           {description}
         </p>
-
-        {isBrewing && progressNum !== null && (
-          <div className="w-48 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--slider-track)" }}>
-            <div
-              className="h-full rounded-full bg-amber-400 transition-all duration-500"
-              style={{ width: `${Math.min(100, Math.max(0, progressNum))}%` }}
-            />
-          </div>
-        )}
-
-        {isBrewing && (
-          <button
-            onClick={handleCancel}
-            className="mt-2 flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium text-primary ring-1 ring-border hover:ring-border-hover active:scale-95 transition-all"
-          >
-            <X size={16} />
-            {t("brew.cancel")}
-          </button>
-        )}
       </div>
+
+      {isBrewing && (
+        <div className="shrink-0">
+          {/*
+            Jura's rule: while the machine prepares, the only control is the
+            universal abort word. §5.C(ii) draws it as one solid circle inside
+            a 48px reach with its label OUTSIDE the circle, to the right.
+          */}
+          <div className="flex justify-center pb-6">
+            <button
+              onClick={handleCancel}
+              className="tap press flex items-center gap-3"
+              style={{ borderRadius: 0, color: "var(--text-primary)" }}
+            >
+              <span
+                aria-hidden="true"
+                data-ui="abort-circle"
+                /** The screen's one saturated shape — §5.C, form (ii). */
+                data-fill="commit"
+                className="flex shrink-0 items-center justify-center"
+                style={{
+                  width: 30,
+                  height: 30,
+                  // A true circle: width === height. The one curve §0/L1 allows.
+                  borderRadius: "50%",
+                  backgroundColor: "var(--error-text)",
+                  color: "var(--text-inverse)",
+                }}
+              >
+                <X size={10} strokeWidth={2.5} />
+              </span>
+              <span className="t-body">{t("brew.cancel")}</span>
+            </button>
+          </div>
+
+          {progressNum !== null && (
+            // Pinned to the bottom edge, rail to rail: the machine's own form.
+            <Meter
+              value={progressNum}
+              max={100}
+              segments={12}
+              role="progressbar"
+              ariaLabel={title}
+              style={{
+                marginLeft: "var(--rail)",
+                marginRight: "var(--rail)",
+                width: "auto",
+              }}
+            />
+          )}
+        </div>
+      )}
     </div>,
     document.body,
   );

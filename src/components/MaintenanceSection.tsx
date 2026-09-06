@@ -19,8 +19,10 @@ import {
   actionGroupLabel,
   type CatalogAction,
 } from "../lib/actions";
+import { serverString } from "../lib/server-strings";
 import { resolveMdiIcon } from "../lib/icons";
 import type { TranslationKey } from "../lib/i18n";
+import { Rule } from "./ui";
 import iconMaintenance from "../assets/icons/maintenance.png";
 import iconWater from "../assets/icons/water.png";
 import iconTemperature from "../assets/icons/temperature.png";
@@ -123,12 +125,41 @@ const OTHER_ACTIONS: MaintenanceAction[] = [
 
 const stagger = (index: number) => ({ animationDelay: `${index * 60}ms` });
 
-/** One rendered maintenance row — shared markup for both catalog and legacy modes. */
+/** §G2.7: a maintenance row is label + control on a fixed 80px pitch. */
+const ROW_PITCH = 80;
+
+/**
+ * The programme's announced duration, when the machine's own vocabulary
+ * carries one (`actions.<action>.duration`, e.g. "примерно 20 минут").
+ *
+ * Disclosing duration BEFORE the user commits is the single most consistent
+ * rule in the maintenance flows of every panel studied ("the cleaning
+ * programme lasts approximately 20 minutes"). The sentence is machine-domain
+ * truth, so it is served like every other machine string rather than composed
+ * here: an unserved key renders nothing at all instead of inventing a figure.
+ */
+function actionDuration(action: string): string | null {
+  return serverString(`actions.${action}.duration`) ?? null;
+}
+
+/**
+ * One rendered maintenance row — shared markup for both catalog and legacy
+ * modes.
+ *
+ * §G2.7 draws it as a hairline row on the page ground: a bare glyph, the
+ * label with its description and duration beneath it, and the action as a
+ * BARE WORD on the right. No card, no fill, no ring, no radius, no icon
+ * plate. Arming a destructive action turns that word `--error-text` over a
+ * 1px `--error-border` underline (§10 destructive-armed); arming a merely
+ * confirming one lights the ordinary `--accent` underline. The underline slot
+ * is always declared, so nothing shifts when the row arms.
+ */
 function ActionCard({
   index,
   icon,
   label,
   description,
+  duration,
   destructive = false,
   isConfirming,
   isBusy,
@@ -141,6 +172,7 @@ function ActionCard({
   icon: React.ReactNode;
   label: string;
   description: string | null;
+  duration: string | null;
   destructive?: boolean;
   isConfirming: boolean;
   isBusy: boolean;
@@ -149,60 +181,81 @@ function ActionCard({
   confirmText: string;
   startText: string;
 }) {
-  const danger = isConfirming || destructive;
+  const armedDanger = isConfirming && destructive;
+  const underline = armedDanger
+    ? "var(--error-border)"
+    : isConfirming
+      ? "var(--accent)"
+      : "transparent";
+
   return (
     <div
-      className="settings-card-enter rounded-2xl p-4 transition-all duration-200 ring-1"
+      className="settings-card-enter flex items-center gap-4 px-2.5"
       style={{
         ...stagger(index),
-        background: isConfirming
-          ? "var(--surface-card-active)"
-          : "var(--surface-card)",
-        "--tw-ring-color": isConfirming
-          ? "var(--border-active)"
-          : "var(--border)",
-      } as React.CSSProperties}
+        minHeight: ROW_PITCH,
+        borderTopWidth: "1px",
+        borderTopStyle: "solid",
+        borderTopColor: "var(--border)",
+        borderRadius: 0,
+      }}
     >
-      <div className="flex items-center gap-3">
-        <div
-          className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
-          style={{
-            background: "var(--surface-card)",
-            color: "var(--text-secondary)",
-          }}
-        >
-          {icon}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-primary">
-            {label}
+      <span
+        aria-hidden="true"
+        className="flex shrink-0 items-center justify-center"
+        style={{ color: "var(--text-tertiary)" }}
+      >
+        {icon}
+      </span>
+
+      <div className="flex-1 min-w-0">
+        <div className="t-body text-primary">{label}</div>
+        {description !== null && (
+          <div className="t-label text-tertiary leading-tight mt-0.5">
+            {description}
           </div>
-          {description !== null && (
-            <div className="t-label text-tertiary leading-tight mt-0.5">
-              {description}
-            </div>
-          )}
-        </div>
-        <button
-          onClick={onPress}
-          disabled={disabled}
-          className="tap press shrink-0 rounded-xl px-5 t-label font-semibold"
-          style={{
-            background: danger
-              ? "var(--error-bg)"
-              : "var(--btn-secondary-bg)",
-            color: danger
-              ? "var(--error-text)"
-              : "var(--btn-secondary-text)",
-            opacity: disabled ? 0.4 : 1,
-            border: danger
-              ? "1px solid var(--error-border)"
-              : "1px solid transparent",
-          }}
-        >
-          {isBusy ? "..." : isConfirming ? confirmText : startText}
-        </button>
+        )}
+        {duration !== null && (
+          <div data-ui="action-duration" className="t-label num text-tertiary leading-tight mt-0.5">
+            {duration}
+          </div>
+        )}
       </div>
+
+      <button
+        onClick={onPress}
+        disabled={disabled}
+        aria-busy={isBusy || undefined}
+        className="tap press shrink-0 t-body"
+        style={{
+          color: armedDanger
+            ? "var(--error-text)"
+            : isConfirming
+              ? "var(--text-primary)"
+              : "var(--text-secondary)",
+          fontWeight: isConfirming ? 600 : 400,
+          borderBottomWidth: "1px",
+          borderBottomStyle: "solid",
+          borderBottomColor: underline,
+          borderRadius: 0,
+          // §10: in-flight dims the acting control only; disabled is 0.35.
+          opacity: disabled && !isBusy ? 0.35 : isBusy ? 0.5 : 1,
+          pointerEvents: disabled ? "none" : undefined,
+        }}
+      >
+        {isConfirming ? confirmText : startText}
+      </button>
+    </div>
+  );
+}
+
+/** A quiet line of type between two hairlines — §10's no-box notice form. */
+function Notice({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mb-6">
+      <Rule />
+      <div className="px-2.5 py-4 text-center t-label text-tertiary">{children}</div>
+      <Rule />
     </div>
   );
 }
@@ -279,12 +332,12 @@ export function MaintenanceSection({ conn, entities, prefix, contract = null }: 
   ) => (
     <>
       <div
-        className="settings-header-enter t-label font-medium text-tertiary mb-3"
+        className="settings-header-enter t-label font-medium text-tertiary mb-3 px-2.5"
         style={stagger(startIndex)}
       >
         {t(title)}
       </div>
-      <div className="space-y-2 mb-6">
+      <div className="mb-6">
         {actions.map((action, i) => {
           const exists = getEntity(entities, prefix, "button", action.suffix);
           if (!exists) return null;
@@ -295,6 +348,7 @@ export function MaintenanceSection({ conn, entities, prefix, contract = null }: 
               icon={action.icon}
               label={t(action.labelKey)}
               description={t(action.descKey)}
+              duration={actionDuration(action.key)}
               isConfirming={confirmKey === action.key}
               isBusy={busyKey === action.key}
               disabled={!legacyConnected || !legacyReady || busyKey === action.key}
@@ -315,12 +369,12 @@ export function MaintenanceSection({ conn, entities, prefix, contract = null }: 
   ) => (
     <div key={group}>
       <div
-        className="settings-header-enter t-label font-medium text-tertiary mb-3"
+        className="settings-header-enter t-label font-medium text-tertiary mb-3 px-2.5"
         style={stagger(startIndex)}
       >
         {actionGroupLabel(locale, group)}
       </div>
-      <div className="space-y-2 mb-6">
+      <div className="mb-6">
         {entries.map((entry, i) => {
           const Icon = resolveMdiIcon(actionIconName(entry));
           const isBusy = busyKey === entry.action;
@@ -328,9 +382,10 @@ export function MaintenanceSection({ conn, entities, prefix, contract = null }: 
             <ActionCard
               key={entry.action}
               index={startIndex + i + 1}
-              icon={<Icon size={24} strokeWidth={1.75} />}
+              icon={<Icon size={20} strokeWidth={1.75} />}
               label={actionLabel(locale, entry.action)}
               description={actionDescription(locale, entry.action)}
+              duration={actionDuration(entry.action)}
               destructive={isDestructive(entry)}
               isConfirming={confirmKey === entry.action}
               isBusy={isBusy}
@@ -370,24 +425,14 @@ export function MaintenanceSection({ conn, entities, prefix, contract = null }: 
 
   return (
     <div
-      className="flex h-full flex-col px-5 py-5 overflow-y-auto max-w-2xl mx-auto w-full"
+      className="flex h-full flex-col py-5 overflow-y-auto custom-scroll w-full"
+      // §G2.1: rows and their rules run rail to rail; text hangs 10px inside.
+      style={{ paddingLeft: "var(--rail)", paddingRight: "var(--rail)" }}
       onClick={handleContainerClick}
     >
-      {!isConnected && (
-        <div className="mb-4 rounded-2xl p-4 text-center text-sm text-secondary ring-1"
-          style={{ background: "var(--surface-card)", "--tw-ring-color": "var(--border)" } as React.CSSProperties}
-        >
-          {t("maint.offline")}
-        </div>
-      )}
+      {!isConnected && <Notice>{t("maint.offline")}</Notice>}
 
-      {isConnected && !isReady && (
-        <div className="mb-4 rounded-2xl p-4 text-center text-sm text-secondary ring-1"
-          style={{ background: "var(--surface-card)", "--tw-ring-color": "var(--border)" } as React.CSSProperties}
-        >
-          {t("maint.not_ready")}
-        </div>
-      )}
+      {isConnected && !isReady && <Notice>{t("maint.not_ready")}</Notice>}
 
       {catalogGroups !== null ? (
         (() => {

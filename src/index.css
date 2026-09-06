@@ -18,10 +18,8 @@
      drink photography and reads as cheap OLED default. */
   --bg: #100e0c;
   --bg-elevated: #17130f;
+  /* The ONE flat neutral panel per modal/overlay (§5.B). Nothing else fills. */
   --surface: #1e1915;
-  --surface-card: #191411;
-  --surface-card-active: #241d18;
-  --surface-elevated: #2a221c;
 
   /* Hairlines carry a trace of the accent so edges read warm, not grey. */
   --border: rgba(217, 165, 102, 0.10);
@@ -40,24 +38,17 @@
      in the interface. Everything else is neutral so it always wins. */
   --accent: #d9a566;
   --accent-strong: #e8bc85;
-  --accent-muted: rgba(217, 165, 102, 0.14);
 
-  --btn-primary-bg: #d9a566;
-  --btn-primary-text: #17130f;
-  --btn-primary-hover: #e8bc85;
-  --btn-secondary-bg: #251e19;
-  --btn-secondary-text: #e3d9cc;
-  --btn-secondary-hover: #322820;
+  /* The commit rectangle is --accent in BOTH themes (owner decision 3); its
+     label rides on --text-inverse, which is already dark here and light there. */
+  --btn-primary-bg: var(--accent);
+  --btn-primary-text: var(--text-inverse);
+  --btn-primary-hover: var(--accent-strong);
 
-  --toggle-on-bg: #d9a566;
-  --toggle-on-knob: #17130f;
-  --toggle-off-bg: #3a302a;
-  --toggle-off-knob: #9c8f83;
+  /* A value meter's unfilled segments. The old --slider-track, repurposed:
+     there is no track and no thumb any more, only paint that IS the value. */
+  --meter-empty: #2a221c;
 
-  --slider-track: #2a221c;
-  --slider-thumb: #d9a566;
-
-  --input-bg: rgba(255, 255, 255, 0.04);
   --input-border: rgba(217, 165, 102, 0.20);
   --input-focus: #d9a566;
 
@@ -73,13 +64,11 @@
   --glass-reflection: rgba(255, 255, 255, 0.16);
 
   --recipe-grid-gap: rgba(217, 165, 102, 0.08);
-  --recipe-selected-bg: #1f1813;
-  --recipe-label-bg: #d9a566;
-  --recipe-label-text: #17130f;
-  --profile-bar-bg: #0c0a09;
-  --dk-card-bg: #17130f;
 
-  --shadow-lift: 0 18px 48px -24px rgba(0, 0, 0, 0.9);
+  /* Ground and glow (§6.2). Neutral — cool grey-white here, warm-neutral in
+     light — and NEVER accent-tinted: the drink is the hero, not a lit chip. */
+  --drink-glow: rgba(247, 243, 236, 0.10);
+  --drink-contact: rgba(0, 0, 0, 0.55);
   color-scheme: dark;
 }
 
@@ -88,9 +77,6 @@
   --bg: #f4f0e9;
   --bg-elevated: #fbf8f3;
   --surface: #ffffff;
-  --surface-card: #ffffff;
-  --surface-card-active: #f6efe4;
-  --surface-elevated: #f1e9dd;
 
   --border: rgba(42, 30, 20, 0.12);
   --border-hover: rgba(42, 30, 20, 0.24);
@@ -104,24 +90,15 @@
 
   --accent: #a9713a;
   --accent-strong: #8d5c2c;
-  --accent-muted: rgba(169, 113, 58, 0.12);
 
-  --btn-primary-bg: #2a231d;
-  --btn-primary-text: #f7f3ec;
-  --btn-primary-hover: #3d332a;
-  --btn-secondary-bg: #ece3d6;
-  --btn-secondary-text: #3d332a;
-  --btn-secondary-hover: #e0d4c3;
+  /* Owner decision 3: the light theme's inverse near-black commit is retired.
+     Accent ground, --text-inverse label — the same rectangle in both themes. */
+  --btn-primary-bg: var(--accent);
+  --btn-primary-text: var(--text-inverse);
+  --btn-primary-hover: var(--accent-strong);
 
-  --toggle-on-bg: #a9713a;
-  --toggle-on-knob: #ffffff;
-  --toggle-off-bg: #d6cabb;
-  --toggle-off-knob: #ffffff;
+  --meter-empty: #e2d8c9;
 
-  --slider-track: #e2d8c9;
-  --slider-thumb: #a9713a;
-
-  --input-bg: rgba(42, 30, 20, 0.03);
   --input-border: rgba(42, 30, 20, 0.18);
   --input-focus: #a9713a;
 
@@ -137,24 +114,46 @@
   --glass-reflection: rgba(255, 255, 255, 0.40);
 
   --recipe-grid-gap: rgba(42, 30, 20, 0.10);
-  --recipe-selected-bg: #ffffff;
-  --recipe-label-bg: #2a231d;
-  --recipe-label-text: #f7f3ec;
-  --profile-bar-bg: #2a231d;
-  --dk-card-bg: #fbf8f3;
 
-  --shadow-lift: 0 16px 40px -24px rgba(42, 30, 20, 0.45);
+  --drink-glow: rgba(42, 30, 20, 0.07);
+  --drink-contact: rgba(42, 30, 20, 0.14);
   color-scheme: light;
 }
 
-/* ═══ Geometry: one scale of hit targets, radii and rhythm ═══ */
+/* ═══ Geometry ═══
+   There is no radius scale any more. Every rectangle in this app is
+   `border-radius: 0`; the only curves are true circles (pagination dots, one
+   abort/disclosure glyph, step markers) and the drawn contour of a glass.
+   What follows are the measures that replaced it: the rail the rules span,
+   the meter's segment geometry and the progress ring's tick geometry. */
 :root {
   --tap: 48px;        /* every control's smallest dimension */
   --tap-lg: 60px;     /* primary actions, tab bar */
-  --r-sm: 10px;
-  --r-md: 14px;
-  --r-lg: 20px;
-  --r-pill: 999px;
+
+  /* Every full-width rule runs rail to rail — 90% of the viewport — and text
+     hangs 10px inside that. One margin for the whole app (§G2.1). */
+  --rail: 40px;
+
+  /* Selection is a lit underline in a slot that is always reserved, so
+     choosing a word never shifts the layout (§C3.1, §C3.2). */
+  --underline-w: 1px;      /* value / option level */
+  --underline-w-nav: 2px;  /* navigation / tab level */
+
+  /* The segmented, square-cut value meter (§9.2, §C-Numeric): 6px tall, its
+     segments punched apart by 3px of bare ground. No track, no thumb. */
+  --meter-h: 6px;
+  --meter-gap: 3px;
+
+  /* The full-screen progress ring (§9.1): 90 ticks on a 4° pitch, each
+     2×11px with square-cut ends, inner radius 56 / outer 67. */
+  --tick-w: 2px;
+  --tick-len: 11px;
+  --tick-r: 56px;
+  --tick-count: 90;
+
+  /* A pagination dot is a true circle and the one place a curve is honest. */
+  --dot: 8px;
+
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -164,9 +163,9 @@
 .text-tertiary { color: var(--text-tertiary); }
 .text-accent { color: var(--accent); }
 .bg-page { background: var(--bg); }
+/* The only remaining fill utility: the single §5.B panel inside a modal or
+   overlay. `.surface-card` and `.surface-elevated` are gone with their tokens. */
 .surface { background: var(--surface); }
-.surface-card { background: var(--surface-card); }
-.surface-elevated { background: var(--surface-elevated); }
 .ring-border { --tw-ring-color: var(--border); }
 .ring-border-hover { --tw-ring-color: var(--border-hover); }
 .ring-border-active { --tw-ring-color: var(--border-active); }
@@ -193,7 +192,7 @@
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: var(--r-sm);
+  border-radius: 0;
 }
 
 /* ═══ Type ═══
@@ -233,13 +232,14 @@ body {
 .t-label { font-size: 0.8125rem; line-height: 1.3; font-weight: 500; }
 .num { font-variant-numeric: tabular-nums; }
 
-/* ═══ Controls ═══ */
+/* ═══ Controls ═══
+   A range input is never seen any more: it is the invisible driver laid over
+   a painted meter so drag, arrow keys and screen readers keep working while
+   the meter does the drawing (§C-Numeric). It keeps the 48px reach; it paints
+   nothing, so there is no thumb rule left to write. */
 input[type="range"] {
   height: var(--tap);
   accent-color: var(--accent);
-}
-input[type="range"]::-webkit-slider-thumb {
-  background: var(--slider-thumb) !important;
 }
 
 /* ═══ Motion — reserved for what a person just did ═══ */
@@ -316,7 +316,7 @@ input[type="range"]::-webkit-slider-thumb {
 .custom-scroll::-webkit-scrollbar-track { background: transparent; }
 .custom-scroll::-webkit-scrollbar-thumb {
   background: var(--border-hover);
-  border-radius: var(--r-pill);
+  border-radius: 0;
   transition: background 0.2s;
 }
 .custom-scroll::-webkit-scrollbar-thumb:hover { background: var(--border-active); }

@@ -16,6 +16,7 @@ import {
 import { displayNameFor } from "../lib/i18n";
 import { FreestyleGlass } from "./FreestyleGlass";
 import { CoffeeIcon } from "./CoffeeIcon";
+import { Commit, DrinkStage, MeterField, Option, OptionRow, Rule } from "./ui";
 import { Ban } from "lucide-react";
 import iconBean from "../assets/icons/bean.png";
 import iconMilk from "../assets/icons/milk.png";
@@ -28,6 +29,22 @@ const PROCESS_IMG_ICONS: Record<string, string> = {
   water: iconWater,
 };
 
+/** §C1: the glyph beside an option word sits at 18–20px. */
+const OPTION_GLYPH = 18;
+
+/**
+ * §G2.7: every control row in a column is opened by the same 1px `--border`
+ * hairline and nothing else. OptionRow draws its own; MeterField is a bare
+ * control, so the numeric rows borrow the rule here rather than sitting in the
+ * list unruled.
+ */
+const ROW_RULE = {
+  borderTopWidth: "1px",
+  borderTopStyle: "solid" as const,
+  borderTopColor: "var(--border)",
+  paddingTop: "0.375rem",
+};
+
 interface Props {
   conn: Connection;
   entities: HassEntities;
@@ -36,45 +53,67 @@ interface Props {
   contract?: UiContract | null;
 }
 
+/**
+ * The recipe picker overlay: a scrim (§5.A) over the one flat `--surface`
+ * panel this overlay is allowed (§5.B) — radius 0, no ring, no shadow, and
+ * everything inside it unfilled.
+ *
+ * The drinks themselves are a bare grid: field research is unanimous that a
+ * drink tile carries no border, no fill and no divider (Franke, WMF, Rivelia
+ * all cut the glass straight onto the ground), so the 1px-gap mosaic that used
+ * to draw `--recipe-grid-gap` between `--bg` cells is gone with the fills it
+ * needed.
+ */
 function RecipePickerModal({
   recipes,
   allRecipes,
   onPick,
   onClose,
   titleText,
+  closeLabel,
 }: {
   recipes: string[];
   allRecipes: Record<string, RecipeDetails>;
   onPick: (name: string, details: RecipeDetails) => void;
   onClose: () => void;
   titleText: string;
+  closeLabel: string;
 }) {
   const stopTouch = (e: React.TouchEvent) => e.stopPropagation();
 
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
-      style={{ background: "var(--overlay-bg)" }}
+      data-fill="scrim"
+      style={{ backgroundColor: "var(--overlay-bg)" }}
       onClick={onClose}
       onTouchStart={stopTouch}
       onTouchMove={stopTouch}
       onTouchEnd={stopTouch}
     >
       <div
-        className="relative w-full max-w-2xl max-h-[80vh] mx-4 rounded-2xl ring-1 ring-border overflow-hidden flex flex-col surface"
+        className="relative w-full max-w-2xl max-h-[80vh] mx-4 overflow-hidden flex flex-col"
+        data-fill="panel"
+        style={{ backgroundColor: "var(--surface)", borderRadius: 0 }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <span className="text-sm font-semibold text-primary tracking-wide">
+        <div className="flex items-center justify-between px-5 py-4">
+          <span className="t-body text-primary" style={{ fontWeight: 600 }}>
             {titleText}
           </span>
-          <button onClick={onClose} className="tap press rounded-xl text-secondary hover:text-primary">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
+          <button
+            onClick={onClose}
+            aria-label={closeLabel}
+            className="tap press text-secondary hover:text-primary"
+            style={{ borderRadius: 0 }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="w-5 h-5">
               <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
             </svg>
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-4">
+        <Rule />
+        <div className="flex-1 overflow-y-auto custom-scroll p-4">
           <div
             className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-px"
             style={{ background: "var(--recipe-grid-gap)" }}
@@ -87,14 +126,14 @@ function RecipePickerModal({
                   key={name}
                   onClick={() => { if (details) onPick(name, details); }}
                   className="tap press flex flex-col items-center justify-center p-2"
-                  style={{ background: "var(--bg)" }}
+                  style={{ borderRadius: 0, background: "var(--bg)" }}
                 >
-                  <CoffeeIcon recipe={name} size={72} />
-                  <span className="t-label text-secondary font-medium mt-1 truncate w-full text-center">
+                  <CoffeeIcon recipe={name} size={64} />
+                  <span className="t-label text-secondary mt-1 truncate w-full text-center">
                     {name}
                   </span>
                   {totalMl > 0 && (
-                    <span className="text-[9px] text-tertiary tabular-nums">{totalMl}ml</span>
+                    <span className="t-label num text-tertiary">{totalMl} ml</span>
                   )}
                 </button>
               );
@@ -107,52 +146,71 @@ function RecipePickerModal({
   );
 }
 
-function SegmentPicker({
-  family,
+/**
+ * The process picker — coffee / milk / water (and `none` on component 2) — as
+ * a row of chooseable words, each carrying its 18px glyph.
+ *
+ * Replaces the `rounded-xl ring-1` capsule bar whose selected segment was a
+ * solid `--btn-primary-bg` fill: selection is now the word turning white over
+ * a lit 1px `--accent` underline, in a slot that was already reserved, so
+ * choosing never shifts a pixel.
+ */
+function ProcessRow({
   options,
   value,
   onChange,
+  ariaLabel,
 }: {
-  family: string;
   options: string[];
   value: string;
   onChange: (v: string) => void;
+  ariaLabel: string;
 }) {
   const { locale } = usePreferences();
   if (options.length === 0) return null;
 
-  // §6.3.5.7 chain: server values.<family>.<token> → bundle → humanized.
-  const displayName = (v: string): string => displayNameFor(locale, family, v);
-
   return (
-    <div className="flex rounded-xl overflow-hidden ring-1 ring-border">
+    <OptionRow role="radiogroup" ariaLabel={ariaLabel}>
       {options.map((opt) => {
         const imgSrc = PROCESS_IMG_ICONS[opt];
         return (
-          <button
+          <Option
             key={opt}
-            onClick={() => onChange(opt)}
-            className="tap press flex-1 flex items-center justify-center gap-2 t-label"
-            style={
-              opt === value
-                ? { background: "var(--btn-primary-bg)", color: "var(--btn-primary-text)", fontWeight: 700 }
-                : { background: "var(--surface)", color: "var(--text-tertiary)" }
+            role="radio"
+            label={displayNameFor(locale, "process", opt)}
+            selected={opt === value}
+            onSelect={() => onChange(opt)}
+            icon={
+              imgSrc ? (
+                <img
+                  src={imgSrc}
+                  alt=""
+                  className="object-contain"
+                  style={{ width: OPTION_GLYPH, height: OPTION_GLYPH }}
+                  draggable={false}
+                />
+              ) : (
+                <Ban size={OPTION_GLYPH} strokeWidth={1.75} />
+              )
             }
-          >
-            {imgSrc ? (
-              <img src={imgSrc} alt={opt} className="w-3.5 h-3.5 object-contain" draggable={false} />
-            ) : (
-              <Ban size={18} />
-            )}
-            {displayName(opt)}
-          </button>
+          />
         );
       })}
-    </div>
+    </OptionRow>
   );
 }
 
-function SliderRow({
+/**
+ * One enumerated parameter (intensity, aroma, temperature, shots) as a
+ * labelled row of words — §C1, and the form the reference machine itself uses
+ * for aroma (a caret against STANDARD / INTENSE, never a bar).
+ *
+ * This is what replaces the `rounded-full` range track and its `shadow-lg`
+ * thumb: an ordinal token list was never a measured quantity, so it is chosen
+ * by name rather than dragged. Only the genuinely numeric portion keeps a
+ * meter (see `MeterField` below).
+ */
+function TokenRow({
   family,
   label,
   options,
@@ -169,78 +227,20 @@ function SliderRow({
 }) {
   const { locale } = usePreferences();
   if (options.length === 0) return null;
-  const idx = options.indexOf(value);
-
-  const displayName = (v: string): string => displayNameFor(locale, family, v);
 
   return (
-    <div className={`space-y-1.5 transition-opacity ${disabled ? "opacity-20 pointer-events-none" : ""}`}>
-      <span className="text-xs text-primary">{label}</span>
-      <input
-        type="range"
-        min={0}
-        max={options.length - 1}
-        step={1}
-        value={idx >= 0 ? idx : 0}
-        onChange={(e) => onChange(options[parseInt(e.target.value)])}
-        disabled={disabled}
-        className="w-full h-1.5 appearance-none rounded-full
-          [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
-          [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
-        style={{ background: "var(--slider-track)", accentColor: "var(--slider-thumb)" }}
-      />
-      <div className="flex justify-between">
-        {options.map((opt) => (
-          <span
-            key={opt}
-            className="t-label transition"
-            style={{ color: opt === value ? "var(--text-primary)" : "var(--text-tertiary)", fontWeight: opt === value ? 700 : 400 }}
-          >
-            {displayName(opt)}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function PortionSlider({
-  label,
-  value,
-  min,
-  max,
-  step,
-  onChange,
-  disabled = false,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  onChange: (v: number) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div className={`space-y-1.5 transition-opacity ${disabled ? "opacity-20 pointer-events-none" : ""}`}>
-      <div className="flex justify-between">
-        <span className="text-xs text-primary">{label}</span>
-        <span className="text-xs text-primary font-bold tabular-nums">{value} ml</span>
-      </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(parseInt(e.target.value))}
-        disabled={disabled}
-        className="w-full h-1.5 appearance-none rounded-full
-          [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
-          [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
-        style={{ background: "var(--slider-track)", accentColor: "var(--slider-thumb)" }}
-      />
-    </div>
+    <OptionRow label={label} role="radiogroup" ariaLabel={label}>
+      {options.map((opt) => (
+        <Option
+          key={opt}
+          role="radio"
+          label={displayNameFor(locale, family, opt)}
+          selected={opt === value}
+          onSelect={() => onChange(opt)}
+          disabled={disabled}
+        />
+      ))}
+    </OptionRow>
   );
 }
 
@@ -293,12 +293,12 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
     return (
       <div className="flex h-full flex-col items-center justify-center px-8">
         <div className="flex flex-col items-center gap-6 max-w-sm">
-          <img src={iconNotConnected} alt="not ready" className="w-20 h-20 object-contain opacity-60" draggable={false} />
+          <img src={iconNotConnected} alt="" className="w-20 h-20 object-contain opacity-60" draggable={false} />
           <div className="text-center">
-            <div className="text-lg font-light text-primary tracking-wide">
-              {view.offline ? "Offline" : view.statusLabel}
+            <div className="t-title text-primary" style={{ fontWeight: 300 }}>
+              {view.offline ? t("brew.offline_title") : view.statusLabel}
             </div>
-            <div className="text-sm text-tertiary mt-2">
+            <div className="t-body text-tertiary mt-2">
               {t("freestyle.available_when_ready")}
             </div>
           </div>
@@ -310,25 +310,49 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
   return (
     <div className="flex h-full flex-col">
       <div className="flex-1 min-h-0 flex items-stretch">
-        <div className="flex-1 flex flex-col justify-center gap-4 px-6 py-4">
-          <div className="text-xs font-bold text-primary">
+        {/* Component 1 — unboxed, straight on the ground (§R1.1). */}
+        <div className="flex-1 flex flex-col justify-center px-6 py-4">
+          <div className="t-label text-primary mb-4" style={{ fontWeight: 600 }}>
             {t("freestyle.component1")}
           </div>
-          <SegmentPicker family="process" options={processOpts1} value={fs.process1} onChange={(v) => update("process1", v)} />
-          <PortionSlider label={t("freestyle.portion")} value={fs.portion1} min={portion1Range.min} max={portion1Range.max} step={portion1Range.step} onChange={(v) => update("portion1", v)} />
-          <SliderRow family="intensity" label={t("freestyle.intensity")} options={intensityOpts1} value={fs.intensity1} onChange={(v) => update("intensity1", v)} disabled={fs.process1 !== "coffee"} />
-          <SliderRow family="aroma" label={t("freestyle.aroma")} options={aromaOpts1} value={fs.aroma1} onChange={(v) => update("aroma1", v)} disabled={fs.process1 !== "coffee"} />
-          <SliderRow family="temperature" label={t("freestyle.temperature")} options={tempOpts1} value={fs.temperature1} onChange={(v) => update("temperature1", v)} />
-          <SliderRow family="shots" label={t("freestyle.shots")} options={shotsOpts1} value={fs.shots1} onChange={(v) => update("shots1", v)} disabled={fs.process1 !== "coffee"} />
+          <div className="space-y-3">
+            <ProcessRow
+              options={processOpts1}
+              value={fs.process1}
+              onChange={(v) => update("process1", v)}
+              ariaLabel={t("freestyle.component1")}
+            />
+            <MeterField
+              label={t("freestyle.portion")}
+              value={fs.portion1}
+              min={portion1Range.min}
+              max={portion1Range.max}
+              step={portion1Range.step}
+              displayValue={`${fs.portion1} ml`}
+              onChange={(v) => update("portion1", v)}
+              style={ROW_RULE}
+            />
+            <TokenRow family="intensity" label={t("freestyle.intensity")} options={intensityOpts1} value={fs.intensity1} onChange={(v) => update("intensity1", v)} disabled={fs.process1 !== "coffee"} />
+            <TokenRow family="aroma" label={t("freestyle.aroma")} options={aromaOpts1} value={fs.aroma1} onChange={(v) => update("aroma1", v)} disabled={fs.process1 !== "coffee"} />
+            <TokenRow family="temperature" label={t("freestyle.temperature")} options={tempOpts1} value={fs.temperature1} onChange={(v) => update("temperature1", v)} />
+            <TokenRow family="shots" label={t("freestyle.shots")} options={shotsOpts1} value={fs.shots1} onChange={(v) => update("shots1", v)} disabled={fs.process1 !== "coffee"} />
+          </div>
         </div>
 
+        {/* The drink is the hero and takes the centre column's own width (§R1.9). */}
         <div className="flex flex-col items-center justify-center px-4 border-x border-border">
           {recipeOptions.length > 0 && (
             <button
               onClick={() => setPickerOpen(true)}
               className="tap press mb-1 flex items-center gap-2 t-label text-secondary hover:text-primary"
+              style={{
+                borderRadius: 0,
+                borderBottomWidth: "1px",
+                borderBottomStyle: "solid",
+                borderBottomColor: "var(--border)",
+              }}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="w-4 h-4">
                 <path d="M12 5v14M5 12h14" strokeLinecap="round" />
               </svg>
               {t("freestyle.use_recipe")}
@@ -340,6 +364,7 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
               recipes={recipeOptions}
               allRecipes={allRecipes}
               titleText={t("freestyle.use_recipe")}
+              closeLabel={t("brew.cancel")}
               onPick={(name, details) => {
                 loadFromRecipe(name, details);
                 setPickerOpen(false);
@@ -348,56 +373,87 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
             />
           )}
 
+          {/* §R1.6: a name field is a line to write on — no fill, no ring, no radius. */}
           <input
             type="text"
             value={fs.name}
             onChange={(e) => update("name", e.target.value)}
-            className="mb-1 w-48 text-center text-lg font-light tracking-wide outline-none border-b transition pb-1"
+            className="mb-1 w-48 text-center t-title outline-none border-b transition pb-1"
             style={{
               background: "transparent",
               color: "var(--text-primary)",
               borderColor: "var(--border)",
+              borderRadius: 0,
+              fontWeight: 300,
+              /** §C3.6: reach is never traded away, even on a painted line. */
+              minHeight: "var(--tap)",
             }}
           />
 
-          <span className="text-sm text-tertiary tabular-nums mb-2">
+          <span className="t-label num text-tertiary mb-2">
             {fs.portion1 + fs.portion2} ml
           </span>
 
-          <FreestyleGlass
-            process1={fs.process1}
-            intensity1={fs.intensity1}
-            temp1={fs.temperature1}
-            portion1={fs.portion1}
-            process2={fs.process2}
-            intensity2={fs.intensity2}
-            temp2={fs.temperature2}
-            portion2={fs.portion2}
-            size={280}
-            hideVolume
-            intensityScale={intensityOpts1}
-            temperatureScale={tempOpts1}
-          />
+          {/*
+            §6.2 ground treatment. `reflection` is off because FreestyleGlass
+            already draws its own mirrored copy inside the SVG, at the real
+            glass base — and because DrinkStage renders its child twice, which
+            would duplicate the glass's fixed SVG element ids.
+          */}
+          <DrinkStage size={280} active reflection={false}>
+            <FreestyleGlass
+              process1={fs.process1}
+              intensity1={fs.intensity1}
+              temp1={fs.temperature1}
+              portion1={fs.portion1}
+              process2={fs.process2}
+              intensity2={fs.intensity2}
+              temp2={fs.temperature2}
+              portion2={fs.portion2}
+              size={280}
+              hideVolume
+              intensityScale={intensityOpts1}
+              temperatureScale={tempOpts1}
+            />
+          </DrinkStage>
 
-          <button
-            onClick={handleBrew}
-            className="mt-3 w-full rounded-xl py-3 text-sm font-semibold transition hover:opacity-90 active:scale-[0.97]"
-            style={{ background: "var(--btn-primary-bg)", color: "var(--btn-primary-text)" }}
-          >
-            {t("brew.brew")} {fs.name}
-          </button>
+          {/* §5.C: the one commit rectangle on this screen, locked to the column. */}
+          <div className="mt-3 w-full">
+            <Commit
+              label={`${t("brew.brew")} ${fs.name}`}
+              onCommit={handleBrew}
+            />
+          </div>
         </div>
 
-        <div className="flex-1 flex flex-col justify-center gap-4 px-6 py-4">
-          <div className="text-xs font-bold text-primary">
+        {/* Component 2 */}
+        <div className="flex-1 flex flex-col justify-center px-6 py-4">
+          <div className="t-label text-primary mb-4" style={{ fontWeight: 600 }}>
             {t("freestyle.component2")}
           </div>
-          <SegmentPicker family="process" options={processOpts2} value={fs.process2} onChange={(v) => update("process2", v)} />
-          <PortionSlider label={t("freestyle.portion")} value={fs.portion2} min={portion2Range.min} max={portion2Range.max} step={portion2Range.step} onChange={(v) => update("portion2", v)} disabled={fs.process2 === "none"} />
-          <SliderRow family="intensity" label={t("freestyle.intensity")} options={intensityOpts2} value={fs.intensity2} onChange={(v) => update("intensity2", v)} disabled={fs.process2 !== "coffee"} />
-          <SliderRow family="aroma" label={t("freestyle.aroma")} options={aromaOpts2} value={fs.aroma2} onChange={(v) => update("aroma2", v)} disabled={fs.process2 !== "coffee"} />
-          <SliderRow family="temperature" label={t("freestyle.temperature")} options={tempOpts2} value={fs.temperature2} onChange={(v) => update("temperature2", v)} disabled={fs.process2 === "none"} />
-          <SliderRow family="shots" label={t("freestyle.shots")} options={shotsOpts2} value={fs.shots2} onChange={(v) => update("shots2", v)} disabled={fs.process2 !== "coffee"} />
+          <div className="space-y-3">
+            <ProcessRow
+              options={processOpts2}
+              value={fs.process2}
+              onChange={(v) => update("process2", v)}
+              ariaLabel={t("freestyle.component2")}
+            />
+            <MeterField
+              label={t("freestyle.portion")}
+              value={fs.portion2}
+              min={portion2Range.min}
+              max={portion2Range.max}
+              step={portion2Range.step}
+              displayValue={`${fs.portion2} ml`}
+              onChange={(v) => update("portion2", v)}
+              disabled={fs.process2 === "none"}
+              style={ROW_RULE}
+            />
+            <TokenRow family="intensity" label={t("freestyle.intensity")} options={intensityOpts2} value={fs.intensity2} onChange={(v) => update("intensity2", v)} disabled={fs.process2 !== "coffee"} />
+            <TokenRow family="aroma" label={t("freestyle.aroma")} options={aromaOpts2} value={fs.aroma2} onChange={(v) => update("aroma2", v)} disabled={fs.process2 !== "coffee"} />
+            <TokenRow family="temperature" label={t("freestyle.temperature")} options={tempOpts2} value={fs.temperature2} onChange={(v) => update("temperature2", v)} disabled={fs.process2 === "none"} />
+            <TokenRow family="shots" label={t("freestyle.shots")} options={shotsOpts2} value={fs.shots2} onChange={(v) => update("shots2", v)} disabled={fs.process2 !== "coffee"} />
+          </div>
         </div>
       </div>
     </div>

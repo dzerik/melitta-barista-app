@@ -220,15 +220,103 @@ describe("RecipeCarousel", () => {
     expect(defaultProps.onSelect).not.toHaveBeenCalled();
   });
 
-  it("background highlights only when isSelected AND isCurrent", () => {
+  it("marks the current cell with the drink glow, not with a fill or a ring", () => {
     const { container } = renderWithProviders(<RecipeCarousel {...defaultProps} />);
+    const stages = container.querySelectorAll('[data-ui="drink-stage"]');
+    expect(stages).toHaveLength(3);
+    // The active cell burns its glow at 1×; every other cell idles at 0.55×.
+    expect(stages[0].getAttribute("data-active")).toBe("true");
+    expect(stages[1].getAttribute("data-active")).toBe("false");
+
     const cards = container.querySelectorAll("button[class*='cursor-pointer']");
-    // First card: current + selected → raised surface plus the selection ring
-    expect((cards[0] as HTMLElement).style.background).toBe("var(--surface-card-active)");
-    expect((cards[0] as HTMLElement).style.boxShadow).toContain("var(--border-active)");
-    // Second card: not current → no fill, no ring
-    expect(cards[1]).toHaveStyle({ background: "transparent" });
-    expect((cards[1] as HTMLElement).style.boxShadow).toBe("none");
+    // No card paints itself any more, in either state.
+    for (const card of cards) {
+      const el = card as HTMLElement;
+      expect(el.style.backgroundColor).toBe("");
+      expect(el.style.background).toBe("");
+      expect(el.style.boxShadow).toBe("none");
+      expect(el.style.borderRadius).toBe("0px");
+      expect(el.className).not.toMatch(/rounded-|ring-|shadow-/);
+    }
+  });
+
+  it("selection is the name in a lit accent underline, with the slot always reserved", () => {
+    const { container } = renderWithProviders(<RecipeCarousel {...defaultProps} />);
+    const cards = container.querySelectorAll('[data-ui="recipe-card"]');
+    expect(cards[0].getAttribute("data-underline")).toBe("lit");
+    expect(cards[1].getAttribute("data-underline")).toBe("reserved");
+
+    const names = container.querySelectorAll('[data-ui="recipe-name"]');
+    const chosen = names[0] as HTMLElement;
+    const other = names[1] as HTMLElement;
+    expect(chosen.style.borderBottomColor).toBe("var(--accent)");
+    expect(chosen.style.color).toBe("var(--text-primary)");
+    // The underline is declared in both states so nothing shifts on selection.
+    expect(other.style.borderBottomStyle).toBe("solid");
+    expect(other.style.borderBottomColor).toBe("transparent");
+  });
+
+  it("arrows are bare glyphs with a 48px reach and no disc plate", () => {
+    renderWithProviders(<RecipeCarousel {...defaultProps} />);
+    for (const name of ["Previous slide", "Next slide"]) {
+      const arrow = screen.getByRole("button", { name });
+      expect(arrow.className).toContain("tap");
+      expect(arrow.className).toContain("press");
+      expect(arrow.className).not.toMatch(/rounded-/);
+      expect(arrow.style.backgroundColor).toBe("");
+      expect(arrow.querySelector("polygon")).toBeInTheDocument();
+    }
+  });
+
+  it("pager dots are 8px circles — a solid disc for the current page, rings for the rest", () => {
+    const { container } = renderWithProviders(<RecipeCarousel {...defaultProps} />);
+    const dots = container.querySelectorAll('[data-ui="pager-dot"]');
+    expect(dots).toHaveLength(3);
+
+    const current = dots[0] as HTMLElement;
+    const other = dots[1] as HTMLElement;
+    expect(current.getAttribute("data-current")).toBe("true");
+    expect(current.style.backgroundColor).toBe("var(--accent)");
+    expect(other.style.borderColor).toBe("var(--accent)");
+    expect(other.style.backgroundColor).toBe("var(--bg)");
+    // Same painted size in both states — no growing capsule, no opacity fade.
+    expect(current.style.width).toBe("var(--dot)");
+    expect(other.style.width).toBe("var(--dot)");
+    expect(current.style.width).toBe(current.style.height);
+
+    // The mark stays 8px; the reach does not.
+    const reach = screen.getAllByRole("button", { name: /Go to slide/ });
+    for (const button of reach) {
+      expect(button.className).toContain("tap");
+    }
+  });
+
+  it("only the tap that actually brews is painted as the commit rectangle", () => {
+    const { container, unmount } = renderWithProviders(
+      <RecipeCarousel {...defaultProps} />,
+    );
+    const commit = container.querySelector('[data-ui="commit"]') as HTMLElement;
+    expect(commit).toBeInTheDocument();
+    expect(commit.getAttribute("data-fill")).toBe("commit");
+    expect(commit.style.borderRadius).toBe("0px");
+    expect(commit.style.backgroundColor).toBe("var(--accent)");
+    expect(commit.style.boxShadow).toBe("none");
+    // Width comes from the caller's column, never from a slide percentage.
+    expect(commit.className).toContain("w-full");
+    expect(commit.className).not.toMatch(/max-w-|px-16/);
+    unmount();
+
+    // Stage one of the two-stage gesture only selects, so it is a bare word.
+    const staged = renderWithProviders(
+      <RecipeCarousel
+        {...defaultProps}
+        recipes={[{ name: "Espresso", isSelected: false }, { name: "Cappuccino", isSelected: false }]}
+      />,
+    );
+    expect(staged.container.querySelector('[data-ui="commit"]')).toBeNull();
+    const word = screen.getByText("Brew").closest("button") as HTMLElement;
+    expect(word.style.backgroundColor).toBe("");
+    expect(word.style.borderBottomColor).toBe("var(--border)");
   });
 });
 

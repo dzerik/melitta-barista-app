@@ -1,7 +1,9 @@
 import { createPortal } from "react-dom";
 import { usePreferences, type ThemePreference } from "../lib/preferences";
 import { SUPPORTED_LOCALES, LOCALE_ENDONYM } from "../lib/i18n";
-import { Check, Monitor, Moon, Sun, X } from "lucide-react";
+import { Monitor, Moon, Sun, X } from "lucide-react";
+import { Option } from "./ui/Option";
+import { OptionRow } from "./ui/OptionRow";
 
 interface Props {
   onClose: () => void;
@@ -17,31 +19,51 @@ const THEMES: { value: ThemePreference; labelKey: ThemeLabelKey; icon: typeof Mo
 
 const stopTouch = (e: React.TouchEvent) => e.stopPropagation();
 
+/**
+ * Theme and language, drawn as words.
+ *
+ * The three theme tiles — the app's most literal rounded-frame-plus-fill, and
+ * its only `ring-2` — are gone: a choice here is a glyph-and-word Option whose
+ * selection is white ink over a lit 1px `--accent` underline (§C1, owner
+ * decision 1). The locale list loses its ringed box and its
+ * `--surface-elevated` active row for the same reason; the endonyms wrap as a
+ * field of words inside the one scrolling region.
+ *
+ * Two fills survive, and only these: the scrim (§5.A — the removal of the
+ * page, not a container tint) and the single flat `--surface` panel (§5.B),
+ * which carries no radius, no border, no ring, no shadow and no blur of its
+ * own.
+ */
 export function PreferencesModal({ onClose }: Props) {
   const { themePreference, locale, setTheme, setLocale, t } = usePreferences();
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 dark:bg-black/70 light:bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
+      data-fill="scrim"
+      style={{ backgroundColor: "var(--overlay-bg)" }}
       onClick={onClose}
       onTouchStart={stopTouch}
       onTouchMove={stopTouch}
       onTouchEnd={stopTouch}
     >
       <div
-        className="relative w-full max-w-sm mx-4 rounded-2xl surface ring-1 ring-border overflow-hidden flex flex-col"
+        className="relative w-full max-w-sm mx-4 surface flex flex-col"
+        data-fill="panel"
+        style={{ borderRadius: 0 }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <span className="text-sm font-semibold text-primary tracking-wide">
-            {t("prefs.title")}
-          </span>
+        <div className="flex items-center justify-between pl-5 pr-2 py-2 border-b border-border">
+          <span className="t-title text-primary">{t("prefs.title")}</span>
           <button
             onClick={onClose}
-            className="tap press rounded-xl text-secondary hover:text-primary"
+            /* The app's one universal abort word, already served in 29 locales. */
+            aria-label={t("brew.cancel")}
+            className="tap press text-secondary hover:text-primary"
+            style={{ borderRadius: 0 }}
           >
-            <X size={20} />
+            <X size={20} strokeWidth={1.75} />
           </button>
         </div>
 
@@ -52,32 +74,18 @@ export function PreferencesModal({ onClose }: Props) {
             <span className="t-label font-medium text-tertiary">
               {t("prefs.theme")}
             </span>
-            <div className="grid grid-cols-3 gap-2">
-              {THEMES.map(({ value, labelKey, icon: Icon }) => {
-                const active = themePreference === value;
-                return (
-                  <button
-                    key={value}
-                    onClick={() => setTheme(value)}
-                    className={`flex flex-col items-center gap-2.5 rounded-xl py-4 px-3 transition-all duration-200 ${
-                      active
-                        ? "surface-elevated ring-2 ring-accent"
-                        : "surface-card ring-1 ring-border hover:ring-border-hover"
-                    }`}
-                  >
-                    <Icon
-                      size={24}
-                      className={active ? "text-accent" : "text-tertiary"}
-                    />
-                    <span
-                      className={`text-xs font-medium ${active ? "text-primary" : "text-secondary"}`}
-                    >
-                      {t(labelKey)}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            <OptionRow role="radiogroup" ariaLabel={t("prefs.theme")}>
+              {THEMES.map(({ value, labelKey, icon: Icon }) => (
+                <Option
+                  key={value}
+                  label={t(labelKey)}
+                  selected={themePreference === value}
+                  role="radio"
+                  onSelect={() => setTheme(value)}
+                  icon={<Icon size={20} strokeWidth={1.75} />}
+                />
+              ))}
+            </OptionRow>
           </div>
 
           {/* Locale */}
@@ -85,27 +93,18 @@ export function PreferencesModal({ onClose }: Props) {
             <span className="t-label font-medium text-tertiary">
               {t("prefs.language")}
             </span>
-            <div className="max-h-64 overflow-y-auto custom-scroll rounded-xl ring-1 ring-border">
-              {SUPPORTED_LOCALES.map((value) => {
-                const active = locale === value;
-                return (
-                  <button
+            <div className="max-h-64 overflow-y-auto custom-scroll">
+              <OptionRow role="radiogroup" ariaLabel={t("prefs.language")}>
+                {SUPPORTED_LOCALES.map((value) => (
+                  <Option
                     key={value}
-                    onClick={() => setLocale(value)}
-                    aria-current={active ? "true" : undefined}
-                    className="tap press w-full flex items-center gap-3 px-4 t-body"
-                    style={{
-                      justifyContent: "space-between",
-                      background: active ? "var(--surface-elevated)" : "transparent",
-                      color: active ? "var(--text-primary)" : "var(--text-secondary)",
-                      fontWeight: active ? 600 : 400,
-                    }}
-                  >
-                    <span>{LOCALE_ENDONYM[value]}</span>
-                    {active && <Check size={18} style={{ color: "var(--accent)" }} />}
-                  </button>
-                );
-              })}
+                    label={LOCALE_ENDONYM[value]}
+                    selected={locale === value}
+                    role="radio"
+                    onSelect={() => setLocale(value)}
+                  />
+                ))}
+              </OptionRow>
             </div>
           </div>
         </div>

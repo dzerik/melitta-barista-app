@@ -17,8 +17,23 @@ import { SommelierSection } from "./components/SommelierSection";
 import { StatusOverlay } from "./components/StatusOverlay";
 import { PreferencesModal } from "./components/PreferencesModal";
 import { ResolutionGuard } from "./components/ResolutionGuard";
+import { Rule } from "./components/ui";
 import type { TranslationKey } from "./lib/i18n";
 import iconBtConnect from "./assets/icons/bt_connect.png";
+
+/** §G2.1 — content text hangs 10px inside the rail the rules span. */
+const RAIL_TEXT = "calc(var(--rail) + 10px)";
+
+/**
+ * A bare word carrying a 1px `--border` underline — what every non-committing
+ * action in this app looks like now (§C5a). No fill, no ring, no radius.
+ */
+const WORD_ACTION = {
+  borderRadius: 0,
+  borderBottomWidth: "1px",
+  borderBottomStyle: "solid" as const,
+  borderBottomColor: "var(--border)",
+};
 
 const TABS = ["brew", "freestyle", "sommelier", "stats", "maintenance", "settings"] as const;
 type Tab = (typeof TABS)[number];
@@ -125,13 +140,14 @@ export default function App() {
         <div className="flex h-full items-center justify-center p-6">
           <div className="flex flex-col items-center text-center space-y-4">
             <img src={iconBtConnect} alt="" className="w-20 h-20 object-contain opacity-50" draggable={false} />
-            <p className="text-secondary">{t("app.looking")}</p>
-            <p className="text-sm text-tertiary">
+            <p className="t-body text-secondary">{t("app.looking")}</p>
+            <p className="t-label text-tertiary">
               {t("app.integration_hint")}
             </p>
             <button
               onClick={handleDisconnect}
-              className="mt-4 rounded-lg px-4 py-2 text-sm text-secondary ring-1 ring-border hover:ring-border-hover transition"
+              className="tap press mt-4 t-body text-secondary hover:text-primary"
+              style={WORD_ACTION}
             >
               {t("app.disconnect")}
             </button>
@@ -184,13 +200,19 @@ export default function App() {
         onOpenPrefs={() => setPrefsOpen(true)}
       />
 
-      {/* §5.4: persisted last-good contract rendered before a live fetch lands */}
+      {/* §5.4: persisted last-good contract rendered before a live fetch lands.
+          The notice sits between two hairlines and paints nothing — the top
+          rule is the StatusBar's own rail rule directly above it, so drawing a
+          second one here would double the line to 2px. */}
       {session.stale && (
-        <div
-          className="px-4 py-1 text-center text-[11px] text-tertiary"
-          style={{ background: "var(--surface)" }}
-        >
-          {t("contract.stale_notice")}
+        <div className="shrink-0">
+          <div
+            className="py-1 text-center t-label text-tertiary"
+            style={{ paddingLeft: RAIL_TEXT, paddingRight: RAIL_TEXT }}
+          >
+            {t("contract.stale_notice")}
+          </div>
+          <Rule rail />
         </div>
       )}
 
@@ -217,42 +239,66 @@ export default function App() {
         </div>
       </div>
 
-      {/* Tab bar — every tab is a full-height 60px target, so the same row
+      {/* Tab bar — no fill of its own (§L2): one rail-to-rail hairline with a
+          square-cut 2px accent bar riding on it, and six 60px word targets on
+          the bare ground. Every tab is a full-height target, so the same row
           works under a pointer and a thumb. */}
-      <nav
-        className="relative flex border-t border-border"
-        style={{ background: "var(--bg-elevated)" }}
-      >
-        {/* Sliding indicator: tracks the pager so a drag shows where it lands */}
-        <div
-          className="absolute top-0 h-[2px] rounded-full"
-          style={{
-            width: `${100 / visibleTabs.length}%`,
-            transform: `translateX(${(-pager.offsetPx / pageWidth) * 100}%)`,
-            transition: pager.dragging
-              ? "none"
-              : "transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
-            background: "var(--accent)",
-          }}
-        />
-        {visibleTabs.map((tt, i) => (
-          <button
-            key={tt}
-            onClick={() => onPageChange(i)}
-            disabled={hasAction && tt !== tab}
-            aria-current={tt === tab ? "page" : undefined}
-            className={`tap tap-lg press flex-1 t-label ${
-              hasAction && tt !== tab
-                ? "text-tertiary cursor-not-allowed opacity-30"
-                : tt === tab
-                  ? "text-primary font-semibold"
-                  : "text-secondary hover:text-primary"
-            }`}
-          >
-            {t(TAB_LABEL_KEYS[tt])}
-          </button>
-        ))}
-      </nav>
+      <div className="shrink-0">
+        <Rule rail />
+        <nav
+          className="relative flex"
+          style={{ marginLeft: "var(--rail)", marginRight: "var(--rail)" }}
+        >
+          {/* The screen's one position mark (§8.1c): square-cut, 2px, riding on
+              the rule above and tracking the pager so a drag shows where it
+              lands. A per-word reserved underline cannot slide with a drag,
+              which is why the tab bar keeps a single moving mark instead. */}
+          <div
+            aria-hidden="true"
+            data-ui="tab-indicator"
+            data-fill="rule"
+            className="absolute h-[2px]"
+            style={{
+              top: "-1px",
+              width: `${100 / visibleTabs.length}%`,
+              transform: `translateX(${(-pager.offsetPx / pageWidth) * 100}%)`,
+              transition: pager.dragging
+                ? "none"
+                : "transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
+              backgroundColor: "var(--accent)",
+              borderRadius: 0,
+            }}
+          />
+          {visibleTabs.map((tt, i) => {
+            const current = tt === tab;
+            const locked = hasAction && tt !== tab;
+            return (
+              <button
+                key={tt}
+                onClick={() => onPageChange(i)}
+                disabled={locked}
+                aria-current={current ? "page" : undefined}
+                data-ui="tab"
+                data-selected={current ? "true" : "false"}
+                className={`tap tap-lg press flex-1 t-label ${
+                  locked
+                    ? "text-tertiary cursor-not-allowed"
+                    : current
+                      ? "text-primary font-semibold"
+                      : "text-secondary hover:text-primary"
+                }`}
+                style={{
+                  borderRadius: 0,
+                  // §10 disabled: 0.35, and the row keeps its space.
+                  opacity: locked ? 0.35 : 1,
+                }}
+              >
+                {t(TAB_LABEL_KEYS[tt])}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
 
       <StatusOverlay conn={connection} entities={entities} prefix={prefix} />
       {prefsOpen && <PreferencesModal onClose={() => setPrefsOpen(false)} />}
