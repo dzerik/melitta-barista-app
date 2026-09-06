@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
 import type { Connection, HassEntities } from "home-assistant-js-websocket";
-import { Sparkles, Heart, Clock, Loader2, AlertCircle } from "lucide-react";
+import { Sparkles, Heart, Clock, AlertCircle } from "lucide-react";
 import { usePreferences } from "../lib/preferences";
 import type { TranslationKey } from "../lib/i18n";
 import { useSommelier } from "../hooks/useSommelier";
 import { readBridgeAttributes, readStringsVersion, type UiContract } from "../lib/contract";
 import { withSommelierErrorMapping } from "../lib/sommelier-errors";
 import { BrewWizardContext, type BrewWizardEnv } from "../hooks/useBrewPhase";
+import { Option } from "./ui/Option";
+import { Rule } from "./ui/Rule";
 import { SommelierGenerate } from "./SommelierGenerate";
 import { SommelierFavorites } from "./SommelierFavorites";
 import { SommelierHistory } from "./SommelierHistory";
@@ -35,6 +37,12 @@ const SUB_VIEWS: { key: SubView; labelKey: string; icon: typeof Sparkles }[] = [
  * `useSommelier` error state, and a `BrewWizardContext` gives recipe cards
  * the connection + entry scope + confirm-prompt entity the brew-phase
  * wizard needs.
+ *
+ * Drawn to §G2.1/§G2.2/§G2.3: the tab strip's rule and the body both span rail
+ * to rail with text hanging 10px inside, the body is a fixed-viewport
+ * `flex h-full flex-col` that pages rather than scrolls, and the `max-w-6xl`
+ * measure cap that used to wrap the whole tab is gone — a cap belongs on
+ * running prose, never on structure.
  */
 export function SommelierSection({ conn, entities, prefix, contract = null }: Props) {
   const { t, locale } = usePreferences();
@@ -61,66 +69,72 @@ export function SommelierSection({ conn, entities, prefix, contract = null }: Pr
   );
 
   if (sommelier.loading) {
+    // §9.3 — a wait with no measure breathes on the subject glyph. No spinner.
     return (
       <div className="flex h-full items-center justify-center">
-        <Loader2 size={24} className="animate-spin text-secondary" />
+        <Sparkles size={24} className="status-icon-pulse text-secondary" aria-hidden="true" />
       </div>
     );
   }
 
   return (
     <BrewWizardContext.Provider value={wizardEnv}>
-    <div className="flex h-full flex-col overflow-hidden">
-      {/* Error banner */}
-      {sommelier.error && (
-        <div
-          role="alert"
-          className="mx-5 mt-3 rounded-xl px-4 py-3 text-sm flex items-center gap-2"
-          style={{ background: "var(--error-bg)", color: "var(--error-text)" }}
-          title={sommelier.error}
-        >
-          <AlertCircle size={16} className="shrink-0" />
-          <span className="line-clamp-2">
-            {sommelier.error.length > 240 ? `${sommelier.error.slice(0, 240)}…` : sommelier.error}
-          </span>
-        </div>
-      )}
-
-      {/* Sub-navigation */}
-      {/* Three words with a rule under them; the one you are on is lit. Three
-          filled buttons competing for the eye is a kit, not a machine. */}
-      <div
-        className="mx-auto mt-4 w-full max-w-6xl px-5 flex gap-8 border-b"
-        style={{ borderColor: "var(--border)" }}
-      >
-        {SUB_VIEWS.map(({ key, labelKey, icon: Icon }) => {
-          const active = subView === key;
-          return (
-            <button
-              key={key}
-              onClick={() => setSubView(key)}
-              aria-current={active ? "page" : undefined}
-              className="tap press flex items-center gap-2 t-body -mb-px"
+      <div className="flex h-full flex-col overflow-hidden">
+        {/* §10 error: `--error-text` type between two hairlines. Not a box. */}
+        {sommelier.error && (
+          <div role="alert" className="shrink-0" title={sommelier.error}>
+            <Rule rail style={{ backgroundColor: "var(--error-border)" }} />
+            <div
+              className="flex items-center gap-2 py-2.5 t-label"
               style={{
-                color: active ? "var(--accent)" : "var(--text-secondary)",
-                borderBottom: active ? "2px solid var(--accent)" : "2px solid transparent",
+                color: "var(--error-text)",
+                paddingLeft: "calc(var(--rail) + 10px)",
+                paddingRight: "calc(var(--rail) + 10px)",
               }}
             >
-              <Icon size={18} />
-              <span>{t(labelKey as TranslationKey)}</span>
-            </button>
-          );
-        })}
-      </div>
+              <AlertCircle size={16} className="shrink-0" />
+              <span className="line-clamp-2">{sommelier.error}</span>
+            </div>
+            <Rule rail style={{ backgroundColor: "var(--error-border)" }} />
+          </div>
+        )}
 
-      {/* Active sub-view — capped like the rest of the app, so lines stay
-          readable instead of running the full width of a desktop screen. */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 w-full max-w-6xl mx-auto">
-        {subView === "generate" && <SommelierGenerate sommelier={sommelier} />}
-        {subView === "favorites" && <SommelierFavorites sommelier={sommelier} />}
-        {subView === "history" && <SommelierHistory sommelier={sommelier} />}
+        {/* Sub-navigation — three words on a rail-to-rail rule, the one you
+            are on lit white with a 2px accent underline sitting ON that rule. */}
+        <div
+          className="mt-4 flex shrink-0 gap-8"
+          style={{
+            marginLeft: "var(--rail)",
+            marginRight: "var(--rail)",
+            paddingLeft: "10px",
+            borderBottomWidth: "1px",
+            borderBottomStyle: "solid",
+            borderBottomColor: "var(--border)",
+          }}
+        >
+          {SUB_VIEWS.map(({ key, labelKey, icon: Icon }) => (
+            <Option
+              key={key}
+              level="nav"
+              label={t(labelKey as TranslationKey)}
+              selected={subView === key}
+              onSelect={() => setSubView(key)}
+              icon={<Icon size={18} />}
+            />
+          ))}
+        </div>
+
+        {/* The active sub-view runs rail to rail and fits the viewport: the
+            only cap left in the tab is `max-w-prose` inside a details drawer. */}
+        <div
+          className="flex min-h-0 flex-1 flex-col"
+          style={{ paddingLeft: "var(--rail)", paddingRight: "var(--rail)" }}
+        >
+          {subView === "generate" && <SommelierGenerate sommelier={sommelier} />}
+          {subView === "favorites" && <SommelierFavorites sommelier={sommelier} />}
+          {subView === "history" && <SommelierHistory sommelier={sommelier} />}
+        </div>
       </div>
-    </div>
     </BrewWizardContext.Provider>
   );
 }

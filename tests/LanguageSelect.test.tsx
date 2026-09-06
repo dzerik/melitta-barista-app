@@ -53,3 +53,57 @@ describe("LanguageSelect", () => {
     expect(screen.queryByRole("listbox")).toBeNull();
   });
 });
+
+describe("LanguageSelect — visual contract", () => {
+  it("the trigger is a line to write on, not a filled box", () => {
+    const { trigger } = setup();
+    expect(trigger.style.backgroundColor).toBe("");
+    expect(trigger.style.backgroundImage).toBe("");
+    expect(trigger.style.borderRadius).toBe("0px");
+    expect(trigger.style.borderBottomWidth).toBe("1px");
+    expect(trigger.style.borderBottomColor).toBe("var(--input-border)");
+    expect(trigger.getAttribute("class")).not.toMatch(/rounded-|ring-/);
+    expect(trigger.className).toContain("tap");
+    expect(trigger.className).toContain("press");
+  });
+
+  it("the open list is the one flat panel — no ring, no shadow, no radius", () => {
+    const { trigger } = setup();
+    fireEvent.click(trigger);
+    const list = screen.getByRole("listbox");
+    expect(list.dataset.fill).toBe("panel");
+    expect(list.style.backgroundColor).toBe("var(--surface)");
+    expect(list.style.borderRadius).toBe("0px");
+    expect(list.style.boxShadow).toBe("none");
+    expect(list.getAttribute("class")).not.toMatch(/rounded-|ring-|shadow/);
+  });
+
+  it("rows are divided by a hairline and paint nothing", () => {
+    const { trigger } = setup();
+    fireEvent.click(trigger);
+    const rows = screen.getAllByRole("option") as HTMLElement[];
+    for (const row of rows) {
+      expect(row.style.backgroundColor).toBe("");
+      expect(row.style.backgroundImage).toBe("");
+      expect(row.style.borderRadius).toBe("0px");
+      expect(row.className).toContain("tap");
+    }
+    expect(rows[0].style.borderTopWidth).toBe("0px");
+    expect(rows[1].style.borderTopWidth).toBe("1px");
+    expect(rows[1].style.borderTopColor).toBe("var(--border)");
+  });
+
+  it("selection is value and weight plus an accent check, never a fill", () => {
+    const { trigger } = setup();
+    fireEvent.click(trigger);
+    const rows = screen.getAllByRole("option") as HTMLElement[];
+    const selected = rows.find((r) => r.getAttribute("aria-selected") === "true")!;
+    const other = rows.find((r) => r.getAttribute("aria-selected") === "false")!;
+    expect(selected.style.color).toBe("var(--text-primary)");
+    expect(selected.style.fontWeight).toBe("600");
+    expect(selected.style.backgroundColor).toBe("");
+    expect(selected.querySelector("svg")).not.toBeNull();
+    expect(other.style.color).toBe("var(--text-secondary)");
+    expect(other.querySelector("svg")).toBeNull();
+  });
+});

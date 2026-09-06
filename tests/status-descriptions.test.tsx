@@ -1,5 +1,6 @@
 /**
- * Served machine-state descriptions in the status surfaces (§6.3.7).
+ * Served machine-state descriptions in the status surfaces (§6.3.7), plus the
+ * StatusOverlay's rebuilt visual contract.
  *
  * The overlay's second line is machine-domain wording: the integration now
  * serves `status.process.<TOKEN>.description` and
@@ -8,6 +9,12 @@
  * These tests pin both tiers and the unchanged action-required branch, for
  * the full-screen StatusOverlay and for BrewSection's service-cycle screen
  * (whose sublabel is the same machine-domain sentence).
+ *
+ * The last block pins the geometry the overlay was rebuilt to (owner decision
+ * 4): a pour is the bottom-pinned segmented meter with one labelled abort
+ * circle, a known-duration maintenance programme is the desaturated tick ring,
+ * and nothing anywhere carries a radius, a ring, a shadow or an undeclared
+ * fill.
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { screen } from "@testing-library/react";
@@ -102,6 +109,122 @@ describe("StatusOverlay descriptions", () => {
     expect(
       screen.queryByText("The machine is on and ready to brew."),
     ).not.toBeInTheDocument();
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+   The rebuilt visual contract (the two hard rules + owner decision 4)
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Fills the language permits; each must announce itself with `data-fill`. */
+const CARVE_OUTS = new Set([
+  "commit",
+  "meter",
+  "glow",
+  "contact",
+  "rule",
+  "scrim",
+  "panel",
+]);
+
+/**
+ * Walk a rendered tree and assert the two hard rules on every node: radius 0
+ * (a true circle — width === height — being the only curve), no fill that has
+ * not declared itself a carve-out, no ring, no shadow, no tracked-out caps,
+ * and `backdrop-blur` only on a scrim.
+ */
+function assertHardRules(root: HTMLElement) {
+  root.querySelectorAll<HTMLElement>("*").forEach((el) => {
+    const cls = String(el.className);
+    const radius = el.style?.borderRadius ?? "";
+    if (radius !== "" && radius !== "0px") {
+      expect(radius, `${el.tagName} draws a curve that is not a circle`).toBe("50%");
+      expect(el.style.width).toBe(el.style.height);
+    }
+    expect(cls).not.toMatch(/(^|\s)rounded/);
+    expect(cls).not.toMatch(/(^|\s)ring-/);
+    expect(cls).not.toMatch(/shadow-|tracking-|uppercase/);
+    if (/backdrop-blur/.test(cls)) {
+      expect(el.getAttribute("data-fill")).toBe("scrim");
+    }
+    const shadow = el.style?.boxShadow ?? "";
+    if (shadow !== "") expect(shadow).toBe("none");
+
+    const painted =
+      (el.style?.backgroundColor ?? "") !== "" ||
+      (el.style?.backgroundImage ?? "") !== "";
+    if (!painted) return;
+    const declared = el.getAttribute("data-fill");
+    expect(
+      declared !== null && CARVE_OUTS.has(declared),
+      `${el.tagName} paints without declaring a carve-out (data-fill=${declared})`,
+    ).toBe(true);
+  });
+}
+
+describe("StatusOverlay — the rebuilt visual contract", () => {
+  function renderWithProgress(tokens: Record<string, unknown>, progress: string) {
+    const withProgress = {
+      ...entities(tokens),
+      "sensor.melitta_progress": ent(progress),
+    } as unknown as HassEntities;
+    return renderWithProviders(
+      <StatusOverlay entities={withProgress} prefix="melitta" conn={conn} />,
+    );
+  }
+
+  it("draws a pour as the segmented meter — no ring, no capsule, no amber", () => {
+    renderWithProgress({ process_token: "PRODUCT", is_brewing: true }, "40");
+
+    const meter = document.querySelector('[data-ui="meter"]')!;
+    expect(meter).toBeTruthy();
+    // round(0.40 × 12) segments painted, the paint IS the value.
+    expect(meter.getAttribute("data-filled")).toBe("5");
+    expect(meter.getAttribute("data-segments")).toBe("12");
+    expect(document.querySelector('[data-ui="tick-ring"]')).toBeNull();
+    expect(document.body.innerHTML).not.toMatch(/amber/);
+    assertHardRules(document.body);
+  });
+
+  it("collapses to one labelled abort: a true circle with its word outside it", () => {
+    renderWithProgress({ process_token: "PRODUCT", is_brewing: true }, "40");
+
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+    expect(cancel.className).toContain("tap");
+    expect(cancel.className).toContain("press");
+    // The word is a sibling of the circle, never inside it.
+    const circle = cancel.querySelector<HTMLElement>('[data-ui="abort-circle"]')!;
+    expect(circle.style.backgroundColor).toBe("var(--error-text)");
+    expect(circle.style.borderRadius).toBe("50%");
+    expect(circle.style.width).toBe(circle.style.height);
+    expect(circle).toHaveAttribute("data-fill", "commit");
+    expect(circle.textContent).toBe("");
+    // Exactly one saturated shape on the whole screen.
+    expect(document.querySelectorAll('[data-fill="commit"]')).toHaveLength(1);
+  });
+
+  it("gives a known-duration maintenance programme the desaturated tick ring", () => {
+    renderWithProgress({ process_token: "DESCALING" }, "50");
+
+    const ring = document.querySelector('[data-ui="tick-ring"]')!;
+    expect(ring).toBeTruthy();
+    expect(ring.getAttribute("data-completed")).toBe("45");
+    // §9.4: service progress is --text-secondary, never the accent.
+    expect(ring.querySelector('[data-tick="done"]')).toHaveAttribute(
+      "fill",
+      "var(--text-secondary)",
+    );
+    expect(document.querySelector('[data-ui="meter"]')).toBeNull();
+    assertHardRules(document.body);
+  });
+
+  it("keeps the action-required screen bare — no progress furniture at all", () => {
+    renderOverlay({ manipulation_token: "FILL_WATER" });
+
+    expect(document.querySelector('[data-ui="meter"]')).toBeNull();
+    expect(document.querySelector('[data-ui="tick-ring"]')).toBeNull();
+    expect(document.querySelectorAll("[data-fill]")).toHaveLength(1); // the scrim
+    assertHardRules(document.body);
   });
 });
 

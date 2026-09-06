@@ -158,6 +158,28 @@ function renderWizard(env: BrewWizardEnv, recipe: AiRecipe, onClose = vi.fn()) {
 const machineSteps = (steps: WizardStep[]) =>
   steps.filter((s): s is Extract<WizardStep, { kind: "machine" }> => s.kind === "machine");
 
+/**
+ * jsdom ships no IntersectionObserver and the shared setup stubs only
+ * ResizeObserver, so the paged sommelier grids (Embla) cannot mount without
+ * one. Guarded, so it becomes a no-op the moment the shared setup grows its
+ * own stub.
+ */
+if (!("IntersectionObserver" in globalThis)) {
+  class IntersectionObserverStub {
+    readonly root = null;
+    readonly rootMargin = "";
+    readonly thresholds: number[] = [];
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    takeRecords() {
+      return [];
+    }
+  }
+  globalThis.IntersectionObserver =
+    IntersectionObserverStub as unknown as typeof IntersectionObserver;
+}
+
 beforeEach(() => {
   localStorage.clear();
   resetVocab();
@@ -614,6 +636,216 @@ describe("BrewWizard", () => {
     renderWizard(makeEnv(conn), phasedRecipe());
     expect(screen.getByText("Enjoy!")).toBeInTheDocument();
     expect(screen.getByText("Stir gently before serving")).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BrewWizard component — the rebuilt visual contract
+// ---------------------------------------------------------------------------
+
+/** Fills the language permits; each must announce itself with `data-fill`. */
+const CARVE_OUTS = new Set([
+  "commit",
+  "meter",
+  "glow",
+  "contact",
+  "rule",
+  "scrim",
+  "panel",
+]);
+
+/**
+ * The two hard rules, asserted on every node of a rendered tree: radius 0 (a
+ * true circle — width === height — being the only curve), no undeclared fill,
+ * no ring, no shadow, no tracked-out caps, `backdrop-blur` only on a scrim.
+ */
+function assertHardRules(root: HTMLElement) {
+  root.querySelectorAll<HTMLElement>("*").forEach((el) => {
+    const cls = String(el.className);
+    const radius = el.style?.borderRadius ?? "";
+    if (radius !== "" && radius !== "0px") {
+      expect(radius, `${el.tagName} draws a curve that is not a circle`).toBe("50%");
+      expect(el.style.width).toBe(el.style.height);
+    }
+    expect(cls).not.toMatch(/(^|\s)rounded/);
+    expect(cls).not.toMatch(/(^|\s)ring-/);
+    expect(cls).not.toMatch(/shadow-|tracking-|uppercase/);
+    if (/backdrop-blur/.test(cls)) {
+      expect(el.getAttribute("data-fill")).toBe("scrim");
+    }
+    const shadow = el.style?.boxShadow ?? "";
+    if (shadow !== "") expect(shadow).toBe("none");
+
+    const painted =
+      (el.style?.backgroundColor ?? "") !== "" ||
+      (el.style?.backgroundImage ?? "") !== "";
+    if (!painted) return;
+    const declared = el.getAttribute("data-fill");
+    expect(
+      declared !== null && CARVE_OUTS.has(declared),
+      `${el.tagName} paints without declaring a carve-out (data-fill=${declared})`,
+    ).toBe(true);
+  });
+}
+
+const commits = () => document.querySelectorAll('[data-ui="commit"]');
+
+describe("BrewWizard — the rebuilt visual contract", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("is one flat §5.B panel — radius 0, no ring, no shadow, no stray fill", () => {
+    const { conn } = makeConn();
+    renderWizard(makeEnv(conn), phasedRecipe());
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveAttribute("data-fill", "panel");
+    expect(dialog.style.backgroundColor).toBe("var(--surface)");
+    expect(dialog.style.borderRadius).toBe("0px");
+    // The panel and the scrim behind it are the only fills in the tree.
+    expect(document.querySelectorAll('[data-fill="panel"]')).toHaveLength(1);
+    assertHardRules(document.body);
+  });
+
+  it("renders exactly one commit rectangle per step, in --accent at radius 0", () => {
+    const { conn } = makeConn();
+    renderWizard(makeEnv(conn), phasedRecipe());
+
+    expect(commits()).toHaveLength(1);
+    const done = screen.getByRole("button", { name: "Done" });
+    expect(done).toHaveAttribute("data-ui", "commit");
+    expect(done.style.backgroundColor).toBe("var(--accent)");
+    expect(done.style.borderRadius).toBe("0px");
+    expect(done.style.minHeight).toBe("var(--tap-lg)");
+
+    fireEvent.click(done); // cup → pre
+    fireEvent.click(screen.getByRole("button", { name: "Done" })); // pre → pour
+    expect(commits()).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /Start this pour/ })).toHaveAttribute(
+      "data-ui",
+      "commit",
+    );
+    assertHardRules(document.body);
+  });
+
+  it("keeps a failed pour's Retry as the commit and Skip as a bare word", async () => {
+    const { conn } = makeConn(async (msg) => {
+      if (msg.type === "melitta_barista/sommelier/brew_phase") {
+        throw { code: "brew_failed", message: "busy" };
+      }
+      return {};
+    });
+    renderWizard(makeEnv(conn), phasedRecipe());
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Start this pour/ }));
+    });
+
+    expect(commits()).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Retry" })).toHaveAttribute(
+      "data-ui",
+      "commit",
+    );
+    const skip = screen.getByRole("button", { name: "Skip" });
+    expect(skip).not.toHaveAttribute("data-ui", "commit");
+    expect(skip.style.backgroundColor).toBe("");
+    expect(skip.style.borderBottomColor).toBe("var(--border)");
+    expect(skip.className).toContain("tap");
+    // §10 error: type between two 1px --error-border rules, no box, no fill.
+    const alert = screen.getByRole("alert");
+    expect(alert.style.backgroundColor).toBe("");
+    expect(alert.style.borderTopColor).toBe("var(--error-border)");
+    expect(alert.style.borderBottomColor).toBe("var(--error-border)");
+    assertHardRules(document.body);
+  });
+
+  it("draws a pour's progress as the segmented meter, never a ring or a bar", async () => {
+    vi.useFakeTimers();
+    const { conn } = makeConn(async (msg) => {
+      if (msg.type === "melitta_barista/status") {
+        return { status: { is_brewing: true, progress: 25 } };
+      }
+      return {};
+    });
+    renderWizard(makeEnv(conn), phasedRecipe());
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Start this pour/ }));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2100);
+    });
+
+    const meter = document.querySelector('[data-ui="meter"]')!;
+    expect(meter).toBeTruthy();
+    expect(meter.getAttribute("data-filled")).toBe("3"); // round(0.25 × 12)
+    expect(document.querySelector('[data-ui="tick-ring"]')).toBeNull();
+    // The readout lives in the label row above the bar, never on it.
+    expect(meter.textContent).toBe("");
+    expect(screen.getByText("25%")).toBeInTheDocument();
+    // §9.3: no spinner survives anywhere.
+    expect(document.querySelector(".animate-spin")).toBeNull();
+    assertHardRules(document.body);
+  });
+
+  it("sets a phase's composition as the value strip: accent label, white value", () => {
+    const { conn } = makeConn();
+    renderWizard(makeEnv(conn), phasedRecipe());
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+
+    const strip = document.querySelector<HTMLElement>('[data-ui="value-strip"]')!;
+    expect(strip).toBeTruthy();
+    expect(strip.textContent).toContain("Coffee");
+    expect(strip.textContent).toContain("40 ml");
+    // The label half is the only accent ink; the value half stays white.
+    const label = strip.querySelector<HTMLElement>('span[style*="--accent"]')!;
+    expect(label.textContent).toContain("Portion");
+    const value = strip.querySelector<HTMLElement>('span[style*="--text-primary"]')!;
+    expect(value).toBeTruthy();
+    // No pill, no badge, no fill: the groups are divided by hairlines only.
+    expect(strip.innerHTML).not.toMatch(/rounded|background/);
+    expect(strip.querySelector(".border-l")).toBeTruthy();
+  });
+
+  it("draws step markers as bare ordinals — no disc, no ring, no fill", () => {
+    saveWizardPosition("r1", 2);
+    const { conn } = makeConn();
+    renderWizard(makeEnv(conn), phasedRecipe());
+
+    const items = document.querySelectorAll<HTMLElement>("ol > li");
+    expect(items.length).toBe(6);
+    items.forEach((li) => {
+      const marker = li.firstElementChild as HTMLElement;
+      expect(marker.style.backgroundColor).toBe("");
+      expect(marker.style.borderRadius).toBe("");
+      expect(String(marker.className)).not.toMatch(/rounded|ring-/);
+      // Each row is opened by a 1px hairline and nothing else.
+      expect(li.style.borderTopColor).toBe("var(--border)");
+    });
+    assertHardRules(document.body);
+  });
+
+  it("puts the leave-confirmation on a scrim with one commit and one word", () => {
+    const { conn } = makeConn();
+    renderWizard(makeEnv(conn), phasedRecipe());
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Leave the brew guide?" }));
+
+    expect(screen.getByRole("button", { name: "Leave" })).toHaveAttribute(
+      "data-ui",
+      "commit",
+    );
+    const stay = screen.getByRole("button", { name: "Stay" });
+    expect(stay.style.backgroundColor).toBe("");
+    expect(stay.style.borderBottomColor).toBe("var(--border)");
+    // The confirm step removes the panel beneath it rather than stacking a
+    // second filled card on top of it.
+    expect(document.querySelectorAll('[data-fill="panel"]')).toHaveLength(1);
+    assertHardRules(document.body);
   });
 });
 

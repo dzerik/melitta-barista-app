@@ -9,7 +9,7 @@ import {
   getIntegrationVersion,
 } from "../lib/ha";
 import { usePreferences } from "../lib/preferences";
-import { Check, RotateCcw } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import type { TranslationKey } from "../lib/i18n";
 import type { UiContract, SettingDescriptor } from "../lib/contract";
 import {
@@ -27,14 +27,32 @@ import {
   numberBounds,
 } from "../lib/settings";
 import { resolveMdiIcon } from "../lib/icons";
+import { Option } from "./ui/Option";
+import { OptionRow } from "./ui/OptionRow";
+import { MeterField } from "./ui/Meter";
+import { Commit } from "./ui/Commit";
+import { Rule } from "./ui/Rule";
 import iconBean from "../assets/icons/bean.png";
 import iconWater from "../assets/icons/water.png";
 import iconTemperature from "../assets/icons/temperature.png";
 import iconMaintenance from "../assets/icons/maintenance.png";
 import iconSettings from "../assets/icons/settings.png";
 
-function MelittaIcon({ src, alt }: { src: string; alt: string }) {
-  return <img src={src} alt={alt} className="w-5 h-5 object-contain" draggable={false} />;
+/**
+ * A raster brand glyph, bare on the ground. §6.6: non-drink raster icons keep
+ * a fixed square size and carry their state as an opacity knock-down — there
+ * is no 36×36 plate behind them any more.
+ */
+function MelittaIcon({ src, alt, lit = false }: { src: string; alt: string; lit?: boolean }) {
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="w-5 h-5 object-contain shrink-0"
+      style={{ opacity: lit ? 1 : 0.45 }}
+      draggable={false}
+    />
+  );
 }
 
 interface Props {
@@ -49,7 +67,8 @@ interface SwitchDef {
   suffix: string;
   labelKey: TranslationKey;
   descKey: TranslationKey;
-  icon: React.ReactNode;
+  iconSrc: string;
+  iconAlt: string;
 }
 
 /**
@@ -61,19 +80,22 @@ const SWITCHES: SwitchDef[] = [
     suffix: "energy_saving",
     labelKey: "settings.energy_saving",
     descKey: "settings.energy_saving_desc",
-    icon: <MelittaIcon src={iconSettings} alt="energy" />,
+    iconSrc: iconSettings,
+    iconAlt: "energy",
   },
   {
     suffix: "auto_bean_select",
     labelKey: "settings.auto_bean",
     descKey: "settings.auto_bean_desc",
-    icon: <MelittaIcon src={iconBean} alt="bean" />,
+    iconSrc: iconBean,
+    iconAlt: "bean",
   },
   {
     suffix: "rinsing_disabled",
     labelKey: "settings.rinsing",
     descKey: "settings.rinsing_desc",
-    icon: <MelittaIcon src={iconMaintenance} alt="rinsing" />,
+    iconSrc: iconMaintenance,
+    iconAlt: "rinsing",
   },
 ];
 
@@ -87,7 +109,8 @@ interface NumberDef {
   labelKey: TranslationKey;
   descKey: TranslationKey;
   format: "level" | "minutes";
-  icon: React.ReactNode;
+  iconSrc: string;
+  iconAlt: string;
 }
 
 /** Legacy hardcoded number table — the permanent tier-2 fallback (§9.1.6). */
@@ -97,21 +120,24 @@ const NUMBERS: NumberDef[] = [
     labelKey: "settings.water_hardness",
     descKey: "settings.water_hardness_desc",
     format: "level",
-    icon: <MelittaIcon src={iconWater} alt="water" />,
+    iconSrc: iconWater,
+    iconAlt: "water",
   },
   {
     suffix: "auto_off_after",
     labelKey: "settings.auto_off",
     descKey: "settings.auto_off_desc",
     format: "minutes",
-    icon: <MelittaIcon src={iconSettings} alt="auto-off" />,
+    iconSrc: iconSettings,
+    iconAlt: "auto-off",
   },
   {
     suffix: "brew_temperature",
     labelKey: "settings.brew_temp",
     descKey: "settings.brew_temp_desc",
     format: "level",
-    icon: <MelittaIcon src={iconTemperature} alt="temp" />,
+    iconSrc: iconTemperature,
+    iconAlt: "temp",
   },
 ];
 
@@ -166,11 +192,66 @@ function readCatalogBackend(
 
 const stagger = (index: number) => ({ animationDelay: `${index * 60}ms` });
 
-const cardStyle = (changed: boolean) =>
-  ({
-    background: changed ? "var(--surface-card-active)" : "var(--surface-card)",
-    "--tw-ring-color": changed ? "var(--border-active)" : "var(--border)",
-  }) as React.CSSProperties;
+/**
+ * Above this many choices a row keeps a native `<select>` (a bare underline,
+ * no fill and no radius); at or below it the choices are drawn as words
+ * (§C1, and the §13 field-research cap of five on a segmented single-choice
+ * row). Every Nivona family served today sits under the cap.
+ */
+const WORD_ROW_OPTION_CAP = 5;
+
+/**
+ * §G2.7 row pitch. A setting is one 80px row — label left, control right,
+ * separated from the next by a single hairline. No card, no zebra, no group
+ * box: the two-axis `--surface-card` / `--surface-card-active` fill-plus-ring
+ * state model is gone, and "changed" now lives in the VALUE's colour (§10).
+ */
+const ROW_MIN_H = "80px";
+
+/** Content hangs 10px inside the rail-to-rail rule (§G2.1). */
+const ROW_INSET = "10px";
+
+function rowStyle(index: number): React.CSSProperties {
+  return {
+    ...stagger(index),
+    borderTopWidth: "1px",
+    borderTopStyle: "solid",
+    borderTopColor: "var(--border)",
+    borderRadius: 0,
+    minHeight: ROW_MIN_H,
+    paddingLeft: ROW_INSET,
+    paddingRight: ROW_INSET,
+  };
+}
+
+/**
+ * A bare 20px lucide glyph. §C3: `--accent` when the setting is on,
+ * `--text-tertiary` when it is not — and no plate behind it either way.
+ */
+function settingGlyph(icon: string, tone: string) {
+  const Icon = resolveMdiIcon(icon);
+  return (
+    <span
+      aria-hidden="true"
+      className="shrink-0 inline-flex items-center"
+      style={{ color: tone }}
+    >
+      <Icon size={20} strokeWidth={1.75} />
+    </span>
+  );
+}
+
+/**
+ * Segment count for a bounded number: one segment per served step, capped at
+ * the §C-Numeric continuous default of 12 so a 15-step ladder does not shred
+ * into hairlines.
+ */
+function meterSegments(min: number, max: number, step: number): number {
+  if (!(max > min) || !(step > 0)) return 12;
+  const steps = Math.round((max - min) / step);
+  if (!Number.isFinite(steps) || steps < 1) return 12;
+  return Math.max(2, Math.min(12, steps));
+}
 
 export function SettingsSection({ conn, entities, prefix, contract = null }: Props) {
   const { t, locale } = usePreferences();
@@ -201,8 +282,8 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
     }
   }, [backend, catalogBackend, dirty]);
 
-  const toggleLocal = useCallback((suffix: string) => {
-    setLocalSwitches((prev) => ({ ...prev, [suffix]: !prev[suffix] }));
+  const setLocalSwitch = useCallback((suffix: string, value: boolean) => {
+    setLocalSwitches((prev) => ({ ...prev, [suffix]: value }));
     setDirty(true);
   }, []);
 
@@ -294,6 +375,51 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
     return `${value} min`;
   }
 
+  /**
+   * A boolean is two words, not a switch — there is no switch in this
+   * language (§C3). The chosen word is white with a lit 1px `--accent`
+   * underline; the other keeps a transparent underline so nothing shifts.
+   * While the row is unsaved the chosen word takes `--accent` ink, which is
+   * the §10 dirty rule applied to the value (the same signal MeterField
+   * gives a changed number) and the only thing left of the old fill+ring.
+   */
+  const booleanRow = (
+    name: string,
+    setting: string,
+    isOn: boolean,
+    changed: boolean,
+    onPick: (next: boolean) => void,
+  ) => {
+    const dirtyInk = changed ? { color: "var(--accent)" } : undefined;
+    return (
+      <OptionRow rule={false} role="radiogroup" ariaLabel={name} className="shrink-0">
+        <Option
+          label={settingLevelLabel(locale, setting, "on")}
+          selected={isOn}
+          role="radio"
+          onSelect={() => onPick(true)}
+          style={isOn ? dirtyInk : undefined}
+        />
+        <Option
+          label={settingLevelLabel(locale, setting, "off")}
+          selected={!isOn}
+          role="radio"
+          onSelect={() => onPick(false)}
+          style={isOn ? undefined : dirtyInk}
+        />
+      </OptionRow>
+    );
+  };
+
+  const rowHeading = (label: string, description: string | null) => (
+    <div className="flex-1 min-w-0">
+      <div className="t-body font-medium text-primary">{label}</div>
+      {description !== null && description !== undefined && (
+        <div className="t-label text-tertiary leading-tight mt-0.5">{description}</div>
+      )}
+    </div>
+  );
+
   // -------------------------------------------------------------------------
   // Catalog rows (tier 1 — §9.1.6)
   // -------------------------------------------------------------------------
@@ -301,43 +427,21 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
   const renderCatalogSwitch = (entry: SettingDescriptor, idx: number) => {
     const isOn = localCatalog[entry.setting] === true;
     const changed = isOn !== catalogBackend[entry.setting];
-    const Icon = resolveMdiIcon(settingIconName(entry));
-    const description = settingDescription(locale, entry.setting);
+    const label = settingLabel(locale, entry.setting);
     return (
       <div
         key={entry.setting}
-        className="settings-card-enter flex items-center gap-3 rounded-2xl p-4 transition-all duration-200 ring-1"
-        style={{ ...stagger(idx), ...cardStyle(changed) }}
+        className="settings-card-enter flex items-center gap-3 py-3"
+        style={rowStyle(idx)}
       >
-        <div
-          className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0 transition-colors duration-200"
-          style={{
-            background: isOn ? "var(--accent-muted)" : "var(--surface-card)",
-            color: isOn ? "var(--accent)" : "var(--text-tertiary)",
-          }}
-        >
-          <Icon size={20} strokeWidth={1.75} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-primary">{settingLabel(locale, entry.setting)}</div>
-          {description !== null && (
-            <div className="t-label text-tertiary leading-tight mt-0.5">{description}</div>
-          )}
-        </div>
-        <button
-          onClick={() => setLocalCatalogValue(entry.setting, !isOn)}
-          className="relative h-7 w-12 rounded-full transition-colors duration-200 shrink-0"
-          style={{ background: isOn ? "var(--toggle-on-bg)" : "var(--toggle-off-bg)" }}
-          aria-label={settingLabel(locale, entry.setting)}
-        >
-          <span
-            className="absolute top-0.5 left-0.5 h-6 w-6 rounded-full shadow-md transition-transform duration-200"
-            style={{
-              transform: isOn ? "translateX(1.25rem)" : "translateX(0)",
-              background: isOn ? "var(--toggle-on-knob)" : "var(--toggle-off-knob)",
-            }}
-          />
-        </button>
+        {settingGlyph(
+          settingIconName(entry),
+          isOn ? "var(--accent)" : "var(--text-tertiary)",
+        )}
+        {rowHeading(label, settingDescription(locale, entry.setting))}
+        {booleanRow(label, entry.setting, isOn, changed, (next) =>
+          setLocalCatalogValue(entry.setting, next),
+        )}
       </div>
     );
   };
@@ -348,66 +452,71 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
     const raw = localCatalog[entry.setting];
     const value = typeof raw === "number" && Number.isFinite(raw) ? raw : 0;
     const changed = value !== catalogBackend[entry.setting];
-    const Icon = resolveMdiIcon(settingIconName(entry));
+    const label = settingLabel(locale, entry.setting);
+    const display = formatSettingValue(locale, entry, value);
     const description = settingDescription(locale, entry.setting);
     const box = entry.display === "box";
     return (
       <div
         key={entry.setting}
-        className="settings-card-enter rounded-2xl p-4 space-y-3 transition-all duration-200 ring-1"
-        style={{ ...stagger(idx), ...cardStyle(changed) }}
+        className="settings-card-enter flex items-start gap-3 py-3"
+        style={rowStyle(idx)}
       >
-        <div className="flex items-start gap-3">
-          <div
-            className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
-            style={{ background: "var(--surface-card)", color: "var(--text-secondary)" }}
-          >
-            <Icon size={20} strokeWidth={1.75} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-primary">{settingLabel(locale, entry.setting)}</div>
-            {description !== null && (
-              <div className="t-label text-tertiary leading-tight mt-0.5">{description}</div>
-            )}
-          </div>
-          <span className="text-sm font-semibold text-primary tabular-nums whitespace-nowrap">
-            {formatSettingValue(locale, entry, value)}
-          </span>
+        <span className="mt-0.5 flex">
+          {settingGlyph(settingIconName(entry), "var(--text-tertiary)")}
+        </span>
+        <div className="flex-1 min-w-0 space-y-1.5">
+          {box ? (
+            <>
+              <div className="flex items-baseline justify-between">
+                <span className="t-label text-primary">{label}</span>
+                <span
+                  className="t-label num"
+                  style={{
+                    fontWeight: 600,
+                    color: changed ? "var(--accent)" : "var(--text-primary)",
+                  }}
+                >
+                  {display}
+                </span>
+              </div>
+              <input
+                type="number"
+                min={min}
+                max={max}
+                step={step}
+                value={value}
+                onChange={(e) => setLocalCatalogValue(entry.setting, parseFloat(e.target.value))}
+                aria-label={label}
+                className="w-full bg-transparent px-0 outline-none t-body num"
+                style={{
+                  color: "var(--text-primary)",
+                  borderRadius: 0,
+                  borderBottomWidth: "1px",
+                  borderBottomStyle: "solid",
+                  borderBottomColor: "var(--border)",
+                  height: "var(--tap)",
+                }}
+              />
+            </>
+          ) : (
+            <MeterField
+              style={{ "--meter-max": "18rem" } as React.CSSProperties}
+              label={label}
+              value={value}
+              min={min}
+              max={max}
+              step={step}
+              segments={meterSegments(min, max, step)}
+              displayValue={display}
+              changed={changed}
+              onChange={(next) => setLocalCatalogValue(entry.setting, next)}
+            />
+          )}
+          {description !== null && (
+            <div className="t-label text-tertiary leading-tight">{description}</div>
+          )}
         </div>
-        {box ? (
-          <input
-            type="number"
-            min={min}
-            max={max}
-            step={step}
-            value={value}
-            onChange={(e) => setLocalCatalogValue(entry.setting, parseFloat(e.target.value))}
-            aria-label={settingLabel(locale, entry.setting)}
-            className="w-full rounded-xl px-3 py-2 text-sm tabular-nums ring-1"
-            style={{
-              background: "var(--surface-card)",
-              color: "var(--text-primary)",
-              "--tw-ring-color": "var(--border)",
-            } as React.CSSProperties}
-          />
-        ) : (
-          <input
-            type="range"
-            min={min}
-            max={max}
-            step={step}
-            value={value}
-            onChange={(e) => setLocalCatalogValue(entry.setting, parseFloat(e.target.value))}
-            aria-label={settingLabel(locale, entry.setting)}
-            className="w-full h-1.5 appearance-none rounded-full cursor-pointer
-              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
-              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
-            style={{
-              background: "var(--slider-track)",
-              accentColor: "var(--slider-thumb)",
-            }}
-          />
-        )}
       </div>
     );
   };
@@ -416,49 +525,60 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
     const raw = localCatalog[entry.setting];
     const value = typeof raw === "string" ? raw : "";
     const changed = value !== catalogBackend[entry.setting];
-    const Icon = resolveMdiIcon(settingIconName(entry));
-    const description = settingDescription(locale, entry.setting);
+    const label = settingLabel(locale, entry.setting);
     const options = entry.options ?? [];
+    // Writes use the served label string (§9.1.6 rule 4) — it mirrors the
+    // entity's current options by construction (§9.1.1).
+    const orphan = value !== "" && !options.some((o) => o.label === value);
+    const asWords = options.length + (orphan ? 1 : 0) <= WORD_ROW_OPTION_CAP;
+    const dirtyInk = changed ? { color: "var(--accent)" } : undefined;
     return (
       <div
         key={entry.setting}
-        className="settings-card-enter flex items-center gap-3 rounded-2xl p-4 transition-all duration-200 ring-1"
-        style={{ ...stagger(idx), ...cardStyle(changed) }}
+        className="settings-card-enter flex items-center gap-3 py-3"
+        style={rowStyle(idx)}
       >
-        <div
-          className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
-          style={{ background: "var(--surface-card)", color: "var(--text-secondary)" }}
-        >
-          <Icon size={20} strokeWidth={1.75} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-primary">{settingLabel(locale, entry.setting)}</div>
-          {description !== null && (
-            <div className="t-label text-tertiary leading-tight mt-0.5">{description}</div>
-          )}
-        </div>
-        <select
-          value={value}
-          onChange={(e) => setLocalCatalogValue(entry.setting, e.target.value)}
-          aria-label={settingLabel(locale, entry.setting)}
-          className="shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ring-1 max-w-[45%]"
-          style={{
-            background: "var(--btn-secondary-bg)",
-            color: "var(--btn-secondary-text)",
-            "--tw-ring-color": "var(--border)",
-          } as React.CSSProperties}
-        >
-          {/* Writes use the served label string (§9.1.6 rule 4) — it mirrors
-              the entity's current options by construction (§9.1.1). */}
-          {options.map((o) => (
-            <option key={o.value} value={o.label}>
-              {settingOptionLabel(locale, entry.setting, o)}
-            </option>
-          ))}
-          {value !== "" && !options.some((o) => o.label === value) && (
-            <option value={value}>{value}</option>
-          )}
-        </select>
+        {settingGlyph(settingIconName(entry), "var(--text-tertiary)")}
+        {rowHeading(label, settingDescription(locale, entry.setting))}
+        {asWords ? (
+          <OptionRow rule={false} role="radiogroup" ariaLabel={label} className="shrink-0">
+            {options.map((o) => (
+              <Option
+                key={o.value}
+                label={settingOptionLabel(locale, entry.setting, o)}
+                selected={value === o.label}
+                role="radio"
+                onSelect={() => setLocalCatalogValue(entry.setting, o.label)}
+                style={value === o.label ? dirtyInk : undefined}
+              />
+            ))}
+            {orphan && (
+              <Option label={value} selected role="radio" onSelect={() => {}} style={dirtyInk} />
+            )}
+          </OptionRow>
+        ) : (
+          <select
+            value={value}
+            onChange={(e) => setLocalCatalogValue(entry.setting, e.target.value)}
+            aria-label={label}
+            className="shrink-0 bg-transparent px-0 outline-none t-body max-w-[45%]"
+            style={{
+              color: changed ? "var(--accent)" : "var(--text-primary)",
+              borderRadius: 0,
+              borderBottomWidth: "1px",
+              borderBottomStyle: "solid",
+              borderBottomColor: "var(--border)",
+              minHeight: "var(--tap)",
+            }}
+          >
+            {options.map((o) => (
+              <option key={o.value} value={o.label}>
+                {settingOptionLabel(locale, entry.setting, o)}
+              </option>
+            ))}
+            {orphan && <option value={value}>{value}</option>}
+          </select>
+        )}
       </div>
     );
   };
@@ -475,27 +595,15 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
       const opt = entry.options?.find((o) => o.label === raw);
       display = opt ? settingOptionLabel(locale, entry.setting, opt) : String(raw ?? "");
     }
-    const Icon = resolveMdiIcon(settingIconName(entry));
-    const description = settingDescription(locale, entry.setting);
     return (
       <div
         key={entry.setting}
-        className="settings-card-enter flex items-center gap-3 rounded-2xl p-4 ring-1"
-        style={{ ...stagger(idx), ...cardStyle(false) }}
+        className="settings-card-enter flex items-center gap-3 py-3"
+        style={rowStyle(idx)}
       >
-        <div
-          className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
-          style={{ background: "var(--surface-card)", color: "var(--text-tertiary)" }}
-        >
-          <Icon size={20} strokeWidth={1.75} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-primary">{settingLabel(locale, entry.setting)}</div>
-          {description !== null && (
-            <div className="t-label text-tertiary leading-tight mt-0.5">{description}</div>
-          )}
-        </div>
-        <span className="text-sm font-semibold text-secondary tabular-nums whitespace-nowrap">
+        {settingGlyph(settingIconName(entry), "var(--text-tertiary)")}
+        {rowHeading(settingLabel(locale, entry.setting), settingDescription(locale, entry.setting))}
+        <span className="t-label num text-secondary whitespace-nowrap" style={{ fontWeight: 600 }}>
           {display}
         </span>
       </div>
@@ -527,170 +635,137 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
   let cardIndex = 0;
 
   return (
-    <div className="flex h-full flex-col px-5 py-5 overflow-y-auto max-w-2xl mx-auto w-full">
-      {catalogGroupsView !== null ? (
-        catalogGroupsView.map(({ group, entries: groupEntries }) => {
-          const headerIdx = cardIndex++;
-          return (
-            <div key={group}>
-              <div
-                className="settings-header-enter t-label font-medium text-tertiary mb-3"
-                style={stagger(headerIdx)}
-              >
-                {settingGroupLabel(locale, group)}
-              </div>
-              <div className="space-y-2 mb-6">
+    <div
+      className="flex h-full flex-col"
+      style={{ paddingLeft: "var(--rail)", paddingRight: "var(--rail)" }}
+    >
+      <div className="flex-1 min-h-0 flex flex-col overflow-y-auto custom-scroll py-5">
+        {catalogGroupsView !== null ? (
+          catalogGroupsView.map(({ group, entries: groupEntries }) => {
+            const headerIdx = cardIndex++;
+            return (
+              <div key={group} className="mb-6">
+                <div
+                  className="settings-header-enter t-label font-medium text-tertiary mb-2"
+                  style={{ ...stagger(headerIdx), paddingLeft: ROW_INSET }}
+                >
+                  {settingGroupLabel(locale, group)}
+                </div>
                 {groupEntries.map((entry) => renderCatalogEntry(entry, cardIndex++))}
               </div>
-            </div>
-          );
-        })
-      ) : (
-        <>
-          <div
-            className="settings-header-enter t-label font-medium text-tertiary mb-3"
-          >
-            {t("settings.toggles")}
-          </div>
-          <div className="space-y-2 mb-6">
-            {SWITCHES.map(({ suffix, labelKey, descKey, icon }) => {
-              const exists = getEntity(entities, prefix, "switch", suffix);
-              if (!exists) return null;
-              const isOn = localSwitches[suffix] ?? false;
-              const changed = isOn !== backend.switches[suffix];
-              const idx = cardIndex++;
-              return (
-                <div
-                  key={suffix}
-                  className="settings-card-enter flex items-center gap-3 rounded-2xl p-4 transition-all duration-200 ring-1"
-                  style={{
-                    ...stagger(idx),
-                    background: changed ? "var(--surface-card-active)" : "var(--surface-card)",
-                    "--tw-ring-color": changed ? "var(--border-active)" : "var(--border)",
-                  } as React.CSSProperties}
-                >
+            );
+          })
+        ) : (
+          <>
+            <div className="mb-6">
+              <div
+                className="settings-header-enter t-label font-medium text-tertiary mb-2"
+                style={{ paddingLeft: ROW_INSET }}
+              >
+                {t("settings.toggles")}
+              </div>
+              {SWITCHES.map(({ suffix, labelKey, descKey, iconSrc, iconAlt }) => {
+                const exists = getEntity(entities, prefix, "switch", suffix);
+                if (!exists) return null;
+                const isOn = localSwitches[suffix] ?? false;
+                const changed = isOn !== backend.switches[suffix];
+                const label = t(labelKey);
+                const idx = cardIndex++;
+                return (
                   <div
-                    className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0 transition-colors duration-200"
-                    style={{
-                      background: isOn ? "var(--accent-muted)" : "var(--surface-card)",
-                      color: isOn ? "var(--accent)" : "var(--text-tertiary)",
-                    }}
+                    key={suffix}
+                    className="settings-card-enter flex items-center gap-3 py-3"
+                    style={rowStyle(idx)}
                   >
-                    {icon}
+                    <MelittaIcon src={iconSrc} alt={iconAlt} lit={isOn} />
+                    {rowHeading(label, t(descKey))}
+                    {booleanRow(label, suffix, isOn, changed, (next) =>
+                      setLocalSwitch(suffix, next),
+                    )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-primary">{t(labelKey)}</div>
-                    <div className="t-label text-tertiary leading-tight mt-0.5">{t(descKey)}</div>
-                  </div>
-                  <button
-                    onClick={() => toggleLocal(suffix)}
-                    className="relative h-7 w-12 rounded-full transition-colors duration-200 shrink-0"
-                    style={{ background: isOn ? "var(--toggle-on-bg)" : "var(--toggle-off-bg)" }}
+                );
+              })}
+            </div>
+
+            <div className="mb-6">
+              <div
+                className="settings-header-enter t-label font-medium text-tertiary mb-2"
+                style={{ ...stagger(cardIndex), paddingLeft: ROW_INSET }}
+              >
+                {t("settings.adjustments")}
+              </div>
+              {NUMBERS.map(({ suffix, labelKey, descKey, format, iconSrc, iconAlt }) => {
+                const entity = getEntity(entities, prefix, "number", suffix);
+                if (!entity) return null;
+                const min = entity.attributes?.min ?? 0;
+                const max = entity.attributes?.max ?? 100;
+                const step = entity.attributes?.step ?? 1;
+                const value = localNumbers[suffix] ?? 0;
+                const changed = value !== backend.numbers[suffix];
+                const displayValue = formatValue(suffix, value, format);
+                const idx = cardIndex++;
+
+                return (
+                  <div
+                    key={suffix}
+                    className="settings-card-enter flex items-start gap-3 py-3"
+                    style={rowStyle(idx)}
                   >
-                    <span
-                      className="absolute top-0.5 left-0.5 h-6 w-6 rounded-full shadow-md transition-transform duration-200"
-                      style={{
-                        transform: isOn ? "translateX(1.25rem)" : "translateX(0)",
-                        background: isOn ? "var(--toggle-on-knob)" : "var(--toggle-off-knob)",
-                      }}
-                    />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
-          <div
-            className="settings-header-enter t-label font-medium text-tertiary mb-3"
-            style={stagger(cardIndex)}
-          >
-            {t("settings.adjustments")}
-          </div>
-          <div className="space-y-2">
-            {NUMBERS.map(({ suffix, labelKey, descKey, format, icon }) => {
-              const entity = getEntity(entities, prefix, "number", suffix);
-              if (!entity) return null;
-              const min = entity.attributes?.min ?? 0;
-              const max = entity.attributes?.max ?? 100;
-              const step = entity.attributes?.step ?? 1;
-              const value = localNumbers[suffix] ?? 0;
-              const changed = value !== backend.numbers[suffix];
-              const displayValue = formatValue(suffix, value, format);
-              const idx = cardIndex++;
-
-              return (
-                <div
-                  key={suffix}
-                  className="settings-card-enter rounded-2xl p-4 space-y-3 transition-all duration-200 ring-1"
-                  style={{
-                    ...stagger(idx),
-                    background: changed ? "var(--surface-card-active)" : "var(--surface-card)",
-                    "--tw-ring-color": changed ? "var(--border-active)" : "var(--border)",
-                  } as React.CSSProperties}
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
-                      style={{ background: "var(--surface-card)", color: "var(--text-secondary)" }}
-                    >
-                      {icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-primary">{t(labelKey)}</div>
-                      <div className="t-label text-tertiary leading-tight mt-0.5">{t(descKey)}</div>
-                    </div>
-                    <span className="text-sm font-semibold text-primary tabular-nums whitespace-nowrap">
-                      {displayValue}
+                    <span className="mt-0.5 flex">
+                      <MelittaIcon src={iconSrc} alt={iconAlt} />
                     </span>
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <MeterField
+                        label={t(labelKey)}
+                        value={value}
+                        min={min}
+                        max={max}
+                        step={step}
+                        segments={meterSegments(min, max, step)}
+                        displayValue={displayValue}
+                        changed={changed}
+                        onChange={(next) => setLocalNumber(suffix, next)}
+                      />
+                      <div className="t-label text-tertiary leading-tight">{t(descKey)}</div>
+                    </div>
                   </div>
-                  <input
-                    type="range"
-                    min={min}
-                    max={max}
-                    step={step}
-                    value={value}
-                    onChange={(e) => setLocalNumber(suffix, parseFloat(e.target.value))}
-                    className="w-full h-1.5 appearance-none rounded-full cursor-pointer
-                      [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
-                      [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
-                    style={{
-                      background: "var(--slider-track)",
-                      accentColor: "var(--slider-thumb)",
-                    }}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        <div className="mt-auto pt-6 pb-2 text-center t-label text-tertiary opacity-50">
+          {integrationVersion
+            ? `Melitta Barista HA v${integrationVersion}`
+            : "Melitta Barista"}
+        </div>
+      </div>
 
       {hasChanges && (
-        <div className="settings-bar-enter sticky bottom-0 mt-4 flex gap-2">
-          <button
-            onClick={handleReset}
-            className="tap tap-lg press flex-1 flex items-center justify-center gap-2 rounded-2xl t-body font-medium"
-            style={{ background: "var(--btn-secondary-bg)", color: "var(--btn-secondary-text)" }}
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            {t("settings.reset")}
-          </button>
-          <button
-            onClick={handleApply}
-            className="flex-[2] flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition active:scale-[0.97]"
-            style={{ background: "var(--btn-primary-bg)", color: "var(--btn-primary-text)" }}
-          >
-            <Check className="w-4 h-4" />
-            {t("settings.apply")}
-          </button>
+        <div className="settings-bar-enter shrink-0 flex flex-col pb-4">
+          {/* §8.3: the one 2px accent rule in the app opens the action band. */}
+          <Rule weight={2} tone="accent" />
+          <div className="flex justify-end" style={{ paddingRight: ROW_INSET }}>
+            <button
+              onClick={handleReset}
+              className="tap press t-body gap-2"
+              style={{
+                color: "var(--text-secondary)",
+                borderRadius: 0,
+                borderBottomWidth: "1px",
+                borderBottomStyle: "solid",
+                borderBottomColor: "var(--border)",
+              }}
+            >
+              <RotateCcw size={16} strokeWidth={1.75} aria-hidden="true" />
+              {t("settings.reset")}
+            </button>
+          </div>
+          {/* The screen's one commit rectangle, width locked to the column. */}
+          <Commit label={t("settings.apply")} onCommit={handleApply} />
         </div>
       )}
-
-      <div className="mt-auto pt-6 pb-2 text-center t-label text-tertiary opacity-50">
-        {integrationVersion
-          ? `Melitta Barista HA v${integrationVersion}`
-          : "Melitta Barista"}
-      </div>
     </div>
   );
 }

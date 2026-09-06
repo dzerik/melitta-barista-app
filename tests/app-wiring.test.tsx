@@ -6,7 +6,7 @@
  * App wiring: mismatch screens, capability-gated tabs, contract props
  * threading into the sections, the i18n/get trigger, the stale banner.
  */
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { screen, waitFor, renderHook, act } from "@testing-library/react";
 import type { Connection, HassEntities, HassEntity } from "home-assistant-js-websocket";
 import { renderWithProviders } from "./test-utils";
@@ -361,5 +361,280 @@ describe("App wiring", () => {
     expect(screen.getByTestId("section-brew").dataset.contract).toBe(
       MELITTA_CONTRACT_FULL.contract_fingerprint,
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// App shell — the drawn contract (hard rules 1 and 2)
+// ---------------------------------------------------------------------------
+
+/** The complete fill allowlist: an element that paints MUST declare one. */
+const FILL_ALLOWLIST = new Set([
+  "commit",
+  "meter",
+  "glow",
+  "contact",
+  "rule",
+  "scrim",
+  "panel",
+]);
+
+function everyElement(root: HTMLElement): HTMLElement[] {
+  return Array.from(root.querySelectorAll<HTMLElement>("*"));
+}
+
+describe("App shell — visual contract", () => {
+  async function renderShell(entities?: HassEntities) {
+    const conn = makeConn(() => Promise.resolve(MELITTA_CONTRACT_FULL));
+    ha.current = connectedHA(conn, entities ?? bridgeEntities());
+    const view = renderWithProviders(<App />);
+    await act(async () => {});
+    return view;
+  }
+
+  /** A bridge whose manipulation token locks navigation to the current tab. */
+  function lockedEntities(): HassEntities {
+    return {
+      ...bridgeEntities(),
+      "sensor.melitta_state": ent("Ready", {
+        process_id: 4,
+        process_token: "READY",
+        sub_process_token: null,
+        manipulation_token: "FILL_WATER",
+        is_brewing: false,
+        awaiting_confirmation: false,
+        info_messages: [],
+      }),
+    };
+  }
+
+  it("the tab bar paints nothing and sits under a rail-to-rail rule", async () => {
+    const { container } = await renderShell();
+    const nav = container.querySelector("nav") as HTMLElement;
+    // The `--bg-elevated` fill is gone: a nav bar is ground, not a surface.
+    expect(nav.style.backgroundColor).toBe("");
+    expect(nav.style.backgroundImage).toBe("");
+    expect(nav.style.marginLeft).toBe("var(--rail)");
+    expect(nav.style.marginRight).toBe("var(--rail)");
+
+    const rule = nav.parentElement!.querySelector('[data-ui="rule"]') as HTMLElement;
+    expect(rule.style.marginLeft).toBe("var(--rail)");
+    expect(rule.style.marginRight).toBe("var(--rail)");
+    expect(rule.style.height).toBe("1px");
+  });
+
+  it("the tab mark is a square-cut 2px accent bar riding on that rule", async () => {
+    const { container } = await renderShell();
+    const mark = container.querySelector('[data-ui="tab-indicator"]') as HTMLElement;
+    expect(mark.style.backgroundColor).toBe("var(--accent)");
+    expect(mark.style.borderRadius).toBe("0px");
+    // -1px lands the 2px bar on top of the 1px rule above the nav.
+    expect(mark.style.top).toBe("-1px");
+    expect(mark.getAttribute("class")).not.toMatch(/rounded-/);
+    expect(mark.dataset.fill).toBe("rule");
+  });
+
+  it("keeps every tab at the 60px reach and marks the current one by value", async () => {
+    await renderShell();
+    const tabs = screen.getAllByRole("button");
+    for (const tabEl of tabs) {
+      expect(tabEl.className).toContain("tap");
+      expect(tabEl.className).toContain("tap-lg");
+      expect(tabEl.className).toContain("press");
+      expect((tabEl as HTMLElement).style.borderRadius).toBe("0px");
+    }
+    const current = tabs.filter((b) => b.getAttribute("aria-current") === "page");
+    expect(current).toHaveLength(1);
+    expect(current[0].className).toContain("text-primary");
+    expect(current[0].dataset.selected).toBe("true");
+  });
+
+  it("a locked tab uses the language's disabled value, not opacity-30", async () => {
+    await renderShell(lockedEntities());
+    const locked = screen
+      .getAllByRole("button")
+      .filter((b) => (b as HTMLButtonElement).disabled) as HTMLElement[];
+    expect(locked.length).toBeGreaterThan(0);
+    for (const tabEl of locked) {
+      expect(tabEl.style.opacity).toBe("0.35");
+      expect(tabEl.className).not.toMatch(/opacity-30/);
+    }
+  });
+
+  it("the stale notice is type between hairlines, not a tinted strip", async () => {
+    persistLastGoodContract(MELITTA_CONTRACT_FULL);
+    const conn = makeConn(() => Promise.reject({ code: "contract_not_ready" }));
+    ha.current = connectedHA(conn, bridgeEntities());
+    const { container } = renderWithProviders(<App />);
+    const notice = await screen.findByText(
+      "No live connection to the machine — showing the last known data.",
+    );
+    expect((notice as HTMLElement).style.backgroundColor).toBe("");
+    expect(notice.className).toContain("t-label");
+    // Closed below by a rail rule; the StatusBar's own rule closes it above.
+    const rules = container.querySelectorAll('[data-ui="rule"]');
+    expect(rules.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("nothing in the shell paints a background without declaring data-fill", async () => {
+    const { container } = await renderShell();
+    for (const el of everyElement(container)) {
+      const paints =
+        el.style.backgroundColor !== "" || el.style.backgroundImage !== "";
+      if (!paints) continue;
+      expect(
+        FILL_ALLOWLIST.has(el.dataset.fill ?? ""),
+        `${el.tagName} "${el.getAttribute("class") ?? ""}" paints without an allowed data-fill`,
+      ).toBe(true);
+    }
+  });
+
+  it("carries no radius, ring, shadow, tracking or caps anywhere in the shell", async () => {
+    const { container } = await renderShell();
+    for (const el of everyElement(container)) {
+      const cls = el.getAttribute("class") ?? "";
+      expect(cls, cls).not.toMatch(/\b(rounded-|ring-|shadow|tracking-|uppercase)/);
+      if (el.style.borderRadius !== "") {
+        expect(el.style.borderRadius).toBe("0px");
+      }
+      expect(el.style.letterSpacing).toBe("");
+      expect(el.style.boxShadow === "" || el.style.boxShadow === "none").toBe(true);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Sign-in — the screen App renders before there is a connection at all
+// ---------------------------------------------------------------------------
+
+describe("Sign-in screen — visual contract", () => {
+  function disconnectedHA() {
+    return {
+      status: "disconnected",
+      connection: null,
+      entities: {} as HassEntities,
+      prefix: null,
+      error: null,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+  }
+
+  it("the form floats on the ground: no panel fill, no ring, no blur", async () => {
+    ha.current = disconnectedHA();
+    const { container } = renderWithProviders(<App />);
+    await act(async () => {});
+    const form = container.querySelector("form") as HTMLElement;
+    expect(form.style.backgroundColor).toBe("");
+    expect(form.style.backgroundImage).toBe("");
+    expect(form.getAttribute("class")).not.toMatch(
+      /rounded-|ring-|shadow|backdrop-blur|surface/,
+    );
+  });
+
+  it("both fields are underline inputs — transparent, one rule, no box", async () => {
+    ha.current = disconnectedHA();
+    const { container } = renderWithProviders(<App />);
+    await act(async () => {});
+    const inputs = Array.from(container.querySelectorAll<HTMLInputElement>("input"));
+    expect(inputs).toHaveLength(2);
+    for (const input of inputs) {
+      expect(input.style.backgroundColor).toBe("transparent");
+      expect(input.style.borderRadius).toBe("0px");
+      expect(input.style.borderBottomWidth).toBe("1px");
+      expect(input.style.borderBottomColor).toBe("var(--input-border)");
+      expect(input.getAttribute("class")).not.toMatch(/rounded-|ring-/);
+    }
+  });
+
+  it("carries exactly one commit rectangle, sized by the form column", async () => {
+    ha.current = disconnectedHA();
+    const { container } = renderWithProviders(<App />);
+    await act(async () => {});
+    const commits = container.querySelectorAll('[data-ui="commit"]');
+    expect(commits).toHaveLength(1);
+    const commit = commits[0] as HTMLElement;
+    expect(commit.getAttribute("type")).toBe("submit");
+    expect(commit.style.backgroundColor).toBe("var(--accent)");
+    expect(commit.style.borderRadius).toBe("0px");
+    expect(commit.className).not.toMatch(/px-16|max-w-/);
+  });
+
+  it("the connect error is type between two error rules, not a tinted box", async () => {
+    ha.current = { ...disconnectedHA(), status: "error", error: "boom" };
+    const { container } = renderWithProviders(<App />);
+    await act(async () => {});
+    const notice = container.querySelector('[data-ui="error-notice"]') as HTMLElement;
+    expect(notice).not.toBeNull();
+    expect(notice.style.backgroundColor).toBe("");
+    const rules = Array.from(
+      notice.querySelectorAll<HTMLElement>('[data-ui="rule"]'),
+    );
+    expect(rules).toHaveLength(2);
+    for (const rule of rules) {
+      expect(rule.style.backgroundColor).toBe("var(--error-border)");
+    }
+    const line = notice.querySelector("p") as HTMLElement;
+    expect(line.style.color).toBe("var(--error-text)");
+  });
+
+  it("nothing on the sign-in screen paints or rounds without a licence", async () => {
+    ha.current = disconnectedHA();
+    const { container } = renderWithProviders(<App />);
+    await act(async () => {});
+    for (const el of everyElement(container)) {
+      const cls = el.getAttribute("class") ?? "";
+      expect(cls, cls).not.toMatch(/\b(rounded-|ring-|shadow|tracking-|uppercase)/);
+      if (el.style.borderRadius !== "") expect(el.style.borderRadius).toBe("0px");
+      const paints =
+        (el.style.backgroundColor !== "" && el.style.backgroundColor !== "transparent") ||
+        el.style.backgroundImage !== "";
+      if (!paints) continue;
+      expect(
+        FILL_ALLOWLIST.has(el.dataset.fill ?? ""),
+        `${el.tagName} "${cls}" paints without an allowed data-fill`,
+      ).toBe(true);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ResolutionGuard — the one overlay App always mounts
+// ---------------------------------------------------------------------------
+
+describe("ResolutionGuard — visual contract", () => {
+  const realWidth = window.innerWidth;
+  const realHeight = window.innerHeight;
+
+  function setViewport(w: number, h: number) {
+    Object.defineProperty(window, "innerWidth", { value: w, configurable: true });
+    Object.defineProperty(window, "innerHeight", { value: h, configurable: true });
+  }
+
+  afterEach(() => setViewport(realWidth, realHeight));
+
+  it("is a scrim plus one flat square panel, with the figures between hairlines", async () => {
+    setViewport(800, 600);
+    const conn = makeConn(() => Promise.resolve(MELITTA_CONTRACT_FULL));
+    ha.current = connectedHA(conn, bridgeEntities());
+    renderWithProviders(<App />);
+    await act(async () => {});
+
+    const scrim = document.querySelector('[data-fill="scrim"]') as HTMLElement;
+    expect(scrim).not.toBeNull();
+    expect(scrim.style.backgroundColor).toBe("var(--overlay-bg)");
+
+    const panel = document.querySelector('[data-fill="panel"]') as HTMLElement;
+    expect(panel.style.backgroundColor).toBe("var(--surface)");
+    expect(panel.style.borderRadius).toBe("0px");
+    expect(panel.getAttribute("class")).not.toMatch(/rounded-|ring-|shadow/);
+
+    // The dimension read-out: two rules, no chip.
+    const readout = screen.getByText(/1024×690px/);
+    expect((readout as HTMLElement).style.backgroundColor).toBe("");
+    expect(readout.className).toContain("tabular-nums");
+    expect(
+      readout.parentElement!.querySelectorAll('[data-ui="rule"]'),
+    ).toHaveLength(2);
   });
 });

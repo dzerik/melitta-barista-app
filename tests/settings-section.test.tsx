@@ -8,7 +8,7 @@
  * the permanent tier-2 fallback.
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import type {
   Connection,
   HassEntities,
@@ -411,7 +411,22 @@ describe("SettingsSection catalog mode", () => {
         contract={MELITTA_CONTRACT_FULL}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Auto Bean Select" }));
+    // A boolean is two words in a radiogroup named for the setting — there is
+    // no switch in this language. Selection is the lit `--accent` underline,
+    // and the unchosen word already holds a transparent slot of the same
+    // width, so picking it shifts nothing.
+    const group = screen.getByRole("radiogroup", { name: "Auto Bean Select" });
+    const on = within(group).getByRole("radio", { name: "On" });
+    const off = within(group).getByRole("radio", { name: "Off" });
+    expect(on).toHaveAttribute("data-underline", "lit");
+    expect(off).toHaveAttribute("data-underline", "reserved");
+    expect(on.style.backgroundColor).toBe("");
+    expect(off.style.borderBottomWidth).toBe(on.style.borderBottomWidth);
+
+    fireEvent.click(off);
+    expect(
+      within(group).getByRole("radio", { name: "Off" }),
+    ).toHaveAttribute("data-underline", "lit");
     fireEvent.click(screen.getByRole("button", { name: "Apply Changes" }));
     expect(sendMessagePromise).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -503,7 +518,7 @@ describe("SettingsSection catalog mode", () => {
 // ---------------------------------------------------------------------------
 
 describe("SettingsSection Nivona selects", () => {
-  it("renders one combobox per served select entry with chain-localized options", () => {
+  it("renders one word row per served select entry with chain-localized options", () => {
     const { conn } = makeConn();
     renderWithProviders(
       <SettingsSection
@@ -513,16 +528,31 @@ describe("SettingsSection Nivona selects", () => {
         contract={NIVONA_CONTRACT_FULL}
       />,
     );
-    const hardness = screen.getByRole("combobox", { name: "Water Hardness" });
-    const optionTexts = Array.from(hardness.querySelectorAll("option")).map(
-      (o) => o.textContent,
-    );
+    // At or under the five-choice cap a select is drawn as words, not as a
+    // filled `<select>` box (§C1) — one radiogroup per setting.
+    const hardness = screen.getByRole("radiogroup", { name: "Water Hardness" });
+    const optionTexts = within(hardness)
+      .getAllByRole("radio")
+      .map((o) => o.textContent);
     // Tokenized options localize (bundle level.* tier); values stay the served labels.
     expect(optionTexts).toEqual(["Soft", "Medium", "Hard", "Very Hard"]);
-    const profile = screen.getByRole("combobox", { name: "Profile" });
+    // The chosen word is the only lit underline in its row, and it paints no fill.
+    const chosen = within(hardness).getByRole("radio", { name: "Medium" });
+    expect(chosen).toHaveAttribute("data-underline", "lit");
+    expect(chosen).toHaveAttribute("aria-checked", "true");
+    expect(chosen.style.backgroundColor).toBe("");
+    expect(
+      within(hardness)
+        .getAllByRole("radio")
+        .filter((o) => o.getAttribute("data-underline") === "lit"),
+    ).toHaveLength(1);
+
+    const profile = screen.getByRole("radiogroup", { name: "Profile" });
     // Token-less options render the served label verbatim.
     expect(
-      Array.from(profile.querySelectorAll("option")).map((o) => o.textContent),
+      within(profile)
+        .getAllByRole("radio")
+        .map((o) => o.textContent),
     ).toEqual(["dynamic", "constant", "intense", "individual"]);
   });
 
@@ -536,9 +566,8 @@ describe("SettingsSection Nivona selects", () => {
         contract={NIVONA_CONTRACT_FULL}
       />,
     );
-    fireEvent.change(screen.getByRole("combobox", { name: "Temperature" }), {
-      target: { value: "high" },
-    });
+    const temperature = screen.getByRole("radiogroup", { name: "Temperature" });
+    fireEvent.click(within(temperature).getByRole("radio", { name: "high" }));
     fireEvent.click(screen.getByRole("button", { name: "Apply Changes" }));
     expect(sendMessagePromise).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -565,8 +594,10 @@ describe("SettingsSection Nivona selects", () => {
         contract={NIVONA_CONTRACT_FULL}
       />,
     );
-    expect(screen.queryByRole("combobox", { name: "Profile" })).toBeNull();
-    expect(screen.getByRole("combobox", { name: "Temperature" })).toBeInTheDocument();
+    expect(screen.queryByRole("radiogroup", { name: "Profile" })).toBeNull();
+    expect(
+      screen.getByRole("radiogroup", { name: "Temperature" }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -619,18 +650,145 @@ describe("SettingsSection legacy fallback", () => {
     renderWithProviders(
       <SettingsSection conn={conn} entities={legacyEntities()} prefix="mel" />,
     );
-    fireEvent.click(
-      screen.getAllByRole("button").find((b) => b.textContent === "")!,
-    );
+    // The legacy tier draws the same two-word row as the catalog tier: the
+    // hand-rolled pill switch (a token-filled `rounded-full` track and knob)
+    // is gone from both.
+    const group = screen.getByRole("radiogroup", { name: "Energy Saving" });
+    fireEvent.click(within(group).getByRole("radio", { name: "Off" }));
     fireEvent.click(screen.getByRole("button", { name: "Apply Changes" }));
     expect(sendMessagePromise).toHaveBeenCalledWith(
       expect.objectContaining({
         type: "call_service",
         domain: "switch",
+        service: "turn_off",
         service_data: expect.objectContaining({
           entity_id: "switch.mel_energy_saving",
         }),
       }),
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The two hard rules, enforced on the rendered screen
+// ---------------------------------------------------------------------------
+
+describe("SettingsSection visual contract", () => {
+  /**
+   * The fill allowlist. A settings tab is ground only — §5.B's one flat panel
+   * is a modal/overlay privilege and may not appear here, so the only element
+   * allowed to paint is the screen's single commit rectangle plus the meters
+   * and rules the primitives draw.
+   */
+  const CARVE_OUTS = new Set(["commit", "meter", "rule"]);
+
+  function renderCatalog() {
+    const { conn } = makeConn();
+    return renderWithProviders(
+      <SettingsSection
+        conn={conn}
+        entities={melittaEntities()}
+        prefix="mel"
+        contract={MELITTA_CONTRACT_FULL}
+      />,
+    );
+  }
+
+  it("draws no rounded frame, ring, shadow or tracked-out caps", () => {
+    const { container } = renderCatalog();
+    container.querySelectorAll<HTMLElement>("*").forEach((el) => {
+      const radius = el.style?.borderRadius ?? "";
+      if (radius !== "") expect(radius).toBe("0px");
+      const shadow = el.style?.boxShadow ?? "";
+      if (shadow !== "") expect(shadow).toBe("none");
+      const cls = String(el.className);
+      expect(cls).not.toMatch(/(^|\s)rounded/);
+      expect(cls).not.toMatch(/(^|\s)ring-/);
+      expect(cls).not.toMatch(/shadow-/);
+      expect(cls).not.toMatch(/tracking-|uppercase/);
+      expect(el.style?.letterSpacing ?? "").toBe("");
+    });
+  });
+
+  it("paints no fill anywhere until the commit band appears, and then only there", () => {
+    const { container } = renderCatalog();
+    const painted = () =>
+      Array.from(container.querySelectorAll<HTMLElement>("*")).filter(
+        (el) =>
+          (el.style?.backgroundColor ?? "") !== "" ||
+          (el.style?.backgroundImage ?? "") !== "",
+      );
+
+    // At rest: only meter segments and their empty ground.
+    painted().forEach((el) => {
+      const declared = el.getAttribute("data-fill");
+      expect(
+        declared !== null && CARVE_OUTS.has(declared),
+        `${el.tagName} paints without declaring a carve-out (data-fill=${declared})`,
+      ).toBe(true);
+    });
+
+    const group = screen.getByRole("radiogroup", { name: "Auto Bean Select" });
+    fireEvent.click(within(group).getByRole("radio", { name: "Off" }));
+
+    // With changes pending the action band arrives — still one commit only.
+    const commits = painted().filter(
+      (el) => el.getAttribute("data-fill") === "commit",
+    );
+    expect(commits).toHaveLength(1);
+    expect(commits[0]).toHaveAccessibleName("Apply Changes");
+    painted().forEach((el) => {
+      expect(CARVE_OUTS.has(el.getAttribute("data-fill") ?? "")).toBe(true);
+    });
+  });
+
+  it("separates rows with a single hairline at a fixed 80px pitch — no card, no zebra", () => {
+    const { container } = renderCatalog();
+    const rows = container.querySelectorAll<HTMLElement>(".settings-card-enter");
+    expect(rows.length).toBe(4);
+    rows.forEach((row) => {
+      expect(row.style.borderTopWidth).toBe("1px");
+      expect(row.style.borderTopColor).toBe("var(--border)");
+      expect(row.style.minHeight).toBe("80px");
+      // The changed/unchanged two-axis fill+ring state model is gone.
+      expect(row.style.backgroundColor).toBe("");
+      expect(row.style.getPropertyValue("--tw-ring-color")).toBe("");
+    });
+  });
+
+  it("gives Reset a bare underlined word and keeps every control's 48px reach", () => {
+    renderCatalog();
+    const group = screen.getByRole("radiogroup", { name: "Auto Bean Select" });
+    const off = within(group).getByRole("radio", { name: "Off" });
+    expect(off.className).toContain("tap");
+    expect(off.className).toContain("press");
+    fireEvent.click(off);
+
+    const reset = screen.getByRole("button", { name: /Reset/ });
+    expect(reset.style.backgroundColor).toBe("");
+    expect(reset.style.borderBottomWidth).toBe("1px");
+    expect(reset.style.borderBottomColor).toBe("var(--border)");
+    expect(reset.className).toContain("tap");
+    expect(reset.className).toContain("press");
+
+    const commit = screen.getByRole("button", { name: "Apply Changes" });
+    expect(commit.className).toContain("tap-lg");
+    expect(commit.style.borderRadius).toBe("0px");
+  });
+
+  it("keeps the changed value's accent ink as the only unsaved signal", () => {
+    renderCatalog();
+    fireEvent.change(screen.getByRole("slider", { name: "Water Hardness" }), {
+      target: { value: "3" },
+    });
+    const field = screen
+      .getByRole("slider", { name: "Water Hardness" })
+      .closest('[data-ui="meter-field"]') as HTMLElement;
+    expect(field).toHaveAttribute("data-changed", "true");
+    const value = field.querySelector<HTMLElement>(
+      '[data-ui="meter-field-value"]',
+    )!;
+    expect(value.style.color).toBe("var(--accent)");
+    expect(value.textContent).toBe("Hard");
   });
 });

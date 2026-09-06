@@ -23,14 +23,18 @@ export function ViewModeToggle() {
             aria-checked={active}
             aria-label={t(`brew.view_${mode}` as TranslationKey)}
             title={t(`brew.view_${mode}` as TranslationKey)}
-            className="tap press rounded-xl"
+            className="tap press"
             style={{
-              color: active ? "var(--text-primary)" : "var(--text-tertiary)",
-              background: active ? "var(--surface-card)" : "transparent",
-              opacity: active ? 1 : 0.6,
+              borderRadius: 0,
+              color: active ? "var(--text-primary)" : "var(--text-secondary)",
+              // Selection is the glyph going solid-white over a lit underline —
+              // the WMF outline→filled swap, never a tinted plate behind it.
+              borderBottom: active
+                ? "var(--underline-w) solid var(--accent)"
+                : "var(--underline-w) solid transparent",
             }}
           >
-            <Icon size={20} strokeWidth={active ? 2.5 : 1.5} />
+            <Icon size={20} strokeWidth={active ? 2 : 1.5} />
           </button>
         );
       })}

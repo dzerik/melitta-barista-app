@@ -1,4 +1,6 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { createElement } from "react";
+import { screen } from "@testing-library/react";
 import type { HassEntities } from "home-assistant-js-websocket";
 import {
   deriveMachineStatus,
@@ -7,6 +9,8 @@ import {
 } from "../src/lib/status";
 import { setServerStrings, resetServerStrings } from "../src/lib/server-strings";
 import { MELITTA_CONTRACT, clone } from "./fixtures/contracts";
+import { StatusBar } from "../src/components/StatusBar";
+import { renderWithProviders } from "./test-utils";
 
 const CTX = { id: "", user_id: null, parent_id: null };
 
@@ -477,5 +481,81 @@ describe("sectionGates", () => {
     nivonaLike.capabilities.supports_freestyle = false;
     nivonaLike.capabilities.supports_stats = false;
     expect(sectionGates(nivonaLike)).toEqual({ freestyle: false, stats: false });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// StatusBar — the always-visible truth line (§10 of the field research)
+// ---------------------------------------------------------------------------
+
+/** JSX-free so this stays a `.ts` module test alongside the status model. */
+function renderStatusBar(entities: HassEntities) {
+  return renderWithProviders(
+    createElement(StatusBar, {
+      entities,
+      prefix: "melitta",
+      onDisconnect: vi.fn(),
+      onOpenPrefs: vi.fn(),
+    }),
+  );
+}
+
+describe("StatusBar — visual contract", () => {
+  it("shows link state and machine state on bare ground, closed by a rail rule", () => {
+    const { container } = renderStatusBar(tokenEntities());
+    expect(screen.getByText("Ready")).toBeTruthy();
+
+    for (const el of Array.from(container.querySelectorAll<HTMLElement>("*"))) {
+      const cls = el.getAttribute("class") ?? "";
+      expect(cls, cls).not.toMatch(/\b(rounded-|ring-|shadow|tracking-|uppercase)/);
+      if (el.style.borderRadius !== "") expect(el.style.borderRadius).toBe("0px");
+      // The strip itself paints nothing: only the rules declare a fill.
+      if (el.style.backgroundColor !== "" || el.style.backgroundImage !== "") {
+        expect(el.dataset.fill).toBe("rule");
+      }
+    }
+
+    const rules = container.querySelectorAll<HTMLElement>('[data-ui="rule"]');
+    const railRule = Array.from(rules).find((r) => r.style.marginLeft === "var(--rail)");
+    expect(railRule).toBeDefined();
+    expect(railRule!.style.marginRight).toBe("var(--rail)");
+  });
+
+  it("hangs its content 10px inside the rail (§G2.1)", () => {
+    const { container } = renderStatusBar(tokenEntities());
+    const row = container.querySelector<HTMLElement>('[data-ui="status-strip"]')!;
+    expect(row.style.paddingLeft).toBe("calc(var(--rail) + 10px)");
+    expect(row.style.paddingRight).toBe("calc(var(--rail) + 10px)");
+  });
+
+  it("adds the attention item behind a vertical hairline when the machine asks", () => {
+    const { container, unmount } = renderStatusBar(tokenEntities());
+    expect(container.querySelector('[data-ui="status-attention"]')).toBeNull();
+    unmount();
+
+    const withAction = renderStatusBar(
+      tokenEntities({ manipulation_token: "FILL_WATER" }),
+    );
+    const attention = withAction.container.querySelector<HTMLElement>(
+      '[data-ui="status-attention"]',
+    )!;
+    expect(attention).not.toBeNull();
+    expect(attention.textContent).toBe("Refill the water tank");
+    // Emphasis by value, not by hue: the accent is never spent here (§8.1).
+    expect(attention.style.color).toBe("var(--text-primary)");
+    const vertical = withAction.container.querySelector<HTMLElement>(
+      '[data-ui="rule"][data-orientation="vertical"]',
+    );
+    expect(vertical).not.toBeNull();
+  });
+
+  it("keeps both chrome actions at the 48px reach with no radius", () => {
+    renderStatusBar(tokenEntities());
+    for (const button of screen.getAllByRole("button")) {
+      expect(button.className).toContain("tap");
+      expect(button.className).toContain("press");
+      expect((button as HTMLElement).style.borderRadius).toBe("0px");
+      expect(button.getAttribute("class")).not.toMatch(/rounded-/);
+    }
   });
 });

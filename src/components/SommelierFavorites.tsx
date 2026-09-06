@@ -4,18 +4,20 @@ import { usePreferences } from "../lib/preferences";
 import type { TranslationKey } from "../lib/i18n";
 import type { AiRecipe, Favorite, useSommelier } from "../hooks/useSommelier";
 import { fmt } from "../lib/brew-plan";
-import { SommelierRecipeCard } from "./SommelierRecipeCard";
+import { SommelierRecipeCard, SommelierShelf, SOMMELIER_COLUMNS } from "./SommelierRecipeCard";
 
 type SommelierHook = ReturnType<typeof useSommelier>;
+
+/** §G2.4b — the favourites tab is the full paged matrix, four across, two down. */
+const ROWS = 2;
 
 interface Props {
   sommelier: SommelierHook;
 }
 
 /**
- * Saved favourites.
- *
- * Rendered by the shared recipe card, so a favourite looks like the
+ * Saved favourites, as the paged 4×2 drink matrix every other shelf in the app
+ * uses. Rendered by the shared recipe card, so a favourite looks like the
  * suggestion it came from. Brewing goes through `favorites/brew` (which is
  * what keeps the brew count), except for multi-phase drinks, where the card
  * opens the step wizard — those must not one-shot brew past their manual
@@ -49,8 +51,8 @@ export function SommelierFavorites({ sommelier }: Props) {
 
   if (favorites.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 gap-4">
-        <Star size={40} className="text-tertiary opacity-40" />
+      <div className="flex h-full flex-col items-center justify-center gap-4">
+        <Star size={40} className="text-tertiary opacity-60" aria-hidden="true" />
         <div className="t-body text-tertiary text-center">
           {t("sommelier.no_favorites" as TranslationKey)}
         </div>
@@ -59,17 +61,19 @@ export function SommelierFavorites({ sommelier }: Props) {
   }
 
   return (
-    <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(26rem, 1fr))" }}>
-      {favorites.map((fav) => (
+    <SommelierShelf
+      items={favorites}
+      perPage={SOMMELIER_COLUMNS * ROWS}
+      cellKey={(fav) => fav.id}
+      renderCell={(fav) => (
         <SommelierRecipeCard
-          key={fav.id}
           recipe={fav as unknown as AiRecipe}
           onBrew={handleBrew}
           onRemove={removeFavorite}
           brewing={brewingId === fav.id}
           meta={metaLine(fav)}
         />
-      ))}
-    </div>
+      )}
+    />
   );
 }
