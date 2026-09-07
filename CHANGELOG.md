@@ -1,6 +1,6 @@
 # Changelog
 
-## [3.1.3] — 2026-09-07 (not released)
+## [3.1.3] — 2026-09-07
 
 ### Fixed
 
@@ -14,13 +14,13 @@
 
 - CI's lint gate was red on the 3.1.1 tree: two hook dependency lists omitted a value the React Compiler infers, so it stopped optimising those components, and the maintenance row built its icon component during render. The row icon now goes through one shared helper that Settings and Maintenance both call — which is the shape C28 asked for in the first place — and the dependency lists say what they use.
 
-## [3.1.1] — 2026-09-07 (not released)
+## [3.1.1] — 2026-09-07
 
 ### Fixed
 
 - **The brewing screen no longer claims a drink it cannot know.** Start hot water at the machine and the app used to show whatever its own picker happened to hold — a cappuccino, with a composition strip of millilitres nobody had asked for. The machine's status frame carries a phase (grinding, coffee, steam, water, prepare) and no product identity at all, and the recipe selector is written by this app and never read back, so the drink is knowable only when this app asked for it. It now names the drink for a pour it started, and for anyone else's pour it draws the phase the machine reports — water as water, steam as milk — with no name and no composition.
 
-## [3.1.0] — 2026-09-07 (not released)
+## [3.1.0] — 2026-09-07 (shipped in 3.1.1)
 
 ### Added
 
@@ -38,7 +38,7 @@
 - The drink's reflection keeps its 1px floor, which it lost when its ratio became a token.
 - An armed DirectKey tile takes the family's commit material, so the same act is not painted two ways.
 
-## [3.0.1] — 2026-09-07 (not released)
+## [3.0.1] — 2026-09-07 (shipped in 3.1.1)
 
 ### Fixed
 
