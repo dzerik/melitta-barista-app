@@ -63,6 +63,14 @@ export interface MachineStatusView {
   unknownActive: boolean;
   /** Raw process token (null in legacy mode or when unmapped). */
   processToken: string | null;
+  /**
+   * Raw sub-process token — GRINDING / COFFEE / STEAM / WATER / PREPARE, or
+   * null. This is the ONLY thing the machine says about a pour: the status
+   * frame carries a phase, never a product. A caller that wants to draw what
+   * is being made has to draw the phase, because the drink's identity is not
+   * in the data unless this app started the brew itself.
+   */
+  activityToken: string | null;
   /** Status-bar text: localized token label / legacy native_value string. */
   statusLabel: string;
   /** Current sub-activity label, or null when idle. */
@@ -214,6 +222,7 @@ function fromTokens(
     service,
     unknownActive,
     processToken: tok,
+    activityToken: sub,
     statusLabel,
     activityLabel,
     // An unmapped raw code borrows BUSY's description, mirroring the
@@ -241,6 +250,7 @@ function offlineView(source: "tokens" | "legacy", connected: boolean): MachineSt
     processToken: null,
     // The frozen legacy StatusBar placeholder — kept byte-identical.
     statusLabel: "offline",
+    activityToken: null,
     activityLabel: null,
     processDescription: null,
     activityDescription: null,
@@ -280,6 +290,9 @@ function fromLegacy(
     unknownActive: false,
     processToken: null,
     statusLabel: machineState,
+    // Legacy mode has a label but no token: pre-contract servers never
+    // sent one, so a legacy caller cannot draw the phase either.
+    activityToken: null,
     activityLabel: getState(entities, prefix, "sensor", "activity"),
     // Legacy mode has no tokens to key the served descriptions by.
     processDescription: null,

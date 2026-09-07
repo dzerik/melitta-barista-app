@@ -20,6 +20,7 @@ import type { Connection, HassEntities } from "home-assistant-js-websocket";
 import { renderWithProviders } from "./test-utils";
 import { BrewSection } from "../src/components/BrewSection";
 import { assertHardRules } from "./hard-rules";
+import { clearBrewOrigin, noteBrewStarted } from "../src/lib/brew-origin";
 
 const CTX = { id: "", user_id: null, parent_id: null };
 
@@ -76,6 +77,8 @@ function machine(
 
 beforeEach(() => {
   localStorage.clear();
+  // Each test states for itself whether this app asked for the pour.
+  clearBrewOrigin();
 });
 
 
@@ -95,13 +98,11 @@ describe("BrewSection owns the pour (C1)", () => {
     );
   }
 
-  it("keeps the drink, its name and its composition on screen", () => {
+  it("keeps the drink, its name and its composition on screen — when it asked for that drink", () => {
+    // This app pressed Cappuccino, so this app may name it.
+    noteBrewStarted("Cappuccino", CAPPUCCINO as never);
     const { container } = renderBrewing("40");
 
-    // The drink is the CHOSEN RECIPE. This screen used to hand the
-    // sub-process label ("Grinding") to CoffeeIcon as though it were a drink
-    // name, which matches nothing in the image table and fell through to the
-    // freestyle placeholder — invisible for as long as the portal covered it.
     expect(container.querySelector('img[alt="Cappuccino"]')).toBeInTheDocument();
     expect(container.querySelector('img[alt="Grinding"]')).toBeNull();
 
@@ -118,6 +119,44 @@ describe("BrewSection owns the pour (C1)", () => {
     const status = screen.getByText("Grinding");
     expect(status.className).toContain("t-label");
     expect(status.className).not.toContain("t-title");
+  });
+
+  it("names the phase, not the picker's recipe, for a pour it did not start", () => {
+    // Nobody pressed anything here — the drink was started at the machine, or
+    // from another client. The status frame carries a PHASE and no product,
+    // and the recipe select is written by this app and never read back, so
+    // "Cappuccino" is not a fact about this pour.
+    const { container } = renderBrewing("40");
+
+    expect(screen.queryByText("Cappuccino")).toBeNull();
+    expect(container.querySelector('img[alt="Cappuccino"]')).toBeNull();
+
+    // The phase is what the screen says, at the drink-name step.
+    const title = screen.getByText("Grinding");
+    expect(title.className).toContain("t-title");
+
+    // And no composition: printing the picker's millilitres under someone
+    // else's pour is a lie with numbers in it.
+    expect(container.querySelector('[data-ui="value-strip"]')).toBeNull();
+  });
+
+  it("draws water as water when the machine says it is dispensing water", () => {
+    const { container } = renderWithProviders(
+      <BrewSection
+        conn={conn}
+        entities={machine({
+          process_token: "PRODUCT",
+          is_brewing: true,
+          sub_process_token: "WATER",
+        })}
+        prefix="melitta"
+      />,
+    );
+
+    // The user pressed hot water on the machine itself. The app knows the
+    // phase and draws that; it does not borrow the picker's cappuccino.
+    expect(container.querySelector('img[alt="Hot Water"]')).toBeInTheDocument();
+    expect(container.querySelector('img[alt="Cappuccino"]')).toBeNull();
   });
 
   it("adds a bottom-pinned segmented meter and no other progress form", () => {

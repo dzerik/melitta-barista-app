@@ -30,6 +30,7 @@ import {
 } from "./ui";
 import { Plus } from "lucide-react";
 import iconNotConnected from "../assets/icons/not_connected.png";
+import { noteBrewStarted } from "../lib/brew-origin";
 
 /** §6.1: a mosaic tile's drink sits on the 64 rung. */
 const PICKER_ICON = 64;
@@ -139,6 +140,22 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
   const portion2Range = resolvePortionRange(contract, "c2");
 
   const handleBrew = () => {
+    // The machine will not tell anyone what this is; if we do not remember it
+    // now, the brewing screen can only name the phase.
+    noteBrewStarted(fs.name || t("tab.freestyle"), {
+      c1_process: fs.process1,
+      c1_intensity: fs.intensity1,
+      c1_aroma: fs.aroma1,
+      c1_temperature: fs.temperature1,
+      c1_shots: fs.shots1,
+      c1_portion_ml: fs.portion1,
+      c2_process: fs.process2,
+      c2_intensity: fs.intensity2,
+      c2_aroma: fs.aroma2,
+      c2_temperature: fs.temperature2,
+      c2_shots: fs.shots2,
+      c2_portion_ml: fs.portion2,
+    } as never);
     safeCall(() =>
       brewFreestyle(conn, brewEntityId, {
         name: fs.name,

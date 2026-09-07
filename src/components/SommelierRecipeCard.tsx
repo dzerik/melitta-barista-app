@@ -17,6 +17,7 @@ import { Dot, DrinkStage, Panel, Rule, TRUTH_UNSERVED, Word } from "./ui";
 import { usePrefersReducedMotion } from "./ui/reduced-motion";
 import { suggestionLabel } from "../lib/sommelier-vocab";
 import { pourSummaries, readableSteps, hopperNumber } from "../lib/recipe-summary";
+import { noteBrewStarted } from "../lib/brew-origin";
 
 /** §6.1 ladder — a sommelier card is a paged grid cell, so its glass is 140. */
 export const SOMMELIER_ICON_SIZE = 140;
@@ -304,7 +305,13 @@ export function SommelierRecipeCard({
           busyLabel={t("sommelier.brewing" as TranslationKey)}
           busy={Boolean(brewing)}
           tone="strong"
-          onClick={() => (wizardBrew ? setWizardOpen(true) : onBrew(recipe.id))}
+          onClick={() => {
+            // The machine reports a phase and never a product, so a drink is
+            // nameable later only if the client that asked for it remembers.
+            noteBrewStarted(recipe.name);
+            if (wizardBrew) setWizardOpen(true);
+            else onBrew(recipe.id);
+          }}
         />
       </div>
 

@@ -53,6 +53,7 @@ import iconNotConnected from "../assets/icons/not_connected.png";
 import iconService from "../assets/icons/service.png";
 import iconTwoCups from "../assets/icons/two_cups.png";
 import iconTwoCupsWhite from "../assets/icons/two_cups_white.png";
+import { brewOrigin, clearBrewOrigin, noteBrewStarted } from "../lib/brew-origin";
 
 interface Props {
   conn: Connection;
@@ -140,6 +141,22 @@ const PROCESS_LABEL: Record<string, TranslationKey> = {
  * the brewing screen it is the only saturated shape there is, so it declares
  * the `commit` carve-out and nothing else on that screen may paint.
  */
+/**
+ * The vessel a PHASE implies, for the pour whose drink we do not know.
+ *
+ * These are the five sub-process tokens the machine can report. They name what
+ * the machine is doing, so the picture is honest at the level the data is:
+ * water is drawn as water, steam as milk, a grind and a pour as coffee. It is
+ * never presented as a named drink.
+ */
+const PHASE_DRINK: Record<string, string> = {
+  WATER: "Hot Water",
+  STEAM: "Milk Froth",
+  COFFEE: "Espresso",
+  GRINDING: "Espresso",
+  PREPARE: "Espresso",
+};
+
 function AbortCircle() {
   return (
     <span
@@ -370,7 +387,6 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
   // The band is a mosaic, so it needs to know how many tiles it draws: the
   // served categories the machine actually has a button for, plus the 2x tile.
   const directKeyTiles = model.categories.filter((c) => c.machineButton);
-  const hasSelectedDetails = selectedDetails?.c1_process !== undefined;
 
   const brewId = `button.${prefix}_brew`;
   const cancelId = `button.${prefix}_cancel`;
@@ -396,6 +412,14 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
     Record<string, DirectKeyRecipe>
   > | null>(null);
   const [listGen, setListGen] = useState(0);
+
+  // The origin is a claim about the pour that is RUNNING. When the machine
+  // stops, the claim expires with it — otherwise the next pour, which may be
+  // someone else's hot water, would inherit this app's last drink name.
+  useEffect(() => {
+    if (!isBrewing) clearBrewOrigin();
+  }, [isBrewing]);
+
   useEffect(() => {
     const doc = contract;
     const block = readDirectKey(doc);
@@ -456,6 +480,8 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
   const handleDkClick = useCallback((cat: DirectKeyCategory) => {
     if (dkLongPressTriggered.current) return;
     if (selectedDk === cat) {
+      // Remember what we asked for: the machine will not tell us later.
+      noteBrewStarted(directKeyCategoryLabel(locale, cat));
       safeCall(() => brewDirectkey(conn, brewId, cat, twoCups));
     } else {
       setSelectedDk(cat);
@@ -528,9 +554,12 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
   // Carousel: brew
   const handleCarouselBrew = useCallback(() => {
     if (getEntity(entities, prefix, "button", "brew")) {
+      if (selectedRecipe) {
+        noteBrewStarted(selectedRecipe, allRecipes[selectedRecipe] as RecipeDetails | undefined);
+      }
       safeCall(() => pressButton(conn, brewId));
     }
-  }, [conn, brewId, entities, prefix]);
+  }, [conn, brewId, entities, prefix, selectedRecipe, allRecipes]);
 
   // Carousel: stable renderInfo (compact for card layout)
   const carouselRenderInfo = useCallback(
@@ -567,25 +596,42 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
     // status word below the strip (§7.4), and one explicitly labelled abort is
     // the only control while a pour whose end we can only ESTIMATE runs.
     //
-    // The drink is the CHOSEN RECIPE, not the activity. This screen used to
-    // pass the sub-process label ("Grinding") to `CoffeeIcon` as if it were a
-    // drink name, which matches no entry in the image table and fell through
-    // to the freestyle placeholder every time — invisible for exactly as long
-    // as the portal covered it.
-    const brewingDrink = selectedRecipe || activity || "";
-    const statusWord = activity && activity !== brewingDrink ? activity : "";
+    // WHAT IS ACTUALLY BEING MADE — and what we are allowed to claim.
+    //
+    // The machine's status frame carries a PHASE (grinding / coffee / steam /
+    // water / prepare) and no product identity whatsoever; the recipe select
+    // is written by this app and never read back from the machine. So the
+    // drink is knowable only when this app asked for it. Press hot water on
+    // the machine's own panel and the app used to show the last recipe its
+    // own picker happened to hold, complete with a composition strip of
+    // millilitres nobody had asked for.
+    //
+    // Known: show the drink, its name and its composition.
+    // Unknown: show the phase the machine reports and nothing more — a vessel
+    // that matches the phase, the phase's word, and no composition.
+    const origin = brewOrigin();
+    const phaseDrink = PHASE_DRINK[statusView.activityToken ?? ""] ?? "Espresso";
+    const brewingDrink = origin?.name ?? "";
+    const brewingDetails = origin?.details;
+    // When the drink is unknown the phase IS the title, so it must not also
+    // repeat itself underneath as the status word.
+    const statusWord = brewingDrink && activity !== brewingDrink ? activity : "";
     return (
       <div className="relative flex h-full flex-col items-center justify-center gap-6 px-6">
         <DrinkStage size={260} active>
-          <CoffeeIcon recipe={brewingDrink || "Espresso"} size={260} />
+          <CoffeeIcon recipe={brewingDrink || phaseDrink} size={260} />
         </DrinkStage>
 
         <div className="flex flex-col items-center gap-3 max-w-full">
-          {/* §7.2: the drink's name is the largest type on its own screen. */}
-          <div className="t-title text-primary text-center">{brewingDrink}</div>
-          {hasSelectedDetails && selectedDetails && (
-            <RecipeInfo details={selectedDetails} t={t} />
-          )}
+          {/* §7.2: the largest type on this screen names what is being made —
+              the drink when we know it, the phase when we do not. */}
+          <div className="t-title text-primary text-center">
+            {brewingDrink || activity}
+          </div>
+          {/* The composition belongs to a KNOWN drink. Printing the picker's
+              current selection under someone else's pour is a lie with
+              millilitres in it. */}
+          {brewingDetails && <RecipeInfo details={brewingDetails} t={t} />}
           {/* §7.4: the status word is the smallest white text on a busy
               screen — the meter carries the message, the word only names it. */}
           {statusWord && (

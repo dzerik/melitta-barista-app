@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.1.1] — 2026-09-07 (not released)
+
+### Fixed
+
+- **The brewing screen no longer claims a drink it cannot know.** Start hot water at the machine and the app used to show whatever its own picker happened to hold — a cappuccino, with a composition strip of millilitres nobody had asked for. The machine's status frame carries a phase (grinding, coffee, steam, water, prepare) and no product identity at all, and the recipe selector is written by this app and never read back, so the drink is knowable only when this app asked for it. It now names the drink for a pour it started, and for anyone else's pour it draws the phase the machine reports — water as water, steam as milk — with no name and no composition.
+
 ## [3.1.0] — 2026-09-07 (not released)
 
 ### Added
