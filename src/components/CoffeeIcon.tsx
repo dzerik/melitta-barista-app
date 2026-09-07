@@ -32,32 +32,94 @@ import imgMilk from "../assets/recipes/milk.png";
 import imgMilkFroth from "../assets/recipes/milk_froth.png";
 import imgWater from "../assets/recipes/water.png";
 import imgFreestyle from "../assets/recipes/freestyle_placeholder.png";
+import { DRINK_BOUNDS, FULL_BOUNDS, type DrinkBounds } from "../lib/drink-metrics";
 
-const RECIPE_IMAGES: Record<string, string> = {
-  Espresso: imgEspresso,
-  Ristretto: imgRistretto,
-  Lungo: imgLungo,
-  "Espresso Doppio": imgEspressoDoppio,
-  "Ristretto Doppio": imgRistrettoDoppio,
-  "Café Crème": imgCafeCreme,
-  "Café Crème Doppio": imgCafeCremeDoppio,
-  Americano: imgAmericano,
-  "Americano Extra": imgAmericanoExtra,
-  "Long Black": imgLongBlack,
-  "Red Eye": imgRedEye,
-  "Black Eye": imgBlackEye,
-  "Dead Eye": imgDeadEye,
-  Cappuccino: imgCappuccino,
-  "Espresso Macchiato": imgEspressoMacchiato,
-  "Caffè Latte": imgCaffeLatte,
-  "Café au Lait": imgCafeAuLait,
-  "Flat White": imgFlatWhite,
-  "Latte Macchiato": imgLatteMacchiato,
-  "Latte Macchiato Extra": imgLatteMacchiatoExtra,
-  "Latte Macchiato Triple": imgLatteMacchiatoTriple,
-  Milk: imgMilk,
-  "Milk Froth": imgMilkFroth,
-  "Hot Water": imgWater,
+/**
+ * Display name → asset key. The key is the artwork's own basename, which is
+ * also how `DRINK_BOUNDS` is keyed, so one lookup gives both the picture and
+ * the glass's real bounds inside it.
+ */
+/** The artwork, keyed by its own basename. */
+/**
+ * Which artwork a drink resolves to, by the v1 fallback chain: served
+ * `name_key` first (§6.3.6, the stable key), then the English display name,
+ * then the freestyle placeholder.
+ */
+export function drinkAssetKey(recipe: string, nameKey?: string): string {
+  return (
+    (nameKey !== undefined ? NAME_KEY_ASSET[nameKey] : undefined) ??
+    RECIPE_ASSET[recipe] ??
+    "freestyle_placeholder"
+  );
+}
+
+/**
+ * Where the glass actually sits inside what will be drawn.
+ *
+ * A served IconSpec is drawn procedurally and fills its box, so it reports the
+ * whole canvas. A PNG reports the measured bounds of its glass, because the
+ * artwork places an espresso in 11% of its frame and a hot water in 57% — and
+ * a halo or a reflection sized to the frame would sit around the light instead
+ * of around the drink.
+ */
+export function drinkBounds(recipe: string, nameKey?: string, icon?: IconSpec | null): DrinkBounds {
+  if (isRenderableIconSpec(icon)) return FULL_BOUNDS;
+  return DRINK_BOUNDS[drinkAssetKey(recipe, nameKey)] ?? FULL_BOUNDS;
+}
+
+const ASSET_IMG: Record<string, string> = {
+  "americano": imgAmericano,
+  "americano_extra_shot2": imgAmericanoExtra,
+  "black_eye": imgBlackEye,
+  "cafe_au_lait": imgCafeAuLait,
+  "cafe_creme": imgCafeCreme,
+  "cafe_creme_doppio": imgCafeCremeDoppio,
+  "caffe_latte": imgCaffeLatte,
+  "cappuccino": imgCappuccino,
+  "dead_eye": imgDeadEye,
+  "espresso": imgEspresso,
+  "espresso_doppio": imgEspressoDoppio,
+  "espresso_macchiato": imgEspressoMacchiato,
+  "flat_white": imgFlatWhite,
+  "freestyle_placeholder": imgFreestyle,
+  "latte_macchiato": imgLatteMacchiato,
+  "latte_macchiato_extra_shot2": imgLatteMacchiatoExtra,
+  "latte_macchiato_triple_shot2": imgLatteMacchiatoTriple,
+  "long_black": imgLongBlack,
+  "lungo": imgLungo,
+  "milk": imgMilk,
+  "milk_froth": imgMilkFroth,
+  "red_eye": imgRedEye,
+  "ristretto": imgRistretto,
+  "ristretto_doppio": imgRistrettoDoppio,
+  "water": imgWater,
+};
+
+const RECIPE_ASSET: Record<string, string> = {
+  Espresso: "espresso",
+  Ristretto: "ristretto",
+  Lungo: "lungo",
+  "Espresso Doppio": "espresso_doppio",
+  "Ristretto Doppio": "ristretto_doppio",
+  "Café Crème": "cafe_creme",
+  "Café Crème Doppio": "cafe_creme_doppio",
+  Americano: "americano",
+  "Americano Extra": "americano_extra_shot2",
+  "Long Black": "long_black",
+  "Red Eye": "red_eye",
+  "Black Eye": "black_eye",
+  "Dead Eye": "dead_eye",
+  Cappuccino: "cappuccino",
+  "Espresso Macchiato": "espresso_macchiato",
+  "Caffè Latte": "caffe_latte",
+  "Café au Lait": "cafe_au_lait",
+  "Flat White": "flat_white",
+  "Latte Macchiato": "latte_macchiato",
+  "Latte Macchiato Extra": "latte_macchiato_extra_shot2",
+  "Latte Macchiato Triple": "latte_macchiato_triple_shot2",
+  Milk: "milk",
+  "Milk Froth": "milk_froth",
+  "Hot Water": "water",
 };
 
 /**
@@ -65,31 +127,32 @@ const RECIPE_IMAGES: Record<string, string> = {
  * RECIPE_IMAGES: display names may be renamed/localized server-side, the
  * name_key never moves (spec §6.3.6 pins the 24 Melitta keys).
  */
-const NAME_KEY_IMAGES: Record<string, string> = {
-  espresso: imgEspresso,
-  ristretto: imgRistretto,
-  lungo: imgLungo,
-  espresso_doppio: imgEspressoDoppio,
-  ristretto_doppio: imgRistrettoDoppio,
-  cafe_creme: imgCafeCreme,
-  cafe_creme_doppio: imgCafeCremeDoppio,
-  americano: imgAmericano,
-  americano_extra: imgAmericanoExtra,
-  long_black: imgLongBlack,
-  red_eye: imgRedEye,
-  black_eye: imgBlackEye,
-  dead_eye: imgDeadEye,
-  cappuccino: imgCappuccino,
-  espresso_macchiato: imgEspressoMacchiato,
-  caffe_latte: imgCaffeLatte,
-  cafe_au_lait: imgCafeAuLait,
-  flat_white: imgFlatWhite,
-  latte_macchiato: imgLatteMacchiato,
-  latte_macchiato_extra: imgLatteMacchiatoExtra,
-  latte_macchiato_triple: imgLatteMacchiatoTriple,
-  milk: imgMilk,
-  milk_froth: imgMilkFroth,
-  hot_water: imgWater,
+/** Served `name_key` → asset key (§6.3.6): the stable twin of RECIPE_ASSET. */
+const NAME_KEY_ASSET: Record<string, string> = {
+  espresso: "espresso",
+  ristretto: "ristretto",
+  lungo: "lungo",
+  espresso_doppio: "espresso_doppio",
+  ristretto_doppio: "ristretto_doppio",
+  cafe_creme: "cafe_creme",
+  cafe_creme_doppio: "cafe_creme_doppio",
+  americano: "americano",
+  americano_extra: "americano_extra_shot2",
+  long_black: "long_black",
+  red_eye: "red_eye",
+  black_eye: "black_eye",
+  dead_eye: "dead_eye",
+  cappuccino: "cappuccino",
+  espresso_macchiato: "espresso_macchiato",
+  caffe_latte: "caffe_latte",
+  cafe_au_lait: "cafe_au_lait",
+  flat_white: "flat_white",
+  latte_macchiato: "latte_macchiato",
+  latte_macchiato_extra: "latte_macchiato_extra_shot2",
+  latte_macchiato_triple: "latte_macchiato_triple_shot2",
+  milk: "milk",
+  milk_froth: "milk_froth",
+  hot_water: "water",
 };
 
 // ---------------------------------------------------------------------------
@@ -233,12 +296,19 @@ interface Props {
   nameKey?: string;
   /**
    * §6.3 TRUTH SCALE: this drink's real magnitude as a 0–1 fraction of the
-   * row's maximum (`total_ml / rowMaxMl`). The drawn width becomes
-   * `size × truthScale(fraction)` — floor 0.55×, ceiling 1.0× — so an espresso
-   * and a latte macchiato in the same row stop being the same height. Where no
-   * `total_ml` or IconSpec is served there is no truth to scale to: pass
-   * `TRUTH_UNSERVED` (0.80×) rather than letting the drink claim full size.
-   * Omitted entirely, the icon draws at `size` exactly, as it always has.
+   * row's maximum (`total_ml / rowMaxMl`).
+   *
+   * IT APPLIES TO A PROCEDURAL DRAWING ONLY, and this is the whole point: the
+   * artwork already encodes true scale. The 25 recipe PNGs share one 1080×720
+   * canvas, stand on one baseline, and draw each glass at its real relative
+   * size — measured against the physical vessels, espresso comes out 0.44× a
+   * latte macchiato in the artwork and 0.43× on the counter. Rendering every
+   * file at the same width is therefore already the truth, and multiplying a
+   * volume fraction on top of it counts the same fact twice: it made an
+   * espresso beside a latte roughly half the size it should be.
+   *
+   * A served IconSpec has no such scale — the geometry is drawn to a fixed
+   * glass silhouette — so there the code must supply it, and does.
    */
   scaleTo?: number;
   /**
@@ -271,18 +341,16 @@ export function CoffeeIcon({
   scaleTo,
   baseline = false,
 }: Props) {
+  // The artwork carries its own scale; only a procedural drawing needs ours.
+  const spec = isRenderableIconSpec(icon);
   const drawn =
-    scaleTo === undefined ? size : Math.round(size * truthScale(scaleTo));
+    spec && scaleTo !== undefined ? Math.round(size * truthScale(scaleTo)) : size;
 
-  const glyph = isRenderableIconSpec(icon) ? (
+  const glyph = spec ? (
     <IconSpecDrawing spec={icon} label={recipe} size={drawn} />
   ) : (
     <img
-      src={
-        (nameKey !== undefined ? NAME_KEY_IMAGES[nameKey] : undefined) ||
-        RECIPE_IMAGES[recipe] ||
-        imgFreestyle
-      }
+      src={ASSET_IMG[drinkAssetKey(recipe, nameKey)] ?? imgFreestyle}
       alt={recipe}
       width={drawn}
       height={Math.round(drawn * DRINK_ASPECT)}

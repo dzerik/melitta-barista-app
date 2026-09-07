@@ -3,6 +3,7 @@ import { getEntity } from "../lib/entities";
 import { usePreferences } from "../lib/preferences";
 import { CoffeeIcon } from "./CoffeeIcon";
 import { Dot, DrinkStage, Glyph, Mosaic, Rule } from "./ui";
+import { drinkBounds } from "./CoffeeIcon";
 
 interface Props {
   entities: HassEntities;
@@ -114,14 +115,17 @@ export function StatsSection({ entities, prefix }: Props) {
                   />
                   <div className="relative z-10 flex w-full flex-col items-center">
                     {/* Bases align, tops stay ragged (§6.3), over the same
-                        ground every other drink in the app stands on (§6.2). */}
-                    <DrinkStage size={TILE_ICON_SIZE} active={isTop}>
-                      <CoffeeIcon
-                        recipe={name}
-                        size={TILE_ICON_SIZE}
-                        baseline
-                        scaleTo={fraction}
-                      />
+                        ground every other drink in the app stands on (§6.2).
+                        The glass is NOT scaled by the count: it is drawn at the
+                        size the artwork gives it, which is the drink's real
+                        size relative to its neighbours. How often it was made
+                        is the wash behind it — one fact, one encoding. */}
+                    <DrinkStage
+                      size={TILE_ICON_SIZE}
+                      active={isTop}
+                      bounds={drinkBounds(name)}
+                    >
+                      <CoffeeIcon recipe={name} size={TILE_ICON_SIZE} baseline />
                     </DrinkStage>
                     <span className="t-label text-secondary mt-1 w-full truncate text-center leading-tight">
                       {name}

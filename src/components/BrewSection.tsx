@@ -54,6 +54,7 @@ import iconService from "../assets/icons/service.png";
 import iconTwoCups from "../assets/icons/two_cups.png";
 import iconTwoCupsWhite from "../assets/icons/two_cups_white.png";
 import { brewOrigin, clearBrewOrigin, noteBrewStarted } from "../lib/brew-origin";
+import { drinkBounds } from "./CoffeeIcon";
 
 interface Props {
   conn: Connection;
@@ -618,7 +619,7 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
     const statusWord = brewingDrink && activity !== brewingDrink ? activity : "";
     return (
       <div className="relative flex h-full flex-col items-center justify-center gap-6 px-6">
-        <DrinkStage size={260} active>
+        <DrinkStage size={260} active bounds={drinkBounds(brewingDrink || phaseDrink)}>
           <CoffeeIcon recipe={brewingDrink || phaseDrink} size={260} />
         </DrinkStage>
 

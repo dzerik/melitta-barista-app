@@ -1143,25 +1143,46 @@ describe("truth scale", () => {
     expect(truthScale(Number.NaN)).toBeCloseTo(0.55);
   });
 
-  it("shrinks CoffeeIcon by its real volume, floor 0.55 and ceiling 1.0", () => {
-    const drawn = (props: Record<string, unknown>) => {
-      const { container, unmount } = render(
-        <CoffeeIcon recipe="Espresso" size={140} {...props} />,
-      );
-      const el = container.querySelector("img,svg")!;
-      const out = el.getAttribute("width");
-      unmount();
-      return out;
-    };
+  const drawnWidth = (props: Record<string, unknown>) => {
+    const { container, unmount } = render(
+      <CoffeeIcon recipe="Espresso" size={140} {...props} />,
+    );
+    const el = container.querySelector("img,svg")!;
+    const out = el.getAttribute("width");
+    unmount();
+    return out;
+  };
 
-    expect(drawn({})).toBe("140");
-    expect(drawn({ scaleTo: 1 })).toBe("140");
-    expect(drawn({ scaleTo: 0 })).toBe("77");
+  /** A procedural drawing: nothing in the geometry says how big the drink is. */
+  const SPEC = {
+    spec_version: 1,
+    glass: "espresso_cup",
+    total_ml: 40,
+    fill_level: 0.67,
+    layers: [{ role: "coffee", ml: 40, fraction: 1, intensity: 0.68, crema: true }],
+    foam: null,
+    steam: false,
+  } as never;
+
+  it("shrinks a PROCEDURAL drawing by its real volume, floor 0.55 and ceiling 1.0", () => {
+    expect(drawnWidth({ icon: SPEC })).toBe("140");
+    expect(drawnWidth({ icon: SPEC, scaleTo: 1 })).toBe("140");
+    expect(drawnWidth({ icon: SPEC, scaleTo: 0 })).toBe("77");
     // The unserved fallback is a fixed 0.80×, not a claim to full size.
     expect(TRUTH_UNSERVED).toBe(0.8);
-    expect(drawn({ scaleTo: TRUTH_UNSERVED })).toBe(
+    expect(drawnWidth({ icon: SPEC, scaleTo: TRUTH_UNSERVED })).toBe(
       String(Math.round(140 * truthScale(0.8))),
     );
+  });
+
+  it("leaves the ARTWORK alone, because the artwork already is the truth", () => {
+    // The 25 recipe PNGs share one 1080×720 canvas, stand on one baseline and
+    // draw each glass at its real relative size — espresso measures 0.44× a
+    // latte macchiato in the artwork and 0.43× on the counter. Scaling by
+    // volume on top of that counts the same fact twice.
+    expect(drawnWidth({})).toBe("140");
+    expect(drawnWidth({ scaleTo: 0 })).toBe("140");
+    expect(drawnWidth({ scaleTo: TRUTH_UNSERVED })).toBe("140");
   });
 
   it("bottom-aligns in a box of the FULL height so bases line up, tops stay ragged", () => {
@@ -1172,11 +1193,13 @@ describe("truth scale", () => {
       '[data-ui="coffee-icon-baseline"]',
     )!;
 
-    // 140 wide → 93 tall at full size; the shrunken glass hangs off that base.
+    // 140 wide → 93 tall; the artwork is not shrunk (it carries its own
+    // scale), so the box reserves exactly the drawing's height and the
+    // alignment is what keeps a row of them standing on one line.
     expect(box.style.height).toBe("93px");
     expect(box.className).toContain("items-end");
     expect(container.querySelector("img")!.getAttribute("height")).toBe(
-      String(Math.round(77 * (720 / 1080))),
+      String(Math.round(140 * (720 / 1080))),
     );
   });
 
@@ -1849,5 +1872,76 @@ describe("DrinkStage takes its surface from the family without gaining an elemen
       "var(--reflection-alpha)",
     );
     expect(reflection.style.height).toBe("max(1px, calc(var(--reflection-height) * 93px))");
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+   The light hugs the GLASS, not the frame
+   ══════════════════════════════════════════════════════════════════════
+   The recipe artwork shares one canvas so the glasses come out at true
+   relative scale, which means the drawn glass occupies anywhere from 11% of
+   its frame (espresso) to 68% (hot water), and is not always centred in it —
+   the water glass sits 12% of the canvas to the right. Light sized and placed
+   by the FRAME therefore lands beside the cup: that is exactly what the first
+   cut of this shipped, one soft blob a cup-width to the left of every cup.
+*/
+describe("DrinkStage lights the measured glass", () => {
+  const Glass = () => <svg data-testid="glass" width={140} height={93} />;
+  /** A narrow glass parked right of centre — an espresso-shaped worst case. */
+  const OFFSET = { left: 0.5, right: 0.8, top: 0.4, bottom: 1 };
+
+  it("anchors the halo to the middle of the stage, then steps onto the glass", () => {
+    const { container } = render(
+      <DrinkStage size={140} bounds={OFFSET}>
+        <Glass />
+      </DrinkStage>,
+    );
+    const glow = container.querySelector<HTMLElement>('[data-ui="drink-glow"]')!;
+
+    // The drawn box is centred in a full-width stage, so the halo must be
+    // placed from the centre out. Measuring from the stage's left edge is the
+    // defect this pins.
+    expect(glow.style.left).toBe("50%");
+    // A 42px glass (0.3 of a 140px box) starting 70px in: its middle lands
+    // 21px right of the box's middle. The halo is 18% of the glass per side.
+    const halo = Math.round(42 * 0.18);
+    expect(glow.style.marginLeft).toBe(`${21 - 42 / 2 - halo}px`);
+    expect(glow.style.width).toBe(`${42 + halo * 2}px`);
+    // Vertically: from the glass's own top, not the frame's.
+    expect(glow.style.top).toBe(`${Math.round(93 * 0.4) - halo}px`);
+  });
+
+  it("steps the contact line onto the glass's own middle", () => {
+    const { container } = render(
+      <DrinkStage size={140} bounds={OFFSET}>
+        <Glass />
+      </DrinkStage>,
+    );
+    const contact = container.querySelector<HTMLElement>(
+      '[data-ui="drink-contact"]',
+    )!;
+
+    expect(contact.style.width).toBe("42px");
+    expect(contact.style.transform).toBe("translateX(21px)");
+  });
+
+  it("leaves a procedural drawing exactly as it was, because it fills its box", () => {
+    // No bounds: no halo padding, no offset, no transform — the geometry the
+    // freestyle glass and the icon specs have always drawn.
+    const { container } = render(
+      <DrinkStage size={140}>
+        <Glass />
+      </DrinkStage>,
+    );
+    const glow = container.querySelector<HTMLElement>('[data-ui="drink-glow"]')!;
+    const contact = container.querySelector<HTMLElement>(
+      '[data-ui="drink-contact"]',
+    )!;
+
+    expect(glow.style.marginLeft).toBe("-70px");
+    expect(glow.style.width).toBe("140px");
+    expect(glow.style.top).toBe("0px");
+    expect(contact.style.width).toBe("140px");
+    expect(contact.style.transform).toBe("");
   });
 });

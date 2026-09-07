@@ -18,6 +18,7 @@ import { usePrefersReducedMotion } from "./ui/reduced-motion";
 import { suggestionLabel } from "../lib/sommelier-vocab";
 import { pourSummaries, readableSteps, hopperNumber } from "../lib/recipe-summary";
 import { noteBrewStarted } from "../lib/brew-origin";
+import { drinkBounds } from "./CoffeeIcon";
 
 /** §6.1 ladder — a sommelier card is a paged grid cell, so its glass is 140. */
 export const SOMMELIER_ICON_SIZE = 140;
@@ -218,7 +219,11 @@ export function SommelierRecipeCard({
           line and the tops stay ragged: that ragged edge is the comparison,
           read before any number is (§6.3). */}
       <div className="flex w-full min-h-0 items-end justify-center">
-        <DrinkStage size={SOMMELIER_ICON_SIZE} active={Boolean(brewing)}>
+        <DrinkStage
+          size={SOMMELIER_ICON_SIZE}
+          active={Boolean(brewing)}
+          bounds={drinkBounds(recipe.name, undefined, recipe.icon)}
+        >
           <CoffeeIcon
             recipe={recipe.name}
             nameKey={readNameKey(recipe)}

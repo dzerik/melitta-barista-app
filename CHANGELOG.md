@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.1.3] — 2026-09-07 (not released)
+
+### Fixed
+
+- **A drink is drawn at its real size again.** The 25 recipe drawings share one 1080×720 canvas and stand on one baseline, and the glasses inside them are already to scale — an espresso measures 0.44× a latte macchiato in the artwork, and 0.43× on the counter. The app was then rescaling those files by the recipe's volume, so the truth was applied twice and small drinks came out smaller than they are. Sizing now belongs to the file; only a procedural drawing, which fills whatever box it is given, is still scaled by us. The freestyle placeholder was the one drawing on a canvas of its own (900×873) and has been redrawn onto the shared one, so it stands with the family instead of towering over it.
+- **The light now sits on the glass rather than beside it.** Because the canvas is shared, the drawn glass occupies between 11% and 68% of its frame and is not always centred in it — a hot water glass sits 12% of the canvas to the right. The halo, the contact line and the reflection were all sized and placed by the frame, which put them around the empty air next to the cup. Each drawing's glass is now measured (`scripts/drink-metrics.mjs`, checked in as `src/lib/drink-metrics.ts`) and the light is placed on it.
+- The statistics grid no longer shrinks a glass by how often it was poured: how often is the wash behind the tile, and one fact is encoded once.
+
 ## [3.1.2] — 2026-09-07
 
 ### Fixed

@@ -2,6 +2,7 @@ import type { RecipeDetails } from "../lib/entities";
 import { recipeDisplayName, type ContractRecipeFields } from "../lib/recipes";
 import { CoffeeIcon } from "./CoffeeIcon";
 import { DrinkStage, TRUTH_UNSERVED, underlineSlot } from "./ui";
+import { drinkBounds } from "./CoffeeIcon";
 
 export interface RecipeCardData extends ContractRecipeFields {
   name: string;
@@ -158,7 +159,11 @@ export function RecipeCard({
     >
       {/* The drink itself leads — everything else describes it. */}
       <div className="flex items-center justify-center w-full min-h-0">
-        <DrinkStage size={resolvedIconSize} active={active}>
+        <DrinkStage
+          size={resolvedIconSize}
+          active={active}
+          bounds={drinkBounds(recipe.name, recipe.nameKey, recipe.icon)}
+        >
           <CoffeeIcon
             recipe={recipe.name}
             size={resolvedIconSize}

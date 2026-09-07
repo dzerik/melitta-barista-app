@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { usePrefersReducedMotion } from "./reduced-motion";
 import { DRINK_ASPECT } from "./tokens";
+import type { DrinkBounds } from "../../lib/drink-metrics";
 
 export interface DrinkStageProps {
   /** The drink itself — a `<CoffeeIcon />`. Rendered twice: once upright, once mirrored. */
@@ -24,6 +25,19 @@ export interface DrinkStageProps {
    * mirror all land on the glass rather than 38 units below it.
    */
   baseFraction?: number;
+  /**
+   * Where the drawn GLASS sits inside the box, as 0-1 fractions of the drawn
+   * width and height (`drinkBounds()` measures it from the artwork).
+   *
+   * The box is not the drink. The recipe artwork shares one canvas so that the
+   * glasses come out at true relative scale, which means an espresso occupies
+   * 11% of its frame and a hot water 57% — so a halo, a reflection and a
+   * contact line sized to the FRAME sit around the empty air beside the cup
+   * rather than around the cup. Given the glass's real bounds, all three hug
+   * it. Omitted, they fall back to the whole box, which is right for a
+   * procedural drawing because that fills its box by construction.
+   */
+  bounds?: DrinkBounds;
   /** The active cell's glow burns at 1×; every other cell idles at 0.55×. */
   active?: boolean;
   /** Drop the mirrored copy where vertical room is genuinely absent. */
@@ -75,6 +89,7 @@ export function DrinkStage({
   size = 140,
   aspect = DRINK_ASPECT,
   baseFraction = 1,
+  bounds,
   active = false,
   reflection = true,
   id,
@@ -85,10 +100,32 @@ export function DrinkStage({
 
   const drawnHeight = Math.round(size * aspect);
   const clampedBase = Math.max(0, Math.min(1, baseFraction));
-  /** Distance from the top of the drawn box down to the object's base. */
-  const baseY = Math.round(drawnHeight * clampedBase);
+  const glass: DrinkBounds = bounds ?? { left: 0, right: 1, top: 0, bottom: clampedBase };
+
+  /** Distance from the top of the drawn box down to the glass's base. */
+  const baseY = Math.round(drawnHeight * Math.max(0, Math.min(1, glass.bottom)));
   /** Empty drawing below the base, which the horizon must be pulled up over. */
   const tail = drawnHeight - baseY;
+  /** The glass itself, in drawn pixels — what the light has to hug. */
+  const glassTop = Math.round(drawnHeight * Math.max(0, Math.min(1, glass.top)));
+  const glassHeight = Math.max(1, baseY - glassTop);
+  const glassLeft = Math.round(size * Math.max(0, Math.min(1, glass.left)));
+  const glassWidth = Math.max(1, Math.round(size * (glass.right - glass.left)));
+  /**
+   * A little air around the silhouette, so the halo reads as light rather than
+   * as a box. Only where the glass was actually MEASURED: with no bounds the
+   * drawing fills its box by construction, and padding it would push the light
+   * outside the cell.
+   */
+  const halo = bounds === undefined ? 0 : Math.round(glassWidth * 0.18);
+  /**
+   * The drawn box is CENTRED in the stage, and the glass is not always centred
+   * in the box — a hot water glass sits 12% of the canvas off-centre. So the
+   * light is anchored to the middle of the stage and stepped out from there,
+   * rather than measured from the stage's left edge, which is what put every
+   * halo one cup-width to the left of its cup.
+   */
+  const glassMidX = glassLeft + glassWidth / 2 - size / 2;
 
   return (
     <div
@@ -107,10 +144,11 @@ export function DrinkStage({
         data-fill="glow"
         className="pointer-events-none absolute"
         style={{
-          left: 0,
-          right: 0,
-          top: 0,
-          height: baseY,
+          left: "50%",
+          marginLeft: Math.round(glassMidX - glassWidth / 2) - halo,
+          width: glassWidth + halo * 2,
+          top: Math.max(0, glassTop - halo),
+          height: glassHeight + halo,
           zIndex: 0,
           /*
             Two layers on ONE element: the family's cold sheen raked across the
@@ -137,9 +175,11 @@ export function DrinkStage({
         data-fill="contact"
         className="pointer-events-none"
         style={{
-          width: size,
+          width: glassWidth,
           height: 1,
           zIndex: 10,
+          // Flow-centred, then stepped onto the glass's own middle.
+          transform: glassMidX === 0 ? undefined : `translateX(${Math.round(glassMidX)}px)`,
           // Pull the horizon up over any empty drawing below the base.
           marginTop: tail === 0 ? undefined : -tail,
           backgroundImage:
@@ -164,7 +204,7 @@ export function DrinkStage({
             // max(1px, …) keeps the mirror from rounding away to nothing on a small
             // glass, which is what the old Math.max(1, …) guarded before the
             // ratio became a token.
-            height: `max(1px, calc(var(--reflection-height) * ${baseY}px))`,
+            height: `max(1px, calc(var(--reflection-height) * ${glassHeight}px))`,
             zIndex: 0,
             lineHeight: 0,
           }}

@@ -230,13 +230,31 @@ describe("the sommelier drink cell", () => {
   it("scales a cell's glass to its volume on a common baseline (§6.3)", () => {
     // Two drinks in one generation, one twice the pour of the other: the
     // bases land on one line and the glasses do NOT come out the same size.
+    //
+    // A sommelier drink is drawn PROCEDURALLY — the server attaches an
+    // IconSpec to every suggestion (§3.9) because no artwork exists for a name
+    // the model just invented — and a procedural drawing carries no scale of
+    // its own, so this is where §6.3 does its work. The recipe PNGs are the
+    // opposite case and are deliberately left alone: they already draw each
+    // glass at its real relative size.
+    const spec = {
+      spec_version: 1,
+      glass: "cup",
+      total_ml: 200,
+      fill_level: 0.8,
+      layers: [{ role: "coffee", ml: 200, fraction: 1, intensity: 0.6, crema: true }],
+      foam: null,
+      steam: false,
+    };
     const session = {
       ...SESSION,
       recipes: [
         recipe("r1", "Long", {
+          icon: spec,
           machine_phases: [{ component: { ...COFFEE, portion_ml: 200 }, user_action_before: [] }],
         }),
         recipe("r2", "Short", {
+          icon: { ...spec, total_ml: 30 },
           machine_phases: [{ component: { ...COFFEE, portion_ml: 30 }, user_action_before: [] }],
         }),
       ],
@@ -247,7 +265,7 @@ describe("the sommelier drink cell", () => {
 
     const cells = Array.from(container.querySelectorAll('[data-ui="sommelier-cell"]'));
     const drawn = cells.map(
-      (cell) => Number(cell.querySelector("img")!.getAttribute("width")),
+      (cell) => Number(cell.querySelector("img,svg")!.getAttribute("width")),
     );
     expect(drawn[0]).toBeGreaterThan(drawn[1]);
     // The band is 0.55×–1.0× of the 140px cell glass, never outside it.
@@ -488,7 +506,7 @@ describe("StatsSection", () => {
     }
   });
 
-  it("caps the magnitude wash at the §5.D ceiling and scales the glass by count", () => {
+  it("caps the magnitude wash at the §5.D ceiling and leaves the glass alone", () => {
     const { container } = renderWithProviders(
       <StatsSection entities={entities({ Espresso: 40, Cappuccino: 10 })} prefix="mel" />,
     );
@@ -500,13 +518,14 @@ describe("StatsSection", () => {
     expect(Number(washes[1].style.opacity)).toBeLessThan(0.16);
     for (const wash of washes) expect(Number(wash.style.opacity)).toBeLessThanOrEqual(0.16);
 
-    // §6.3 truth scale: a quarter of the leader's count is a smaller glass —
-    // now through CoffeeIcon's own `scaleTo`, not a local copy of the maths.
+    // The glass is NOT a second encoding of the count. It is drawn at the size
+    // the artwork gives it — the drink's real size next to its neighbours —
+    // and how often it was made is the wash behind it. Scaling it by count
+    // would say "an espresso is bigger than a cappuccino because you drink
+    // more of them", which is not a fact about either drink.
     const tiles = Array.from(container.querySelectorAll<HTMLElement>('[data-ui="stat-tile"]'));
     const [lead, minor] = tiles.map((tile) => tile.querySelector("img")!);
-    expect(Number(lead.getAttribute("width"))).toBeGreaterThan(
-      Number(minor.getAttribute("width")),
-    );
+    expect(lead.getAttribute("width")).toBe(minor.getAttribute("width"));
     // …bottom-aligned inside a box of the FULL unscaled height, so the bases
     // of a row land on one line while the tops stay ragged.
     for (const tile of tiles) {
