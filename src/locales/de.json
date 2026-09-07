@@ -35,7 +35,7 @@
   "brew.dk_milk": "Milch",
   "brew.dk_water": "Heißes Wasser",
   "brew.two_cups": "2x",
-  "brew.two_cups_on": "2x EIN",
+  "brew.two_cups_on": "2x ein",
   "brew.all_recipes": "Alle Rezepte",
   "brew.view_grid": "Raster",
   "brew.view_list": "Liste",
@@ -170,7 +170,6 @@
   "sommelier.preference_placeholder": "Vorliebe (optional): z.B. stark mit Milch",
   "sommelier.surprise_me": "Überrasch mich",
   "sommelier.generating": "Rezepte werden generiert...",
-  "sommelier.brew": "Brühen",
   "sommelier.brewing": "Wird zubereitet…",
   "sommelier.favorite": "Zu Favoriten",
   "sommelier.remove": "Entfernen",
@@ -310,5 +309,12 @@
   "sommelier.error.no_llm_agent_selected": "Kein KI-Agent ausgewählt — wähle einen in den Sommelier-Einstellungen (Settings → AI agent).",
   "sommelier.error.llm_agent_missing": "Der ausgewählte KI-Agent existiert nicht mehr — wähle einen anderen in den Sommelier-Einstellungen.",
   "sommelier.error.timeout": "Der KI-Agent hat nicht rechtzeitig geantwortet — versuche es erneut oder erhöhe das LLM-Timeout in den Sommelier-Einstellungen.",
-  "sommelier.error.unauthorized": "Die Sommelier-Generierung erfordert einen Home-Assistant-Benutzer mit Admin-Rechten."
+  "sommelier.error.unauthorized": "Die Sommelier-Generierung erfordert einen Home-Assistant-Benutzer mit Admin-Rechten.",
+  "app.decrease": "Verringern",
+  "app.increase": "Erhöhen",
+  "app.page": "Seite {n}",
+  "freestyle.drink_name": "Name des Getränks",
+  "app.close": "Schließen",
+  "app.previous": "Zurück",
+  "app.next": "Weiter"
 }

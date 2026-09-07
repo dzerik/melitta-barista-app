@@ -98,7 +98,6 @@
   "sommelier.generate": "Genereeri",
   "sommelier.hopper": "Oamahuti",
   "sommelier.surprise_me": "Üllata mind",
-  "sommelier.brew": "Valmista",
   "sommelier.brewing": "Valmistan…",
   "sommelier.favorite": "Lisa lemmikutesse",
   "sommelier.remove": "Eemalda",
@@ -158,5 +157,14 @@
   "wizard.machine.failed": "Valmistamine nurjus",
   "wizard.machine.confirm": "Kinnita",
   "wizard.finish.button": "Sulge",
-  "wizard.close.stay": "Jää"
+  "wizard.close.stay": "Jää",
+  "app.decrease": "Vähenda",
+  "app.increase": "Suurenda",
+  "app.page": "Lehekülg {n}",
+  "freestyle.drink_name": "Joogi nimi",
+  "app.close": "Sulge",
+  "brew.two_cups": "2x",
+  "brew.two_cups_on": "2x sees",
+  "app.previous": "Eelmine",
+  "app.next": "Järgmine"
 }

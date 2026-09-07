@@ -289,6 +289,26 @@ describe("App wiring", () => {
     expect(screen.queryByTestId("section-brew")).toBeNull();
   });
 
+  it("the mismatch screen's mark is the state glyph and its verb is a bare Word", async () => {
+    const conn = makeConn(() => Promise.resolve(MELITTA_CONTRACT_FULL));
+    ha.current = connectedHA(conn, bridgeEntities({ contract_version: 2 }));
+    const { container } = renderWithProviders(<App />);
+    await screen.findByText("Update the app");
+
+    // C27: `h-24 opacity-50` was a size picked here and nowhere else.
+    const glyph = container.querySelector('[data-ui="glyph"]') as HTMLElement;
+    expect(glyph.dataset.size).toBe("state");
+    expect(glyph.style.height).toBe("80px");
+    expect(glyph.getAttribute("class")).not.toMatch(/h-24|opacity-50/);
+
+    // C5: ConnectScreen's own WORD_ACTION hung a `--border` rule under this
+    // verb. An action wears no underline.
+    const word = container.querySelector('[data-ui="word"]') as HTMLElement;
+    expect(word.textContent).toBe("Disconnect");
+    expect(word.style.borderBottomWidth).toBe("");
+    expect(word.style.borderBottomColor).toBe("");
+  });
+
   it("pre-contract bridge → the 'update the integration' screen (§5.4 PWA rule)", async () => {
     const conn = makeConn(() => Promise.resolve(MELITTA_CONTRACT_FULL));
     ha.current = connectedHA(conn, {
@@ -428,9 +448,14 @@ describe("App shell — visual contract", () => {
     const mark = container.querySelector('[data-ui="tab-indicator"]') as HTMLElement;
     expect(mark.style.backgroundColor).toBe("var(--accent)");
     expect(mark.style.borderRadius).toBe("0px");
-    // -1px lands the 2px bar on top of the 1px rule above the nav.
+    // C19/C24: the weight comes from the nav underline token, not an `h-[2px]`
+    // literal — this mark and a lit `Option level="nav"` underline are the
+    // same 2px of the same ink.
+    expect(mark.style.height).toBe("var(--underline-w-nav)");
+    // -1px lands the 2px bar on top of the 1px rule above the nav, which is
+    // the overlap `Option`'s own `margin-bottom: -1px` produces in the sub-nav.
     expect(mark.style.top).toBe("-1px");
-    expect(mark.getAttribute("class")).not.toMatch(/rounded-/);
+    expect(mark.getAttribute("class")).not.toMatch(/rounded-|h-\[/);
     expect(mark.dataset.fill).toBe("rule");
   });
 
@@ -447,6 +472,40 @@ describe("App shell — visual contract", () => {
     expect(current).toHaveLength(1);
     expect(current[0].className).toContain("text-primary");
     expect(current[0].dataset.selected).toBe("true");
+  });
+
+  it("sets its words at the sub-nav's type step, not one below it (C19)", async () => {
+    await renderShell();
+    // `Option level="nav"` — the §C6a reference the sommelier sub-nav uses —
+    // is `t-body`. The tab bar was `t-label`, so the app's two nav idioms
+    // disagreed on word size as well as on the mark.
+    for (const tabEl of screen.getAllByRole("button")) {
+      expect(tabEl.className).toContain("t-body");
+      expect(tabEl.className).not.toContain("t-label");
+    }
+  });
+
+  it("the Disconnect verb is a bare Word and wears no underline (C5)", async () => {
+    // No prefix yet: the "looking for the integration" screen, whose one
+    // control is Disconnect. An underline means "chosen" in this language, so
+    // an action must not wear one — the private WORD_ACTION constant hung a
+    // `--border` rule under exactly this word.
+    const conn = makeConn(() => Promise.resolve(MELITTA_CONTRACT_FULL));
+    ha.current = { ...connectedHA(conn, bridgeEntities()), prefix: null };
+    const { container } = renderWithProviders(<App />);
+    await act(async () => {});
+
+    const word = container.querySelector('[data-ui="word"]') as HTMLElement;
+    expect(word).not.toBeNull();
+    expect(word.textContent).toBe("Disconnect");
+    expect(word.style.borderBottomWidth).toBe("");
+    expect(word.style.borderBottomColor).toBe("");
+    expect(word.style.color).toBe("var(--text-secondary)");
+    // ...and the screen's mark is the one glyph ladder's `state` rung.
+    const glyph = container.querySelector('[data-ui="glyph"]') as HTMLElement;
+    expect(glyph.dataset.size).toBe("state");
+    expect(glyph.style.width).toBe("80px");
+    expect(glyph.getAttribute("class")).not.toMatch(/w-20|opacity-50/);
   });
 
   it("a locked tab uses the language's disabled value, not opacity-30", async () => {
@@ -532,19 +591,42 @@ describe("Sign-in screen — visual contract", () => {
     );
   });
 
-  it("both fields are underline inputs — transparent, one rule, no box", async () => {
+  it("both fields are the shared Field — transparent, one tokenised rule, no box", async () => {
     ha.current = disconnectedHA();
     const { container } = renderWithProviders(<App />);
     await act(async () => {});
+    // C6/C24: the screen no longer declares its own UNDERLINE_INPUT, so the
+    // weight is `--underline-w` rather than a literal "1px" and the ink is the
+    // one token that exists for an input's rule.
+    const fields = container.querySelectorAll('[data-ui="field"]');
+    expect(fields).toHaveLength(2);
     const inputs = Array.from(container.querySelectorAll<HTMLInputElement>("input"));
     expect(inputs).toHaveLength(2);
     for (const input of inputs) {
+      expect(input.dataset.ui).toBe("field-input");
       expect(input.style.backgroundColor).toBe("transparent");
       expect(input.style.borderRadius).toBe("0px");
-      expect(input.style.borderBottomWidth).toBe("1px");
+      expect(input.style.borderBottomWidth).toBe("var(--underline-w)");
       expect(input.style.borderBottomColor).toBe("var(--input-border)");
+      expect(input.style.minHeight).toBe("var(--tap)");
       expect(input.getAttribute("class")).not.toMatch(/rounded-|ring-/);
     }
+    // Each line is still named, and the label still points at its own input.
+    const labels = Array.from(container.querySelectorAll<HTMLLabelElement>("label"));
+    expect(labels.map((l) => l.htmlFor)).toContain("connect-url");
+    expect(labels.map((l) => l.htmlFor)).toContain("connect-token");
+  });
+
+  it("an incomplete form leaves the commit at the language's disabled value", async () => {
+    // `Field` carries no `required`, deliberately — the native validation
+    // bubble is a rounded filled box. §10's disabled expression says the same
+    // thing in the language instead. A blank token is the fresh-install state.
+    ha.current = disconnectedHA();
+    const { container } = renderWithProviders(<App />);
+    await act(async () => {});
+    const commit = container.querySelector('[data-ui="commit"]') as HTMLButtonElement;
+    expect(commit.disabled).toBe(true);
+    expect(commit.style.opacity).toBe("0.35");
   });
 
   it("carries exactly one commit rectangle, sized by the form column", async () => {
@@ -613,26 +695,65 @@ describe("ResolutionGuard — visual contract", () => {
 
   afterEach(() => setViewport(realWidth, realHeight));
 
-  it("is a scrim plus one flat square panel, with the figures between hairlines", async () => {
+  async function renderBlocked() {
     setViewport(800, 600);
     const conn = makeConn(() => Promise.resolve(MELITTA_CONTRACT_FULL));
     ha.current = connectedHA(conn, bridgeEntities());
     renderWithProviders(<App />);
     await act(async () => {});
+  }
+
+  it("is the scrim and nothing else — no second fill, no hand-rolled panel", async () => {
+    await renderBlocked();
 
     const scrim = document.querySelector('[data-fill="scrim"]') as HTMLElement;
     expect(scrim).not.toBeNull();
     expect(scrim.style.backgroundColor).toBe("var(--overlay-bg)");
 
-    const panel = document.querySelector('[data-fill="panel"]') as HTMLElement;
-    expect(panel.style.backgroundColor).toBe("var(--surface)");
-    expect(panel.style.borderRadius).toBe("0px");
-    expect(panel.getAttribute("class")).not.toMatch(/rounded-|ring-|shadow/);
+    // C7/C8/C9: this is a full-screen BLOCK, not a dismissible modal. `Panel`
+    // cannot draw itself without a close control, and a close control here
+    // would be one that lies — there is nothing to close to. So the block
+    // stands bare on the scrim rather than forking the primitive.
+    expect(document.querySelector('[data-fill="panel"]')).toBeNull();
 
-    // The dimension read-out: two rules, no chip.
+    const block = document.querySelector('[data-ui="resolution-block"]') as HTMLElement;
+    expect(block.style.backgroundColor).toBe("");
+    expect(block.style.backgroundImage).toBe("");
+    expect(block.getAttribute("class")).not.toMatch(/rounded-|ring-|shadow|max-w-sm/);
+    // The one cap left is the §G2.3 prose measure; the rail does the bounding.
+    // All three full-screen blocked columns in the shell share it (C8's class
+    // of finding: nothing in the language picked a width, so each picked one).
+    expect(block.className).toContain("max-w-prose");
+    expect(scrim.style.paddingLeft).toBe("var(--rail)");
+    // The block names itself with a heading, as the mismatch screen does.
+    expect(block.querySelector("h2")!.className).toContain("t-title");
+
+    // Every painting element in the overlay declares a licensed fill.
+    for (const el of everyElement(scrim)) {
+      const paints =
+        (el.style.backgroundColor !== "" && el.style.backgroundColor !== "transparent") ||
+        el.style.backgroundImage !== "";
+      if (!paints) continue;
+      expect(FILL_ALLOWLIST.has(el.dataset.fill ?? "")).toBe(true);
+    }
+  });
+
+  it("draws its mark on the one glyph ladder and its figures with .num", async () => {
+    await renderBlocked();
+
+    // C27: `state`, 80px, the one 0.6 knock-down — not `w-16 opacity-60`.
+    const glyph = document.querySelector('[data-ui="glyph"]') as HTMLElement;
+    expect(glyph.dataset.size).toBe("state");
+    expect(glyph.style.width).toBe("80px");
+    expect(glyph.style.height).toBe("80px");
+    expect(glyph.style.opacity).toBe("0.6");
+    expect(glyph.getAttribute("class")).not.toMatch(/w-16|opacity-60/);
+
+    // C25: `.num`, never the raw Tailwind utility.
     const readout = screen.getByText(/1024×690px/);
     expect((readout as HTMLElement).style.backgroundColor).toBe("");
-    expect(readout.className).toContain("tabular-nums");
+    expect(readout.className).toContain("num");
+    expect(readout.className).not.toContain("tabular-nums");
     expect(
       readout.parentElement!.querySelectorAll('[data-ui="rule"]'),
     ).toHaveLength(2);

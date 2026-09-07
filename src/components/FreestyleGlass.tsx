@@ -1,7 +1,23 @@
 /**
- * Dynamic glass visualization for freestyle drink builder.
- * Shape, reflections and shadows closely match the Melitta cafe_creme.png style —
- * a tall double-walled glass mug with a C-shaped handle.
+ * Dynamic glass visualization for the freestyle drink builder — a tall
+ * double-walled glass mug with a C-shaped handle, drawn in a 120×150 viewBox
+ * whose base sits at y=112.
+ *
+ * THE GLASS DRAWS THE OBJECT AND NOTHING UNDER IT (C29, R6, §6.5). It used to
+ * carry its own ground: a mirrored copy of itself inside the SVG at hardcoded
+ * `rgba(255,255,255,0.02)` fill / `rgba(255,255,255,0.06)` stroke, plus a
+ * radial drop-shadow ellipse below the base. Both are gone. The white-on-white
+ * mirror simply vanished on the porcelain light theme, and it is the reason one
+ * call site had to pass `reflection={false}` to stop two mirrors colliding;
+ * §6.5 forbids the drop shadow outright. The glow, the horizon, the contact
+ * darkening and the reflection are now `DrinkStage`'s, once, for every drink in
+ * the app — pass it `aspect={150 / 120}` and `baseFraction={112 / 150}` so the
+ * horizon lands on the glass base rather than on the empty bottom of the SVG.
+ *
+ * What remains inside the SVG is the glass's own INTERNAL specular work, which
+ * belongs to the object: the highlight strokes take `--glass-reflection`, a
+ * token declared in both themes for exactly this and previously consumed by
+ * nothing.
  *
  * Colors and steam heat come from lib/parameters.ts: the frozen legacy token
  * maps render byte-identically, and tokens outside them (served vocabularies,
@@ -9,6 +25,30 @@
  * `intensityScale`/`temperatureScale` token lists.
  */
 import { processColor, cremaColor, heatFor } from "../lib/parameters";
+
+/* ── Geometry, declared once so the ground can be placed on it ───────────── */
+
+const VB_W = 120;
+const VB_H = 150;
+/** Top of the cup inside the viewBox, and the cup's own height. */
+const CUP_TOP = 32;
+const CUP_H = 80;
+/** Where the glass BASE lands — the horizon every ground treatment sits on. */
+const CUP_BOT = CUP_TOP + CUP_H;
+
+/**
+ * Drawn height ÷ drawn width, for `DrinkStage`'s `aspect`. The stage defaults
+ * to `CoffeeIcon`'s 720/1080, which is simply wrong for this glass.
+ */
+export const GLASS_ASPECT = VB_H / VB_W;
+
+/**
+ * Where the base sits inside the drawn box, for `DrinkStage`'s `baseFraction`.
+ * The SVG keeps 38 empty units below the glass for the handle sweep and the
+ * old reflection, so without this the horizon, the contact line and the mirror
+ * all land well below the object they belong to.
+ */
+export const GLASS_BASE_FRACTION = CUP_BOT / VB_H;
 
 interface Props {
   process1: string;
@@ -41,15 +81,15 @@ export function FreestyleGlass({
   intensityScale,
   temperatureScale,
 }: Props) {
-  const vbW = 120;
-  const vbH = 150;
+  const vbW = VB_W;
+  const vbH = VB_H;
 
   // Glass mug geometry — matches cafe_creme.png proportions
   const cupTopW = 48;
   const cupBotW = 38;
-  const cupH = 80;
-  const cupTop = 32;
-  const cupBot = cupTop + cupH;
+  const cupH = CUP_H;
+  const cupTop = CUP_TOP;
+  const cupBot = CUP_BOT;
   const cx = 60; // centered on viewport axis; handle fits within vbW
 
   const topL = cx - cupTopW / 2;
@@ -321,15 +361,6 @@ export function FreestyleGlass({
             <stop offset="100%" stopColor="white" stopOpacity="0" />
           </linearGradient>
 
-          {/* Bottom reflection fade */}
-          <linearGradient id="fs-rfade" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="white" stopOpacity="0.10" />
-            <stop offset="100%" stopColor="white" stopOpacity="0" />
-          </linearGradient>
-          <mask id="fs-rmask">
-            <rect x="0" y={cupBot + 2} width={vbW + 20} height={cupH * 0.3} fill="url(#fs-rfade)" />
-          </mask>
-
           {/* Foam/crema gradient */}
           {hasFoam && (() => {
             const color = hasCoffeeOnTop ? cremaFill : milkFoamColor;
@@ -343,13 +374,6 @@ export function FreestyleGlass({
               </linearGradient>
             );
           })()}
-
-          {/* Shadow ellipse gradient */}
-          <radialGradient id="fs-shadow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="black" stopOpacity="0.15" />
-            <stop offset="60%" stopColor="black" stopOpacity="0.06" />
-            <stop offset="100%" stopColor="black" stopOpacity="0" />
-          </radialGradient>
 
           {/* Double-wall gap gradient — visible depth between walls */}
           <linearGradient id="fs-dw-gap" x1="0" y1="0" x2="1" y2="0">
@@ -413,9 +437,6 @@ export function FreestyleGlass({
             </g>
           </g>
         )}
-
-        {/* Base shadow on surface */}
-        <ellipse cx={cx + 4} cy={cupBot + 5} rx={cupBotW * 0.75} ry={3.5} fill="url(#fs-shadow)" />
 
         {/* Outer glass body */}
         <path
@@ -606,7 +627,7 @@ export function FreestyleGlass({
               ${topR + 6} ${hBot - 1},
               ${topR + 2} ${hBot - 3}
           `}
-          stroke="rgba(255,255,255,0.10)"
+          stroke="var(--glass-reflection)"
           strokeWidth={0.5}
           fill="none"
           strokeLinecap="round"
@@ -627,26 +648,10 @@ export function FreestyleGlass({
           fill="none"
           strokeLinecap="round"
         />
-
-        {/* Reflection below glass surface */}
-        <g mask="url(#fs-rmask)">
-          <g transform={`translate(0, ${cupBot * 2 + 4}) scale(1, -1)`}>
-            <path
-              d={glassOutlinePath}
-              fill="rgba(255,255,255,0.02)"
-              stroke="rgba(255,255,255,0.06)"
-              strokeWidth={0.6}
-              strokeLinejoin="round"
-            />
-            <g clipPath="url(#fs-clip)" opacity={0.3}>
-              {layerEls}
-            </g>
-          </g>
-        </g>
       </svg>
 
       {!hideVolume && (
-        <span className="t-label text-tertiary tabular-nums">{totalMl} ml</span>
+        <span className="t-label text-tertiary num">{totalMl} ml</span>
       )}
     </div>
   );

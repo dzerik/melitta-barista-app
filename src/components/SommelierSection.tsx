@@ -7,8 +7,7 @@ import { useSommelier } from "../hooks/useSommelier";
 import { readBridgeAttributes, readStringsVersion, type UiContract } from "../lib/contract";
 import { withSommelierErrorMapping } from "../lib/sommelier-errors";
 import { BrewWizardContext, type BrewWizardEnv } from "../hooks/useBrewPhase";
-import { Option } from "./ui/Option";
-import { Rule } from "./ui/Rule";
+import { HANG, Option, RAIL_TEXT, Rule, UNDERLINE_W } from "./ui";
 import { SommelierGenerate } from "./SommelierGenerate";
 import { SommelierFavorites } from "./SommelierFavorites";
 import { SommelierHistory } from "./SommelierHistory";
@@ -88,8 +87,8 @@ export function SommelierSection({ conn, entities, prefix, contract = null }: Pr
               className="flex items-center gap-2 py-2.5 t-label"
               style={{
                 color: "var(--error-text)",
-                paddingLeft: "calc(var(--rail) + 10px)",
-                paddingRight: "calc(var(--rail) + 10px)",
+                paddingLeft: RAIL_TEXT,
+                paddingRight: RAIL_TEXT,
               }}
             >
               <AlertCircle size={16} className="shrink-0" />
@@ -100,14 +99,19 @@ export function SommelierSection({ conn, entities, prefix, contract = null }: Pr
         )}
 
         {/* Sub-navigation — three words on a rail-to-rail rule, the one you
-            are on lit white with a 2px accent underline sitting ON that rule. */}
+            are on lit white with a 2px accent underline sitting ON that rule.
+            §C6a names this the reference implementation of the whole tab
+            idiom (C19): shared `Option level="nav"`, a reserved 2px slot per
+            word, `aria-current` on the one you are on. The app's own tab bar
+            is the half that diverges — `t-label` words under one sliding bar
+            — and it is the half that moves. */}
         <div
           className="mt-4 flex shrink-0 gap-8"
           style={{
             marginLeft: "var(--rail)",
             marginRight: "var(--rail)",
-            paddingLeft: "10px",
-            borderBottomWidth: "1px",
+            paddingLeft: HANG,
+            borderBottomWidth: UNDERLINE_W,
             borderBottomStyle: "solid",
             borderBottomColor: "var(--border)",
           }}

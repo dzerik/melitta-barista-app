@@ -96,7 +96,6 @@
   "sommelier.generate": "Generálás",
   "sommelier.hopper": "Babtartály",
   "sommelier.surprise_me": "Lepj meg",
-  "sommelier.brew": "Elkészítés",
   "sommelier.brewing": "Készül…",
   "sommelier.favorite": "Kedvencekhez",
   "sommelier.remove": "Eltávolítás",
@@ -157,5 +156,14 @@
   "wizard.machine.failed": "Az elkészítés nem sikerült",
   "wizard.machine.confirm": "Megerősítés",
   "wizard.finish.button": "Bezárás",
-  "wizard.close.stay": "Maradás"
+  "wizard.close.stay": "Maradás",
+  "app.decrease": "Csökkentés",
+  "app.increase": "Növelés",
+  "app.page": "{n}. oldal",
+  "freestyle.drink_name": "Az ital neve",
+  "app.close": "Bezárás",
+  "brew.two_cups": "2x",
+  "brew.two_cups_on": "2x be",
+  "app.previous": "Előző",
+  "app.next": "Következő"
 }

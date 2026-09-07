@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { createPortal } from "react-dom";
 import type { Connection, HassEntities } from "home-assistant-js-websocket";
 import type { RecipeDetails } from "../lib/entities";
 import type { UiContract } from "../lib/contract";
@@ -13,37 +12,30 @@ import {
   resolveProcessTokens,
   resolvePortionRange,
 } from "../lib/parameters";
-import { displayNameFor } from "../lib/i18n";
-import { FreestyleGlass } from "./FreestyleGlass";
+import { FreestyleGlass, GLASS_ASPECT, GLASS_BASE_FRACTION } from "./FreestyleGlass";
 import { CoffeeIcon } from "./CoffeeIcon";
-import { Commit, DrinkStage, MeterField, Option, OptionRow, Rule } from "./ui";
-import { Ban } from "lucide-react";
-import iconBean from "../assets/icons/bean.png";
-import iconMilk from "../assets/icons/milk.png";
-import iconWater from "../assets/icons/water.png";
+import { PARAM_ROW_RULE, ProcessRow, TokenRow } from "./ParamRow";
+import { SwipeGuard } from "./SwipeGuard";
+import {
+  ActionBand,
+  Commit,
+  DrinkStage,
+  Field,
+  Glyph,
+  Heading,
+  MeterField,
+  Mosaic,
+  Panel,
+  Word,
+} from "./ui";
+import { Plus } from "lucide-react";
 import iconNotConnected from "../assets/icons/not_connected.png";
 
-const PROCESS_IMG_ICONS: Record<string, string> = {
-  coffee: iconBean,
-  milk: iconMilk,
-  water: iconWater,
-};
+/** §6.1: a mosaic tile's drink sits on the 64 rung. */
+const PICKER_ICON = 64;
 
-/** §C1: the glyph beside an option word sits at 18–20px. */
-const OPTION_GLYPH = 18;
-
-/**
- * §G2.7: every control row in a column is opened by the same 1px `--border`
- * hairline and nothing else. OptionRow draws its own; MeterField is a bare
- * control, so the numeric rows borrow the rule here rather than sitting in the
- * list unruled.
- */
-const ROW_RULE = {
-  borderTopWidth: "1px",
-  borderTopStyle: "solid" as const,
-  borderTopColor: "var(--border)",
-  paddingTop: "0.375rem",
-};
+/** §6.1: the drink IS this screen, so it takes the hero rung (C15). */
+const HERO_GLASS = 280;
 
 interface Props {
   conn: Connection;
@@ -54,15 +46,19 @@ interface Props {
 }
 
 /**
- * The recipe picker overlay: a scrim (§5.A) over the one flat `--surface`
- * panel this overlay is allowed (§5.B) — radius 0, no ring, no shadow, and
- * everything inside it unfilled.
+ * The recipe picker overlay, drawn by the shared `Panel` (C7, C8, C9): one
+ * scrim, one flat `--surface` rectangle at the `md` measure, one header, one
+ * close control. The four rival close glyphs the audit found — two hand-rolled
+ * 24-viewBox X SVGs among them, one of which lived right here — are now the
+ * panel's own lucide `X` at 20px.
  *
- * The drinks themselves are a bare grid: field research is unanimous that a
- * drink tile carries no border, no fill and no divider (Franke, WMF, Rivelia
- * all cut the glass straight onto the ground), so the 1px-gap mosaic that used
- * to draw `--recipe-grid-gap` between `--bg` cells is gone with the fills it
- * needed.
+ * The drinks are a §R1.2 hairline mosaic: `gap: 1px` over `--section-divider`
+ * with `--bg` cells, so the dividers are gaps rather than borders and no tile
+ * paints itself.
+ *
+ * `SwipeGuard` is what keeps a drag inside the panel from paging the app's tab
+ * strip underneath it: React routes a portal's events up the COMPONENT tree,
+ * not the DOM tree, so the guard has to sit between the panel and the section.
  */
 function RecipePickerModal({
   recipes,
@@ -79,168 +75,41 @@ function RecipePickerModal({
   titleText: string;
   closeLabel: string;
 }) {
-  const stopTouch = (e: React.TouchEvent) => e.stopPropagation();
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
-      data-fill="scrim"
-      style={{ backgroundColor: "var(--overlay-bg)" }}
-      onClick={onClose}
-      onTouchStart={stopTouch}
-      onTouchMove={stopTouch}
-      onTouchEnd={stopTouch}
-    >
-      <div
-        className="relative w-full max-w-2xl max-h-[80vh] mx-4 overflow-hidden flex flex-col"
-        data-fill="panel"
-        style={{ backgroundColor: "var(--surface)", borderRadius: 0 }}
-        onClick={(e) => e.stopPropagation()}
+  return (
+    <SwipeGuard>
+      <Panel
+        title={titleText}
+        closeLabel={closeLabel}
+        measure="md"
+        onClose={onClose}
+        bodyClassName="p-4"
       >
-        <div className="flex items-center justify-between px-5 py-4">
-          <span className="t-body text-primary" style={{ fontWeight: 600 }}>
-            {titleText}
-          </span>
-          <button
-            onClick={onClose}
-            aria-label={closeLabel}
-            className="tap press text-secondary hover:text-primary"
-            style={{ borderRadius: 0 }}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="w-5 h-5">
-              <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
-        <Rule />
-        <div className="flex-1 overflow-y-auto custom-scroll p-4">
-          <div
-            className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-px"
-            style={{ background: "var(--recipe-grid-gap)" }}
-          >
-            {recipes.map((name) => {
-              const details = allRecipes[name];
-              const totalMl = details ? (details.c1_portion_ml || 0) + (details.c2_portion_ml || 0) : 0;
-              return (
-                <button
-                  key={name}
-                  onClick={() => { if (details) onPick(name, details); }}
-                  className="tap press flex flex-col items-center justify-center p-2"
-                  style={{ borderRadius: 0, background: "var(--bg)" }}
-                >
-                  <CoffeeIcon recipe={name} size={64} />
-                  <span className="t-label text-secondary mt-1 truncate w-full text-center">
-                    {name}
-                  </span>
-                  {totalMl > 0 && (
-                    <span className="t-label num text-tertiary">{totalMl} ml</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </div>,
-    document.body,
-  );
-}
-
-/**
- * The process picker — coffee / milk / water (and `none` on component 2) — as
- * a row of chooseable words, each carrying its 18px glyph.
- *
- * Replaces the `rounded-xl ring-1` capsule bar whose selected segment was a
- * solid `--btn-primary-bg` fill: selection is now the word turning white over
- * a lit 1px `--accent` underline, in a slot that was already reserved, so
- * choosing never shifts a pixel.
- */
-function ProcessRow({
-  options,
-  value,
-  onChange,
-  ariaLabel,
-}: {
-  options: string[];
-  value: string;
-  onChange: (v: string) => void;
-  ariaLabel: string;
-}) {
-  const { locale } = usePreferences();
-  if (options.length === 0) return null;
-
-  return (
-    <OptionRow role="radiogroup" ariaLabel={ariaLabel}>
-      {options.map((opt) => {
-        const imgSrc = PROCESS_IMG_ICONS[opt];
-        return (
-          <Option
-            key={opt}
-            role="radio"
-            label={displayNameFor(locale, "process", opt)}
-            selected={opt === value}
-            onSelect={() => onChange(opt)}
-            icon={
-              imgSrc ? (
-                <img
-                  src={imgSrc}
-                  alt=""
-                  className="object-contain"
-                  style={{ width: OPTION_GLYPH, height: OPTION_GLYPH }}
-                  draggable={false}
-                />
-              ) : (
-                <Ban size={OPTION_GLYPH} strokeWidth={1.75} />
-              )
-            }
-          />
-        );
-      })}
-    </OptionRow>
-  );
-}
-
-/**
- * One enumerated parameter (intensity, aroma, temperature, shots) as a
- * labelled row of words — §C1, and the form the reference machine itself uses
- * for aroma (a caret against STANDARD / INTENSE, never a bar).
- *
- * This is what replaces the `rounded-full` range track and its `shadow-lg`
- * thumb: an ordinal token list was never a measured quantity, so it is chosen
- * by name rather than dragged. Only the genuinely numeric portion keeps a
- * meter (see `MeterField` below).
- */
-function TokenRow({
-  family,
-  label,
-  options,
-  value,
-  onChange,
-  disabled = false,
-}: {
-  family: string;
-  label: string;
-  options: string[];
-  value: string;
-  onChange: (v: string) => void;
-  disabled?: boolean;
-}) {
-  const { locale } = usePreferences();
-  if (options.length === 0) return null;
-
-  return (
-    <OptionRow label={label} role="radiogroup" ariaLabel={label}>
-      {options.map((opt) => (
-        <Option
-          key={opt}
-          role="radio"
-          label={displayNameFor(locale, family, opt)}
-          selected={opt === value}
-          onSelect={() => onChange(opt)}
-          disabled={disabled}
-        />
-      ))}
-    </OptionRow>
+        <Mosaic id="freestyle-picker-mosaic" columns={6} count={recipes.length} className="p-0">
+          {recipes.map((name) => {
+            const details = allRecipes[name];
+            const totalMl = details ? (details.c1_portion_ml || 0) + (details.c2_portion_ml || 0) : 0;
+            return (
+              <button
+                key={name}
+                onClick={() => { if (details) onPick(name, details); }}
+                className="tap press flex flex-col items-center justify-center p-2"
+                /** §S4.1: a mosaic cell repaints the page ground, nothing else. */
+                data-fill="ground"
+                style={{ borderRadius: 0, backgroundColor: "var(--bg)" }}
+              >
+                <CoffeeIcon recipe={name} size={PICKER_ICON} />
+                <span className="t-label text-secondary mt-1 truncate w-full text-center">
+                  {name}
+                </span>
+                {totalMl > 0 && (
+                  <span className="t-label num text-tertiary">{totalMl} ml</span>
+                )}
+              </button>
+            );
+          })}
+        </Mosaic>
+      </Panel>
+    </SwipeGuard>
   );
 }
 
@@ -293,9 +162,20 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
     return (
       <div className="flex h-full flex-col items-center justify-center px-8">
         <div className="flex flex-col items-center gap-6 max-w-sm">
-          <img src={iconNotConnected} alt="" className="w-20 h-20 object-contain opacity-60" draggable={false} />
+          {/*
+            §6.6 / C27: one state glyph, one size, one knock-down. The alt text
+            is empty on purpose — the headline underneath already names the
+            state, and the old `alt="offline"` was hardcoded English.
+          */}
+          <Glyph src={iconNotConnected} alt="" size="state" />
           <div className="text-center">
-            <div className="t-title text-primary" style={{ fontWeight: 300 }}>
+            {/*
+              C26: the two blocked pages read the same. `t-title` keeps the
+              weight it declares (600); the local `fontWeight: 300` override
+              here was the only thing making Freestyle's blocked page lighter
+              than the Recipes one beside it.
+            */}
+            <div className="t-title text-primary">
               {view.offline ? t("brew.offline_title") : view.statusLabel}
             </div>
             <div className="t-body text-tertiary mt-2">
@@ -312,9 +192,8 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
       <div className="flex-1 min-h-0 flex items-stretch">
         {/* Component 1 — unboxed, straight on the ground (§R1.1). */}
         <div className="flex-1 flex flex-col justify-center px-6 py-4">
-          <div className="t-label text-primary mb-4" style={{ fontWeight: 600 }}>
-            {t("freestyle.component1")}
-          </div>
+          <Heading>{t("freestyle.component1")}</Heading>
+          {/* §G2.6: 12px between sibling control rows, here and in the modal. */}
           <div className="space-y-3">
             <ProcessRow
               options={processOpts1}
@@ -330,7 +209,8 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
               step={portion1Range.step}
               displayValue={`${fs.portion1} ml`}
               onChange={(v) => update("portion1", v)}
-              style={ROW_RULE}
+              steppers={{ decrement: t("app.decrease"), increment: t("app.increase") }}
+              style={PARAM_ROW_RULE}
             />
             <TokenRow family="intensity" label={t("freestyle.intensity")} options={intensityOpts1} value={fs.intensity1} onChange={(v) => update("intensity1", v)} disabled={fs.process1 !== "coffee"} />
             <TokenRow family="aroma" label={t("freestyle.aroma")} options={aromaOpts1} value={fs.aroma1} onChange={(v) => update("aroma1", v)} disabled={fs.process1 !== "coffee"} />
@@ -342,21 +222,18 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
         {/* The drink is the hero and takes the centre column's own width (§R1.9). */}
         <div className="flex flex-col items-center justify-center px-4 border-x border-border">
           {recipeOptions.length > 0 && (
-            <button
+            /*
+              An ACTION, so it wears no rule: an underline means "chosen" in
+              this language, and this word opens a picker. It was the twelfth
+              hand-rolled copy of the bare-word secondary (C5) and the last
+              hand-drawn 24-viewBox glyph in this file (C9).
+            */
+            <Word
+              label={t("freestyle.use_recipe")}
+              icon={<Plus size={16} strokeWidth={1.75} />}
               onClick={() => setPickerOpen(true)}
-              className="tap press mb-1 flex items-center gap-2 t-label text-secondary hover:text-primary"
-              style={{
-                borderRadius: 0,
-                borderBottomWidth: "1px",
-                borderBottomStyle: "solid",
-                borderBottomColor: "var(--border)",
-              }}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="w-4 h-4">
-                <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-              </svg>
-              {t("freestyle.use_recipe")}
-            </button>
+              className="mb-1"
+            />
           )}
 
           {pickerOpen && (
@@ -373,20 +250,33 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
             />
           )}
 
-          {/* §R1.6: a name field is a line to write on — no fill, no ring, no radius. */}
-          <input
-            type="text"
+          {/*
+            §R1.6 / C6: a name field is a line to write on, and `Field` is the
+            app's only input form — one hairline, `--input-border`, at
+            `--underline-w`. The three rival rule colours are gone with it.
+          */}
+          <Field
             value={fs.name}
-            onChange={(e) => update("name", e.target.value)}
-            className="mb-1 w-48 text-center t-title outline-none border-b transition pb-1"
-            style={{
-              background: "transparent",
-              color: "var(--text-primary)",
-              borderColor: "var(--border)",
-              borderRadius: 0,
+            onChange={(v) => update("name", v)}
+            ariaLabel={t("freestyle.drink_name")}
+            className="mb-1 w-48"
+            inputClassName="text-center"
+            inputStyle={{
+              /*
+                §7.2: the drink's name is the largest type on its screen, so it
+                takes the `t-title` rung. It cannot come from the class —
+                `.t-body` is declared AFTER `.t-title` in index.css, so both
+                classes on one element resolve to the smaller step — which is
+                why the one hero step in the app is spelled here and nowhere
+                else. Weight 300 is §7.2's hero treatment. `t-title`'s -0.01em
+                is deliberately NOT copied: §7.5 kills every inline
+                letter-spacing in the app and a hundredth of an em is not worth
+                being the exception.
+              */
+              fontSize: "1.25rem",
+              lineHeight: 1.25,
               fontWeight: 300,
-              /** §C3.6: reach is never traded away, even on a painted line. */
-              minHeight: "var(--tap)",
+              paddingBottom: "0.25rem",
             }}
           />
 
@@ -395,12 +285,19 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
           </span>
 
           {/*
-            §6.2 ground treatment. `reflection` is off because FreestyleGlass
-            already draws its own mirrored copy inside the SVG, at the real
-            glass base — and because DrinkStage renders its child twice, which
-            would duplicate the glass's fixed SVG element ids.
+            §6.2 ground treatment, and the ONE reflection in the app (C29, R6).
+            The glass no longer mirrors itself inside its own SVG, so
+            `reflection={false}` is gone; `aspect` and `baseFraction` come from
+            the glass's own geometry so the glow, the horizon, the contact line
+            and the mirror all land on the base at y=112 rather than on the
+            bottom of a viewBox with 38 empty units under it.
           */}
-          <DrinkStage size={280} active reflection={false}>
+          <DrinkStage
+            size={HERO_GLASS}
+            aspect={GLASS_ASPECT}
+            baseFraction={GLASS_BASE_FRACTION}
+            active
+          >
             <FreestyleGlass
               process1={fs.process1}
               intensity1={fs.intensity1}
@@ -410,27 +307,36 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
               intensity2={fs.intensity2}
               temp2={fs.temperature2}
               portion2={fs.portion2}
-              size={280}
+              size={HERO_GLASS}
               hideVolume
               intensityScale={intensityOpts1}
               temperatureScale={tempOpts1}
             />
           </DrinkStage>
 
-          {/* §5.C: the one commit rectangle on this screen, locked to the column. */}
-          <div className="mt-3 w-full">
-            <Commit
-              label={`${t("brew.brew")} ${fs.name}`}
-              onCommit={handleBrew}
-            />
-          </div>
+          {/*
+            C10: one arrangement for every band that commits — the 2px accent
+            rule (§8.3) over a single row whose commit takes the remaining
+            width. The inset is `none` because this band is NOT rail-to-rail:
+            it sits in the intrinsic-width centre column, and §5.C locks the
+            commit rectangle to that column's content measure. A rail gutter
+            here would eat 100px of a ~280px column.
+          */}
+          <ActionBand
+            inset="none"
+            className="w-full"
+            commit={
+              <Commit
+                label={`${t("brew.brew")} ${fs.name}`}
+                onCommit={handleBrew}
+              />
+            }
+          />
         </div>
 
         {/* Component 2 */}
         <div className="flex-1 flex flex-col justify-center px-6 py-4">
-          <div className="t-label text-primary mb-4" style={{ fontWeight: 600 }}>
-            {t("freestyle.component2")}
-          </div>
+          <Heading>{t("freestyle.component2")}</Heading>
           <div className="space-y-3">
             <ProcessRow
               options={processOpts2}
@@ -447,7 +353,8 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
               displayValue={`${fs.portion2} ml`}
               onChange={(v) => update("portion2", v)}
               disabled={fs.process2 === "none"}
-              style={ROW_RULE}
+              steppers={{ decrement: t("app.decrease"), increment: t("app.increase") }}
+              style={PARAM_ROW_RULE}
             />
             <TokenRow family="intensity" label={t("freestyle.intensity")} options={intensityOpts2} value={fs.intensity2} onChange={(v) => update("intensity2", v)} disabled={fs.process2 !== "coffee"} />
             <TokenRow family="aroma" label={t("freestyle.aroma")} options={aromaOpts2} value={fs.aroma2} onChange={(v) => update("aroma2", v)} disabled={fs.process2 !== "coffee"} />

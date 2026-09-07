@@ -1,8 +1,15 @@
 import { useCallback, useEffect, useState, useMemo } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import type { RecipeDetails } from "../lib/entities";
-import { RecipeCard, type RecipeCardData } from "./RecipeCard";
-import { Commit, Rule } from "./ui";
+import {
+  RecipeCard,
+  shelfMaxMl,
+  truthFraction,
+  type RecipeCardData,
+} from "./RecipeCard";
+import { ActionBand, Commit, Dot, Rule, Word } from "./ui";
+import { usePreferences } from "../lib/preferences";
+import { fmt } from "../lib/brew-plan";
 
 interface Props {
   recipes: RecipeCardData[];
@@ -31,29 +38,8 @@ function ArrowGlyph({ direction }: { direction: "prev" | "next" }) {
   );
 }
 
-/** The same 8px position mark the paged grid uses — see RecipeGrid's PagerDot. */
-function PagerDot({ current }: { current: boolean }) {
-  return (
-    <span
-      aria-hidden="true"
-      data-ui="pager-dot"
-      data-current={current ? "true" : "false"}
-      data-fill="dot"
-      className="block"
-      style={{
-        width: "var(--dot)",
-        height: "var(--dot)",
-        borderRadius: "50%",
-        backgroundColor: current ? "var(--accent)" : "var(--bg)",
-        borderWidth: current ? 0 : "1px",
-        borderStyle: "solid",
-        borderColor: "var(--accent)",
-      }}
-    />
-  );
-}
-
 export function RecipeCarousel({ recipes, onSelect, onBrew, renderInfo, brewLabel }: Props) {
+  const { t } = usePreferences();
   const startIndex = useMemo(
     () => Math.max(0, recipes.findIndex((r) => r.isSelected)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -69,6 +55,10 @@ export function RecipeCarousel({ recipes, onSelect, onBrew, renderInfo, brewLabe
   });
   const [selectedSnap, setSelectedSnap] = useState(startIndex);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+
+  // §6.3: the same shelf maximum the paged grid measures against, so a drink
+  // is the same size whichever view mode you are in.
+  const shelfMax = useMemo(() => shelfMaxMl(recipes), [recipes]);
 
   const onEmblaScroll = useCallback(() => {
     if (!emblaApi) return;
@@ -114,8 +104,8 @@ export function RecipeCarousel({ recipes, onSelect, onBrew, renderInfo, brewLabe
   // The two-stage gesture, drawn honestly (§5.C): only the tap that actually
   // brews is painted as the screen's one commit rectangle. Where the centred
   // slide is not yet the machine's chosen recipe the same tap merely selects,
-  // so it is a bare word with a hairline under it — which also means the
-  // Recipes page never shows two commits when a DirectKey tile holds the one.
+  // so it is a bare word — which also means the Recipes page never shows two
+  // commits when a DirectKey tile holds the one.
   const commits = currentRecipe?.isSelected === true;
   const runAction = useCallback(() => {
     if (!currentRecipe) return;
@@ -133,7 +123,7 @@ export function RecipeCarousel({ recipes, onSelect, onBrew, renderInfo, brewLabe
         {showArrows && (
           <button
             onClick={scrollPrev}
-            aria-label="Previous slide"
+            aria-label={t("app.previous")}
             className="tap press absolute left-0 z-20"
             style={{ color: "var(--text-secondary)", borderRadius: 0 }}
           >
@@ -160,6 +150,7 @@ export function RecipeCarousel({ recipes, onSelect, onBrew, renderInfo, brewLabe
                     active={isCurrent}
                     hovered={hoveredIdx === idx}
                     iconSize={240}
+                    scaleTo={truthFraction(recipe, shelfMax)}
                     onClick={() => {
                       if (idx !== selectedSnap) {
                         emblaApi?.scrollTo(idx);
@@ -181,7 +172,7 @@ export function RecipeCarousel({ recipes, onSelect, onBrew, renderInfo, brewLabe
         {showArrows && (
           <button
             onClick={scrollNext}
-            aria-label="Next slide"
+            aria-label={t("app.next")}
             className="tap press absolute right-0 z-20"
             style={{ color: "var(--text-secondary)", borderRadius: 0 }}
           >
@@ -190,27 +181,25 @@ export function RecipeCarousel({ recipes, onSelect, onBrew, renderInfo, brewLabe
         )}
       </div>
 
-      {/* Brew — locked to the page column, never to the slide's 28%. */}
+      {/* Brew — the same action band every committing screen uses (C10),
+          locked to the page column and never to the slide's 28%. Stage one of
+          the two-stage gesture only selects, so it is a bare `Word` with no
+          rule at all: an underline in this language means "chosen", and an
+          action is not chosen. */}
       {currentRecipe && (
-        <div className="shrink-0 w-full px-4">
-          {commits ? (
-            <Commit label={brewLabel} onCommit={runAction} />
-          ) : (
-            <button
-              onClick={runAction}
-              className="tap tap-lg press w-full t-body"
-              style={{
-                color: "var(--text-secondary)",
-                borderBottomWidth: "var(--underline-w)",
-                borderBottomStyle: "solid",
-                borderBottomColor: "var(--border)",
-                borderRadius: 0,
-              }}
-            >
-              {brewLabel}
-            </button>
-          )}
-        </div>
+        <ActionBand
+          inset="rail"
+          secondary={
+            commits ? undefined : (
+              // `tap-lg` so stage one and stage two are the same 60px target
+              // and the band keeps one height across the gesture.
+              <Word label={brewLabel} onClick={runAction} className="tap-lg" />
+            )
+          }
+          commit={
+            commits ? <Commit label={brewLabel} onCommit={runAction} /> : undefined
+          }
+        />
       )}
 
       {/* Dot indicators — true circles on the rule, 8px painted, 48px reached */}
@@ -221,12 +210,12 @@ export function RecipeCarousel({ recipes, onSelect, onBrew, renderInfo, brewLabe
             <button
               key={idx}
               onClick={() => emblaApi?.scrollTo(idx)}
-              aria-label={`Go to slide ${idx + 1}`}
+              aria-label={fmt(t("app.page"), { n: idx + 1 })}
               aria-current={idx === selectedSnap ? "true" : undefined}
               className="tap press w-10 relative"
               style={{ borderRadius: 0 }}
             >
-              <PagerDot current={idx === selectedSnap} />
+              <Dot current={idx === selectedSnap} />
             </button>
           ))}
         </div>

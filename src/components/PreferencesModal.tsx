@@ -1,9 +1,8 @@
-import { createPortal } from "react-dom";
 import { usePreferences, type ThemePreference } from "../lib/preferences";
 import { SUPPORTED_LOCALES, LOCALE_ENDONYM } from "../lib/i18n";
-import { Monitor, Moon, Sun, X } from "lucide-react";
-import { Option } from "./ui/Option";
-import { OptionRow } from "./ui/OptionRow";
+import { Monitor, Moon, Sun } from "lucide-react";
+import { Heading, Option, OptionRow, Panel } from "./ui";
+import { SwipeGuard } from "./SwipeGuard";
 
 interface Props {
   onClose: () => void;
@@ -17,8 +16,6 @@ const THEMES: { value: ThemePreference; labelKey: ThemeLabelKey; icon: typeof Mo
   { value: "light", labelKey: "prefs.theme_light", icon: Sun },
 ];
 
-const stopTouch = (e: React.TouchEvent) => e.stopPropagation();
-
 /**
  * Theme and language, drawn as words.
  *
@@ -27,89 +24,69 @@ const stopTouch = (e: React.TouchEvent) => e.stopPropagation();
  * selection is white ink over a lit 1px `--accent` underline (§C1, owner
  * decision 1). The locale list loses its ringed box and its
  * `--surface-elevated` active row for the same reason; the endonyms wrap as a
- * field of words inside the one scrolling region.
+ * field of words.
  *
- * Two fills survive, and only these: the scrim (§5.A — the removal of the
- * page, not a container tint) and the single flat `--surface` panel (§5.B),
- * which carries no radius, no border, no ring, no shadow and no blur of its
- * own.
+ * THE SHELL IS `Panel`, NOT A HAND-ROLLED OVERLAY (C7, C8, C9, R3). This modal
+ * used to draw its own scrim, its own `max-w-sm` measure, its own
+ * `pl-5 pr-2 py-2 border-b` header and its own `X size={20}` — one of five
+ * disagreeing copies of each. It also set its `--surface` fill through
+ * `className="surface"`, whose rule uses the `background` SHORTHAND, which
+ * jsdom drops: the one carve-out fill on this screen was invisible to every
+ * test in the repo. `Panel` sets it as a `backgroundColor` longhand, so the
+ * assertion in `tests/preferences.test.tsx` now actually sees the paint.
+ *
+ * The inner `max-h-64 overflow-y-auto` on the locale list is gone with it:
+ * `Panel` caps its own height and scrolls its body, so the overlay has one
+ * scroller instead of a scroller nested inside a scroller.
+ *
+ * The three `e.stopPropagation()` touch handlers this file used to declare are
+ * now the shared `SwipeGuard`, the same one the freestyle picker and the
+ * recipe editor use — one guard written once, outside the scrim `Panel` owns.
  */
 export function PreferencesModal({ onClose }: Props) {
   const { themePreference, locale, setTheme, setLocale, t } = usePreferences();
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
-      data-fill="scrim"
-      style={{ backgroundColor: "var(--overlay-bg)" }}
-      onClick={onClose}
-      onTouchStart={stopTouch}
-      onTouchMove={stopTouch}
-      onTouchEnd={stopTouch}
-    >
-      <div
-        className="relative w-full max-w-sm mx-4 surface flex flex-col"
-        data-fill="panel"
-        style={{ borderRadius: 0 }}
-        onClick={(e) => e.stopPropagation()}
+  return (
+    <SwipeGuard>
+      <Panel
+        title={t("prefs.title")}
+        /* The app's one universal abort word, already served in 29 locales. */
+        closeLabel={t("brew.cancel")}
+        measure="sm"
+        onClose={onClose}
+        bodyClassName="p-5"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between pl-5 pr-2 py-2 border-b border-border">
-          <span className="t-title text-primary">{t("prefs.title")}</span>
-          <button
-            onClick={onClose}
-            /* The app's one universal abort word, already served in 29 locales. */
-            aria-label={t("brew.cancel")}
-            className="tap press text-secondary hover:text-primary"
-            style={{ borderRadius: 0 }}
-          >
-            <X size={20} strokeWidth={1.75} />
-          </button>
+        <div className="mb-6">
+          <Heading>{t("prefs.theme")}</Heading>
+          <OptionRow role="radiogroup" ariaLabel={t("prefs.theme")}>
+            {THEMES.map(({ value, labelKey, icon: Icon }) => (
+              <Option
+                key={value}
+                label={t(labelKey)}
+                selected={themePreference === value}
+                role="radio"
+                onSelect={() => setTheme(value)}
+                icon={<Icon size={20} strokeWidth={1.75} />}
+              />
+            ))}
+          </OptionRow>
         </div>
 
-        {/* Content */}
-        <div className="p-5 space-y-6">
-          {/* Theme */}
-          <div className="space-y-2">
-            <span className="t-label font-medium text-tertiary">
-              {t("prefs.theme")}
-            </span>
-            <OptionRow role="radiogroup" ariaLabel={t("prefs.theme")}>
-              {THEMES.map(({ value, labelKey, icon: Icon }) => (
-                <Option
-                  key={value}
-                  label={t(labelKey)}
-                  selected={themePreference === value}
-                  role="radio"
-                  onSelect={() => setTheme(value)}
-                  icon={<Icon size={20} strokeWidth={1.75} />}
-                />
-              ))}
-            </OptionRow>
-          </div>
-
-          {/* Locale */}
-          <div className="space-y-2">
-            <span className="t-label font-medium text-tertiary">
-              {t("prefs.language")}
-            </span>
-            <div className="max-h-64 overflow-y-auto custom-scroll">
-              <OptionRow role="radiogroup" ariaLabel={t("prefs.language")}>
-                {SUPPORTED_LOCALES.map((value) => (
-                  <Option
-                    key={value}
-                    label={LOCALE_ENDONYM[value]}
-                    selected={locale === value}
-                    role="radio"
-                    onSelect={() => setLocale(value)}
-                  />
-                ))}
-              </OptionRow>
-            </div>
-          </div>
+        <div>
+          <Heading>{t("prefs.language")}</Heading>
+          <OptionRow role="radiogroup" ariaLabel={t("prefs.language")}>
+            {SUPPORTED_LOCALES.map((value) => (
+              <Option
+                key={value}
+                label={LOCALE_ENDONYM[value]}
+                selected={locale === value}
+                role="radio"
+                onSelect={() => setLocale(value)}
+              />
+            ))}
+          </OptionRow>
         </div>
-      </div>
-    </div>,
-    document.body,
+      </Panel>
+    </SwipeGuard>
   );
 }

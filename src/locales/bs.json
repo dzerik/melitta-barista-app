@@ -96,7 +96,6 @@
   "sommelier.generate": "Generiši",
   "sommelier.hopper": "Spremnik",
   "sommelier.surprise_me": "Iznenadi me",
-  "sommelier.brew": "Pripremi",
   "sommelier.brewing": "Priprema se…",
   "sommelier.favorite": "U favorite",
   "sommelier.remove": "Ukloni",
@@ -157,5 +156,14 @@
   "wizard.machine.failed": "Priprema nije uspjela",
   "wizard.machine.confirm": "Potvrdi",
   "wizard.finish.button": "Zatvori",
-  "wizard.close.stay": "Ostani"
+  "wizard.close.stay": "Ostani",
+  "app.decrease": "Smanji",
+  "app.increase": "Povećaj",
+  "app.page": "Stranica {n}",
+  "freestyle.drink_name": "Naziv napitka",
+  "app.close": "Zatvori",
+  "brew.two_cups": "2x",
+  "brew.two_cups_on": "2x uklj.",
+  "app.previous": "Prethodno",
+  "app.next": "Sljedeće"
 }

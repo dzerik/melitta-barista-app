@@ -90,7 +90,6 @@
   "sommelier.generate": "Generér",
   "sommelier.hopper": "Beholder",
   "sommelier.surprise_me": "Overrask mig",
-  "sommelier.brew": "Bryg",
   "sommelier.brewing": "Brygger…",
   "sommelier.favorite": "Tilføj til favoritter",
   "sommelier.remove": "Fjern",
@@ -149,5 +148,14 @@
   "wizard.machine.failed": "Brygning mislykkedes",
   "wizard.machine.confirm": "Bekræft",
   "wizard.finish.button": "Luk",
-  "wizard.close.stay": "Bliv"
+  "wizard.close.stay": "Bliv",
+  "app.decrease": "Reducer",
+  "app.increase": "Forøg",
+  "app.page": "Side {n}",
+  "freestyle.drink_name": "Drikkens navn",
+  "app.close": "Luk",
+  "brew.two_cups": "2x",
+  "brew.two_cups_on": "2x til",
+  "app.previous": "Forrige",
+  "app.next": "Næste"
 }

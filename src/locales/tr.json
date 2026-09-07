@@ -94,7 +94,6 @@
   "sommelier.generate": "Oluştur",
   "sommelier.hopper": "Çekirdek haznesi",
   "sommelier.surprise_me": "Beni şaşırt",
-  "sommelier.brew": "Demle",
   "sommelier.brewing": "Hazırlanıyor…",
   "sommelier.favorite": "Favorilere ekle",
   "sommelier.remove": "Kaldır",
@@ -154,5 +153,14 @@
   "wizard.machine.failed": "Demleme başarısız oldu",
   "wizard.machine.confirm": "Onayla",
   "wizard.finish.button": "Kapat",
-  "wizard.close.stay": "Kal"
+  "wizard.close.stay": "Kal",
+  "app.decrease": "Azalt",
+  "app.increase": "Artır",
+  "app.page": "Sayfa {n}",
+  "freestyle.drink_name": "İçecek adı",
+  "app.close": "Kapat",
+  "brew.two_cups": "2x",
+  "brew.two_cups_on": "2x açık",
+  "app.previous": "Önceki",
+  "app.next": "Sonraki"
 }

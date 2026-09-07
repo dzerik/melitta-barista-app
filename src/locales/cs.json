@@ -97,7 +97,6 @@
   "sommelier.generate": "Vygenerovat",
   "sommelier.hopper": "Zásobník",
   "sommelier.surprise_me": "Překvap mě",
-  "sommelier.brew": "Připravit",
   "sommelier.brewing": "Připravuje se…",
   "sommelier.favorite": "Do oblíbených",
   "sommelier.remove": "Odebrat",
@@ -158,5 +157,14 @@
   "wizard.machine.failed": "Příprava se nezdařila",
   "wizard.machine.confirm": "Potvrdit",
   "wizard.finish.button": "Zavřít",
-  "wizard.close.stay": "Zůstat"
+  "wizard.close.stay": "Zůstat",
+  "app.decrease": "Snížit",
+  "app.increase": "Zvýšit",
+  "app.page": "Stránka {n}",
+  "freestyle.drink_name": "Název nápoje",
+  "app.close": "Zavřít",
+  "brew.two_cups": "2x",
+  "brew.two_cups_on": "2x zap.",
+  "app.previous": "Předchozí",
+  "app.next": "Další"
 }

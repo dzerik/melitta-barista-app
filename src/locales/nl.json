@@ -89,7 +89,6 @@
   "sommelier.generate": "Genereren",
   "sommelier.hopper": "Bonenreservoir",
   "sommelier.surprise_me": "Verras me",
-  "sommelier.brew": "Zetten",
   "sommelier.brewing": "Bereiden…",
   "sommelier.favorite": "Aan favorieten toevoegen",
   "sommelier.remove": "Verwijderen",
@@ -148,5 +147,14 @@
   "wizard.machine.failed": "Zetten mislukt",
   "wizard.machine.confirm": "Bevestigen",
   "wizard.finish.button": "Sluiten",
-  "wizard.close.stay": "Blijven"
+  "wizard.close.stay": "Blijven",
+  "app.decrease": "Verlagen",
+  "app.increase": "Verhogen",
+  "app.page": "Pagina {n}",
+  "freestyle.drink_name": "Naam van de drank",
+  "app.close": "Sluiten",
+  "brew.two_cups": "2x",
+  "brew.two_cups_on": "2x aan",
+  "app.previous": "Vorige",
+  "app.next": "Volgende"
 }

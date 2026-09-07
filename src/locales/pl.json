@@ -96,7 +96,6 @@
   "sommelier.generate": "Generuj",
   "sommelier.hopper": "Pojemnik",
   "sommelier.surprise_me": "Zaskocz mnie",
-  "sommelier.brew": "Zaparz",
   "sommelier.brewing": "Przygotowuję…",
   "sommelier.favorite": "Do ulubionych",
   "sommelier.remove": "Usuń",
@@ -157,5 +156,14 @@
   "wizard.machine.failed": "Parzenie nie powiodło się",
   "wizard.machine.confirm": "Potwierdź",
   "wizard.finish.button": "Zamknij",
-  "wizard.close.stay": "Zostań"
+  "wizard.close.stay": "Zostań",
+  "app.decrease": "Zmniejsz",
+  "app.increase": "Zwiększ",
+  "app.page": "Strona {n}",
+  "freestyle.drink_name": "Nazwa napoju",
+  "app.close": "Zamknij",
+  "brew.two_cups": "2x",
+  "brew.two_cups_on": "2x wł.",
+  "app.previous": "Poprzedni",
+  "app.next": "Następny"
 }

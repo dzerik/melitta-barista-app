@@ -17,23 +17,16 @@ import { SommelierSection } from "./components/SommelierSection";
 import { StatusOverlay } from "./components/StatusOverlay";
 import { PreferencesModal } from "./components/PreferencesModal";
 import { ResolutionGuard } from "./components/ResolutionGuard";
-import { Rule } from "./components/ui";
+import {
+  Glyph,
+  RAIL_TEXT,
+  Rule,
+  UNDERLINE_W_NAV,
+  UNDERLINE_W_PX,
+  Word,
+} from "./components/ui";
 import type { TranslationKey } from "./lib/i18n";
 import iconBtConnect from "./assets/icons/bt_connect.png";
-
-/** §G2.1 — content text hangs 10px inside the rail the rules span. */
-const RAIL_TEXT = "calc(var(--rail) + 10px)";
-
-/**
- * A bare word carrying a 1px `--border` underline — what every non-committing
- * action in this app looks like now (§C5a). No fill, no ring, no radius.
- */
-const WORD_ACTION = {
-  borderRadius: 0,
-  borderBottomWidth: "1px",
-  borderBottomStyle: "solid" as const,
-  borderBottomColor: "var(--border)",
-};
 
 const TABS = ["brew", "freestyle", "sommelier", "stats", "maintenance", "settings"] as const;
 type Tab = (typeof TABS)[number];
@@ -138,19 +131,22 @@ export default function App() {
     return (
       <>
         <div className="flex h-full items-center justify-center p-6">
-          <div className="flex flex-col items-center text-center space-y-4">
-            <img src={iconBtConnect} alt="" className="w-20 h-20 object-contain opacity-50" draggable={false} />
+          {/* §G2.3: the same prose measure the other two blocked columns take. */}
+          <div className="flex flex-col items-center text-center space-y-4 max-w-prose">
+            {/* §6.6 / C27: the state rung of the one glyph ladder — 80px at the
+                one 0.6 knock-down, not a fourth hand-picked w-20/opacity-50. */}
+            <Glyph src={iconBtConnect} size="state" />
             <p className="t-body text-secondary">{t("app.looking")}</p>
             <p className="t-label text-tertiary">
               {t("app.integration_hint")}
             </p>
-            <button
+            {/* C5: Disconnect is an ACTION. An underline means "chosen" in this
+                language, so the word wears none — `Word` has no prop to grow one. */}
+            <Word
+              label={t("app.disconnect")}
               onClick={handleDisconnect}
-              className="tap press mt-4 t-body text-secondary hover:text-primary"
-              style={WORD_ACTION}
-            >
-              {t("app.disconnect")}
-            </button>
+              className="mt-4"
+            />
           </div>
         </div>
         <ResolutionGuard />
@@ -242,24 +238,33 @@ export default function App() {
       {/* Tab bar — no fill of its own (§L2): one rail-to-rail hairline with a
           square-cut 2px accent bar riding on it, and six 60px word targets on
           the bare ground. Every tab is a full-height target, so the same row
-          works under a pointer and a thumb. */}
+          works under a pointer and a thumb.
+
+          C19: this is the app's second nav idiom, and it now differs from the
+          sommelier sub-nav (`Option level="nav"`, the §C6a reference) in ONE
+          respect only — the mark slides instead of being reserved per word,
+          because it tracks a finger drag and a per-word underline cannot. The
+          measure, the ink, the type step and where the mark sits on the rule
+          are byte-identical to that reference below. */}
       <div className="shrink-0">
         <Rule rail />
         <nav
           className="relative flex"
           style={{ marginLeft: "var(--rail)", marginRight: "var(--rail)" }}
         >
-          {/* The screen's one position mark (§8.1c): square-cut, 2px, riding on
-              the rule above and tracking the pager so a drag shows where it
-              lands. A per-word reserved underline cannot slide with a drag,
-              which is why the tab bar keeps a single moving mark instead. */}
+          {/* The screen's one position mark (§8.1c). Identical to a lit
+              `Option level="nav"` underline: `--underline-w-nav` of `--accent`,
+              square-cut, its top pulled 1px so the bar lands ON the rule rather
+              than beside it — the same overlap `Option`'s `margin-bottom: -1px`
+              produces against the sub-nav's own rule. */}
           <div
             aria-hidden="true"
             data-ui="tab-indicator"
             data-fill="rule"
-            className="absolute h-[2px]"
+            className="absolute"
             style={{
-              top: "-1px",
+              top: `-${UNDERLINE_W_PX}px`,
+              height: UNDERLINE_W_NAV,
               width: `${100 / visibleTabs.length}%`,
               transform: `translateX(${(-pager.offsetPx / pageWidth) * 100}%)`,
               transition: pager.dragging
@@ -280,7 +285,9 @@ export default function App() {
                 aria-current={current ? "page" : undefined}
                 data-ui="tab"
                 data-selected={current ? "true" : "false"}
-                className={`tap tap-lg press flex-1 t-label ${
+                // `t-body`, the step `Option level="nav"` sets — the sub-nav
+                // and the tab bar were a step apart (C19).
+                className={`tap tap-lg press flex-1 t-body ${
                   locked
                     ? "text-tertiary cursor-not-allowed"
                     : current

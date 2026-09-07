@@ -61,6 +61,17 @@ const SEGMENT_FILL: Record<MeterTone, string> = {
  * shadow-lg` 16px thumb (FreestyleSection, RecipeEditModal, SettingsSection)
  * and every capsule progress bar (StatusOverlay's 192×6, BrewSection's
  * hairline, BrewWizard's `h-2`).
+ *
+ * THE LABELLING RULE, SETTLED ONCE (C18): a PROGRESS meter carries NO numeric
+ * readout — not on the bar, not in a label row, not anywhere. §9.1 already
+ * says it of the ring, and the linear meter is the ring's inline twin for
+ * exactly the waits whose end we can only estimate (owner decision 4), so a
+ * percentage there is false precision printed to two significant figures. A
+ * VALUE meter is the opposite case and always shows its number, because the
+ * number is the thing the user is choosing — it lives in `MeterField`'s label
+ * row, right-aligned and tabular, and never on the track. In short: if the
+ * user picked it, print it; if we estimated it, don't. The one violation was
+ * `{Math.round(m.progress)}%` above a wizard step's meter.
  */
 export function Meter({
   value,

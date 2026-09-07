@@ -81,7 +81,7 @@ describe("RecipeCarousel", () => {
 
   it("renders dot indicators for ≤10 recipes", () => {
     renderWithProviders(<RecipeCarousel {...defaultProps} />);
-    const dots = screen.getAllByRole("button", { name: /Go to slide/ });
+    const dots = screen.getAllByRole("button", { name: /^Page / });
     expect(dots).toHaveLength(3);
   });
 
@@ -93,14 +93,14 @@ describe("RecipeCarousel", () => {
     renderWithProviders(
       <RecipeCarousel {...defaultProps} recipes={manyRecipes} />,
     );
-    expect(screen.queryByRole("button", { name: /Go to slide/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Page / })).not.toBeInTheDocument();
     expect(screen.getByText("1 / 15")).toBeInTheDocument();
   });
 
   it("dot click calls embla scrollTo", async () => {
     const user = userEvent.setup();
     renderWithProviders(<RecipeCarousel {...defaultProps} />);
-    const dots = screen.getAllByRole("button", { name: /Go to slide/ });
+    const dots = screen.getAllByRole("button", { name: /^Page / });
 
     await user.click(dots[1]);
     expect(mockScrollTo).toHaveBeenCalledWith(1);
@@ -156,7 +156,7 @@ describe("RecipeCarousel", () => {
         recipes={[{ name: "Espresso", isSelected: true }]}
       />,
     );
-    expect(screen.queryByRole("button", { name: /Go to slide/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Page / })).not.toBeInTheDocument();
   });
 
   it("has data-embla-carousel attribute for swipe conflict prevention", () => {
@@ -258,7 +258,7 @@ describe("RecipeCarousel", () => {
 
   it("arrows are bare glyphs with a 48px reach and no disc plate", () => {
     renderWithProviders(<RecipeCarousel {...defaultProps} />);
-    for (const name of ["Previous slide", "Next slide"]) {
+    for (const name of ["Previous", "Next"]) {
       const arrow = screen.getByRole("button", { name });
       expect(arrow.className).toContain("tap");
       expect(arrow.className).toContain("press");
@@ -270,7 +270,7 @@ describe("RecipeCarousel", () => {
 
   it("pager dots are 8px circles — a solid disc for the current page, rings for the rest", () => {
     const { container } = renderWithProviders(<RecipeCarousel {...defaultProps} />);
-    const dots = container.querySelectorAll('[data-ui="pager-dot"]');
+    const dots = container.querySelectorAll('[data-ui="dot"]');
     expect(dots).toHaveLength(3);
 
     const current = dots[0] as HTMLElement;
@@ -285,7 +285,7 @@ describe("RecipeCarousel", () => {
     expect(current.style.width).toBe(current.style.height);
 
     // The mark stays 8px; the reach does not.
-    const reach = screen.getAllByRole("button", { name: /Go to slide/ });
+    const reach = screen.getAllByRole("button", { name: /^Page / });
     for (const button of reach) {
       expect(button.className).toContain("tap");
     }
@@ -315,8 +315,41 @@ describe("RecipeCarousel", () => {
     );
     expect(staged.container.querySelector('[data-ui="commit"]')).toBeNull();
     const word = screen.getByText("Brew").closest("button") as HTMLElement;
+    expect(word.getAttribute("data-ui")).toBe("word");
     expect(word.style.backgroundColor).toBe("");
-    expect(word.style.borderBottomColor).toBe("var(--border)");
+    // An underline says "chosen" in this language, so an ACTION wears none —
+    // the eight hand-rolled copies of this word disagreed about its colour
+    // precisely because none of them could say what the line meant (C5).
+    expect(word.style.borderBottomStyle).toBe("");
+    expect(word.style.borderBottomColor).toBe("");
+  });
+
+  it("puts brew in the one action band, opened by the 2px accent rule", () => {
+    const { container } = renderWithProviders(<RecipeCarousel {...defaultProps} />);
+    const band = container.querySelector('[data-ui="action-band"]') as HTMLElement;
+    expect(band).toBeInTheDocument();
+
+    const rule = band.querySelector('[data-ui="rule"]') as HTMLElement;
+    expect(rule.style.height).toBe("2px");
+    expect(rule.style.backgroundColor).toBe("var(--accent)");
+
+    // Exactly one commit lives in the band, and it is the band's commit slot.
+    const commits = band.querySelectorAll('[data-ui="commit"]');
+    expect(commits).toHaveLength(1);
+    expect(
+      band.querySelector('[data-ui="action-band-commit"]')!.contains(commits[0]),
+    ).toBe(true);
+  });
+
+  it("names both arrows and every pager dot from the bundle, never in English literals", () => {
+    renderWithProviders(<RecipeCarousel {...defaultProps} />);
+    // The four labels the audit found hardcoded (R2) now come from
+    // `app.previous` / `app.next` / `app.page`, which all 29 bundles carry.
+    expect(screen.getByRole("button", { name: "Previous" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Page 1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Page 3" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /slide/i })).not.toBeInTheDocument();
   });
 });
 

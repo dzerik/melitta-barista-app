@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.0.1] — 2026-09-07 (not released)
+
+### Fixed
+
+- The consistency pass over the design language: the app now solves each problem one way. Six hand-rolled copies of the "bare word" action, three hairline colours for the same input rule, four modal headers, five panel measures, four close controls and three pager dots collapse into shared shapes — `Word`, `Field`, `Panel`, `ActionBand`, `Dot`, `Heading`, `Glyph`, `SettingsRow`, `Mosaic`.
+- One verb for one act: the sommelier's separate "brew" string is gone from all 29 languages, so the same button no longer reads two different words in two tabs.
+- One brewing screen. Two of them used to mount on the same state, one occluding the other.
+- Settings rows and maintenance rows are the same row: one label treatment, one pitch, one gutter.
+- Selection in the recipe list is the name over a lit underline, like everywhere else, instead of an accent-filled gutter. The settings row glyph stops using the accent to mean "on" — a toggled state is not one of the accent's four jobs.
+- The three hairline mosaics are one component with a fixed column count that completes its last row, so a half-empty row can no longer leave the divider ground showing as a tinted slab.
+- The drink glass keeps one implementation of its reflection, and truth-scale by volume moved into `CoffeeIcon` instead of being hand-rolled in statistics.
+- Dead CSS that re-enabled banned treatments one class away is gone, along with token names nothing read.
+- Hardcoded English in pager labels, the ALL-CAPS "2x ON", and Title Case in English settings strings are fixed; 9 new keys landed in all 29 languages.
+- The test suite's hard-rule walk had grown seven copies that disagreed on whether `transparent` counts as a fill. One definition now, imported everywhere.
+
 ## [3.0.0] — 2026-09-07
 
 The app is drawn the way a coffee machine's own panel is drawn.

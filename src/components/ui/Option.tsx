@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { underlineSlot } from "./tokens";
 
 export type OptionLevel = "option" | "nav";
 export type OptionRole = "button" | "radio";
@@ -69,8 +70,6 @@ export function Option({
   className = "",
   style,
 }: OptionProps) {
-  const underlineWidth = level === "nav" ? 2 : 1;
-
   const ariaState =
     role === "radio"
       ? ({ role: "radio", "aria-checked": selected } as const)
@@ -100,10 +99,9 @@ export function Option({
       style={{
         color: selected ? "var(--text-primary)" : "var(--text-secondary)",
         fontWeight: selected ? 600 : 400,
-        borderBottomWidth: `${underlineWidth}px`,
-        borderBottomStyle: "solid",
-        borderBottomColor: selected ? "var(--accent)" : "transparent",
-        borderRadius: 0,
+        // `literal` only because two tests outside components/ui assert the
+        // resolved "1px"; the measure itself lives in tokens.ts / index.css.
+        ...underlineSlot(selected, level, { literal: true }),
         opacity: disabled ? 0.35 : 1,
         pointerEvents: disabled ? "none" : undefined,
         // A nav underline sits ON the row's rule rather than under it.

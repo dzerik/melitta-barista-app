@@ -1,14 +1,19 @@
-import { Fragment, useContext, useEffect, useState, type ReactNode } from "react";
-import { Heart, ChevronDown, ChevronUp, Check, Snowflake, Trash2 } from "lucide-react";
+import { Fragment, useContext, useState, type ReactNode } from "react";
+import { Heart, ChevronDown, Check, Snowflake, Trash2 } from "lucide-react";
 import { usePreferences } from "../lib/preferences";
 import { displayNameFor, type Locale, type TranslationKey } from "../lib/i18n";
 import type { AiRecipe } from "../hooks/useSommelier";
-import { hasPhasePlan, recipeMachinePhases, type BrewPlanRecipe, type PhaseComponent } from "../lib/brew-plan";
+import {
+  fmt,
+  hasPhasePlan,
+  recipeMachinePhases,
+  type BrewPlanRecipe,
+  type PhaseComponent,
+} from "../lib/brew-plan";
 import { BrewWizardContext } from "../hooks/useBrewPhase";
 import { BrewWizard } from "./BrewWizard";
 import { CoffeeIcon } from "./CoffeeIcon";
-import { DrinkStage } from "./ui/DrinkStage";
-import { Rule } from "./ui/Rule";
+import { Dot, DrinkStage, Panel, Rule, TRUTH_UNSERVED, Word } from "./ui";
 import { usePrefersReducedMotion } from "./ui/reduced-motion";
 import { suggestionLabel } from "../lib/sommelier-vocab";
 import { pourSummaries, readableSteps, hopperNumber } from "../lib/recipe-summary";
@@ -18,6 +23,21 @@ export const SOMMELIER_ICON_SIZE = 140;
 
 /** §G2.4b — the paged drink matrix is four across. */
 export const SOMMELIER_COLUMNS = 4;
+
+/** §G2.4b — …and two down. One page is eight cells, everywhere. */
+export const SOMMELIER_ROWS = 2;
+
+/**
+ * The cell's own measure, in px (C14).
+ *
+ * `gridAutoRows: minmax(0, 1fr)` let a page that was not full inflate its
+ * cells: the Generate tab pages one row of four while Favourites and History
+ * page 4×2, so the identical card drew at roughly twice the height on one tab
+ * as on the other. A row track now grows to fill the shelf but stops here, so
+ * a cell is the same object wherever it is paged — which is the whole of
+ * "one paged idiom at one cell proportion".
+ */
+export const SOMMELIER_CELL_MAX = 280;
 
 interface Props {
   recipe: AiRecipe;
@@ -32,6 +52,13 @@ interface Props {
   meta?: string | null;
   /** §11 — newly served content arrives on a 60ms/index stagger. */
   enterIndex?: number;
+  /**
+   * §6.3 truth scale: this drink's served volume as a 0–1 fraction of the
+   * shelf's maximum. Build it with `shelfScale()` so every cell in a row is
+   * measured against the same maximum; left out, the glass draws at the
+   * unserved 0.80×.
+   */
+  scaleTo?: number;
 }
 
 /** Served `name_key` (§6.3.6) when the row carries one; the type predates it. */
@@ -40,25 +67,31 @@ function readNameKey(recipe: AiRecipe): string | undefined {
   return typeof key === "string" && key ? key : undefined;
 }
 
+/** The pours a recipe actually dispenses, phase plan first, legacy pair after. */
+function pourComponents(recipe: BrewPlanRecipe): (PhaseComponent | null | undefined)[] {
+  const phases = recipeMachinePhases(recipe);
+  return phases.length ? phases.map((p) => p.component) : [recipe.component1, recipe.component2];
+}
+
 /**
- * The composition band as §7's value strip: one `label value` pair per pour,
- * the LABEL half in `--accent` and the VALUE half in `--text-primary`, groups
- * divided by a short hairline. The prose form (`pourSummaries`) is longer than
- * a 140px cell can hold without wrapping — and a divided strip that wraps
- * orphans its rules — so the cell carries the pairs and the details drawer
- * carries the sentences.
+ * The composition band as §7's value strip: one `label value unit` group per
+ * pour, the LABEL half in `--accent`, the VALUE half in `--text-primary` and
+ * the UNIT one value step quieter at the same size, groups divided by a short
+ * hairline. The prose form (`pourSummaries`) is longer than a 140px cell can
+ * hold without wrapping — and a divided strip that wraps orphans its rules —
+ * so the cell carries the groups and the details drawer carries the sentences.
+ *
+ * The number and its unit are separate spans on purpose (C22): baked into one
+ * `"120 ml"` string they could only ever be inked as one thing, which is why
+ * this strip used to render its units at full `--text-primary` while the
+ * identical strip on the Recipes page had them right.
  */
 function pourPairs(
   locale: Locale,
   recipe: BrewPlanRecipe,
-): { key: string; label: string; value: string }[] {
-  const phases = recipeMachinePhases(recipe);
-  const components: (PhaseComponent | null | undefined)[] = phases.length
-    ? phases.map((p) => p.component)
-    : [recipe.component1, recipe.component2];
-
-  const pairs: { key: string; label: string; value: string }[] = [];
-  components.forEach((component, i) => {
+): { key: string; label: string; ml: number | null }[] {
+  const pairs: { key: string; label: string; ml: number | null }[] = [];
+  pourComponents(recipe).forEach((component, i) => {
     if (!component) return;
     const process = typeof component.process === "string" ? component.process : "";
     if (!process || process === "none") return;
@@ -66,12 +99,46 @@ function pourPairs(
     pairs.push({
       key: `${i}-${process}`,
       label: displayNameFor(locale, "process", process),
-      // The unit symbol is written exactly as `recipe-summary.ts` writes it,
-      // so a pour reads the same in the cell and in the drawer.
-      value: Number.isFinite(ml) && ml > 0 ? `${ml} ml` : "",
+      ml: Number.isFinite(ml) && ml > 0 ? ml : null,
     });
   });
   return pairs;
+}
+
+/** Everything a recipe pours, in ml. 0 when no pour carries a volume. */
+export function recipeTotalMl(recipe: BrewPlanRecipe): number {
+  let total = 0;
+  for (const component of pourComponents(recipe)) {
+    if (!component) continue;
+    const process = typeof component.process === "string" ? component.process : "";
+    if (!process || process === "none") continue;
+    const ml = Number(component.portion_ml);
+    if (Number.isFinite(ml) && ml > 0) total += ml;
+  }
+  return total;
+}
+
+/**
+ * §6.3 truth scale for one shelf of drinks: each recipe's volume against the
+ * largest volume on the shelf, so an espresso and a latte macchiato stop
+ * drawing at the same height. Where nothing is served a volume there is no
+ * truth to scale to and every glass falls back to the unserved 0.80×.
+ *
+ * The maximum belongs to the shelf, not to the card, which is why this is a
+ * factory the list components call once rather than a lookup inside the cell.
+ */
+export function shelfScale<T extends BrewPlanRecipe>(items: T[]): (item: T) => number {
+  const totals = new Map<T, number>();
+  let max = 0;
+  for (const item of items) {
+    const ml = recipeTotalMl(item);
+    totals.set(item, ml);
+    if (ml > max) max = ml;
+  }
+  return (item: T) => {
+    const ml = totals.get(item) ?? recipeTotalMl(item);
+    return max > 0 && ml > 0 ? ml / max : TRUTH_UNSERVED;
+  };
 }
 
 /**
@@ -79,17 +146,19 @@ function pourPairs(
  * favourite, or a row out of the history.
  *
  * A drink cell of the same species as a Recipes-page cell: the glass on top at
- * grid scale (140) over its §6.2 glow, horizon and reflection, the name under
- * it, then the composition, then the actions — all on hard-reserved bands
- * (§R1.5) so names and figures line up across a row however many components a
- * recipe has. The 84px left-rail thumbnail beside running prose that this used
- * to be was the only place in the app where the drink was not the subject.
+ * grid scale (140) over its §6.2 glow, horizon and reflection, bottom-aligned
+ * and scaled to its real volume (§6.3), the name under it at the SAME type
+ * step a Recipes cell uses (`t-body` — it read `t-title` here, which is C11),
+ * then the composition, then the actions — all on hard-reserved bands (§R1.5)
+ * so names and figures line up across a row however many components a recipe
+ * has.
  *
  * Nothing here is boxed: no card, no fill, no radius, no ring. The only
- * saturated ink is the label half of a value pair (§8.1d). Brew is a bare word
- * with a hairline underline rather than a filled chip, because a grid of cells
- * cannot hold eight commit rectangles — the screen's one commit lives on the
- * Generate brief (§C3.5).
+ * saturated ink is the label half of a value pair (§8.1d). Brew is a bare
+ * `Word` rather than a filled chip, because a grid of cells cannot hold eight
+ * commit rectangles — the screen's one commit lives on the Generate brief
+ * (§C3.5) — and it reads the app-wide `brew.brew` string, not a sommelier
+ * duplicate that had drifted to a different Russian verb (C2).
  *
  * The Brew button routes per Zone P-H: when the hosting section provides a
  * `BrewWizardContext` AND the row carries `machine_phases` (0.89+ servers),
@@ -106,6 +175,7 @@ export function SommelierRecipeCard({
   brewing,
   meta = null,
   enterIndex,
+  scaleTo = TRUTH_UNSERVED,
 }: Props) {
   const { t, locale } = usePreferences();
   const [expanded, setExpanded] = useState(false);
@@ -143,7 +213,9 @@ export function SommelierRecipeCard({
     >
       <div className="t-label text-tertiary num w-full truncate text-center">{meta ?? ""}</div>
 
-      {/* The drink leads — everything else describes it. */}
+      {/* The drink leads — everything else describes it. Bases land on one
+          line and the tops stay ragged: that ragged edge is the comparison,
+          read before any number is (§6.3). */}
       <div className="flex w-full min-h-0 items-end justify-center">
         <DrinkStage size={SOMMELIER_ICON_SIZE} active={Boolean(brewing)}>
           <CoffeeIcon
@@ -151,12 +223,16 @@ export function SommelierRecipeCard({
             nameKey={readNameKey(recipe)}
             icon={recipe.icon}
             size={SOMMELIER_ICON_SIZE}
+            baseline
+            scaleTo={scaleTo}
           />
         </DrinkStage>
       </div>
 
       <div className="flex w-full min-w-0 items-center justify-center gap-2">
-        <h3 className="t-title font-light text-primary truncate">{recipe.name}</h3>
+        {/* §7.7 / C11 — a cell names its drink at one type step, and a
+            sommelier cell is a grid cell like any other. */}
+        <h3 className="t-body text-primary truncate">{recipe.name}</h3>
         {recipe.brewed && (
           <Check size={16} className="shrink-0" style={{ color: "var(--success)" }} />
         )}
@@ -173,22 +249,25 @@ export function SommelierRecipeCard({
             style={i > 0 ? { borderColor: "var(--border)" } : undefined}
           >
             <span style={{ color: "var(--accent)" }}>{pair.label}</span>
-            {pair.value ? <span className="text-primary num"> {pair.value}</span> : null}
+            {pair.ml === null ? null : (
+              <>
+                <span className="text-primary num" style={{ fontWeight: 600 }}> {pair.ml}</span>
+                <span className="text-tertiary"> ml</span>
+              </>
+            )}
           </span>
         ))}
       </div>
 
       <div className="flex w-full items-center justify-center gap-1">
-        <button
-          type="button"
-          onClick={() => setExpanded(true)}
-          aria-expanded={expanded}
-          aria-label={detailsLabel}
-          className="tap press t-label text-tertiary hover:text-secondary gap-1.5"
-          style={{ borderRadius: 0 }}
-        >
-          <ChevronDown size={16} />
-        </button>
+        {/* R8 — a disclosure with a word beside its chevron, and a handler
+            that actually toggles, so `aria-expanded` is a live contract. */}
+        <Word
+          label={detailsLabel}
+          icon={<ChevronDown size={16} />}
+          ariaExpanded={expanded}
+          onClick={() => setExpanded((v) => !v)}
+        />
 
         {onFavorite && (
           <button
@@ -197,7 +276,9 @@ export function SommelierRecipeCard({
             aria-pressed={isFavorited}
             aria-label={t("sommelier.favorite" as TranslationKey)}
             className="tap press shrink-0"
-            style={{ color: isFavorited ? "var(--accent)" : "var(--text-tertiary)", borderRadius: 0 }}
+            /* §8.2 withholds accent from a toggled state: a favourite is said
+               in value, like every other chosen mark in the app. */
+            style={{ color: isFavorited ? "var(--text-primary)" : "var(--text-tertiary)", borderRadius: 0 }}
           >
             <Heart size={18} fill={isFavorited ? "currentColor" : "none"} />
           </button>
@@ -218,29 +299,17 @@ export function SommelierRecipeCard({
         {/* Not a commit: at grid scale the fill would be eight saturated
             rectangles on one screen. A bare word — and bare it stays, because
             an underline in this language means "chosen", not "tappable". */}
-        <button
-          type="button"
+        <Word
+          label={t("brew.brew" as TranslationKey)}
+          busyLabel={t("sommelier.brewing" as TranslationKey)}
+          busy={Boolean(brewing)}
+          tone="strong"
           onClick={() => (wizardBrew ? setWizardOpen(true) : onBrew(recipe.id))}
-          disabled={brewing}
-          className="tap press t-body"
-          style={{
-            color: brewing ? "var(--text-secondary)" : "var(--text-primary)",
-            fontWeight: 600,
-            borderRadius: 0,
-            opacity: brewing ? 0.5 : 1,
-            pointerEvents: brewing ? "none" : undefined,
-          }}
-        >
-          {brewing ? t("sommelier.brewing" as TranslationKey) : t("sommelier.brew" as TranslationKey)}
-        </button>
+        />
       </div>
 
       {expanded && (
-        <SommelierDetails
-          title={recipe.name}
-          label={detailsLabel}
-          onClose={() => setExpanded(false)}
-        >
+        <SommelierDetails title={recipe.name} onClose={() => setExpanded(false)}>
           {recipe.description && (
             <p className="t-body text-secondary max-w-prose">{recipe.description}</p>
           )}
@@ -338,96 +407,67 @@ export function SommelierRecipeCard({
  * that grows when it is opened would break the shelf every other card is
  * aligned to.
  *
- * §5.A gives it the scrim, §5.B gives it the single flat `--surface` panel —
- * radius 0, no border, no ring, no shadow, no blur of its own — and everything
- * inside the panel is unfilled. The prose scrolls (the §G2.2 carve-out for a
- * drawer), the close control is the same disclosure word that opened it, and
- * Escape closes it.
+ * It is the shared `Panel` and nothing more — §5.A's scrim over §5.B's one
+ * flat `--surface` rectangle, one header, one close control. The hand-rolled
+ * version it replaces set its fill through the `surface` CLASS, whose rule
+ * uses the `background` shorthand that jsdom drops, so this panel's fill was
+ * the one no test in the repo could see (R3); it also closed with a
+ * `ChevronUp` where every other modal closed with an X (C9) and ran rail to
+ * rail where the other four picked four different caps (C8).
  */
 function SommelierDetails({
   title,
-  label,
   onClose,
   children,
 }: {
   title: string;
-  label: string;
   onClose: () => void;
   children: ReactNode;
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
+  const { t } = usePreferences();
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
-      data-fill="scrim"
-      style={{
-        backgroundColor: "var(--overlay-bg)",
-        paddingLeft: "var(--rail)",
-        paddingRight: "var(--rail)",
-      }}
-      onClick={onClose}
+    <Panel
+      title={title}
+      onClose={onClose}
+      closeLabel={t("app.close" as TranslationKey)}
+      measure="lg"
+      align="end"
+      maxHeight="80%"
+      bodyClassName="space-y-3 px-6 py-4"
     >
-      <div
-        role="dialog"
-        aria-label={title}
-        data-ui="sommelier-details"
-        data-fill="panel"
-        className="surface flex w-full max-h-[80%] flex-col"
-        // Rail to rail like every other structure in the app (the scrim owns
-        // the rail); the measure cap that keeps the text readable lives on the
-        // prose inside (§G2.3).
-        style={{ borderRadius: 0, boxShadow: "none" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between gap-4 px-6">
-          <h2 className="t-title font-light text-primary truncate">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-expanded={true}
-            aria-label={label}
-            className="tap press t-label text-tertiary hover:text-secondary gap-1.5 shrink-0"
-            style={{ borderRadius: 0 }}
-          >
-            <ChevronUp size={16} />
-          </button>
-        </div>
-        <Rule />
-        <div className="custom-scroll min-h-0 flex-1 space-y-3 overflow-y-auto px-6 py-4">
-          {children}
-        </div>
-      </div>
-    </div>
+      {children}
+    </Panel>
   );
 }
 
 /**
  * The 4-across drink matrix one page of a sommelier list is laid out on
- * (§G2.4b). Rows are created as the cells need them and the block is centred,
- * so a page of two drinks is a single centred row rather than a half-empty
- * 4×2 frame.
+ * (§G2.4b), declared exactly the way the Recipes page declares its own
+ * (`RecipeGrid`): explicit column AND row tracks, `content-center`, so the
+ * frame stays drawn where a slot is empty instead of reflowing. Franke does
+ * the same — an empty 8th cell is left empty.
+ *
+ * A row track grows to fill the shelf but stops at `SOMMELIER_CELL_MAX`, which
+ * is what keeps a one-row Generate page and a 4×2 Favourites page drawing the
+ * SAME cell rather than one at twice the height of the other (C14).
  */
 export function SommelierMatrix({
   children,
   columns = SOMMELIER_COLUMNS,
+  rows = SOMMELIER_ROWS,
 }: {
   children: ReactNode;
   columns?: number;
+  rows?: number;
 }) {
   return (
     <div
       data-ui="sommelier-matrix"
+      data-rows={rows}
       className="grid h-full content-center gap-3 p-2"
       style={{
         gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-        gridAutoRows: "minmax(0, 1fr)",
+        gridTemplateRows: `repeat(${rows}, minmax(0, ${SOMMELIER_CELL_MAX}px))`,
       }}
     >
       {children}
@@ -447,6 +487,9 @@ function paginate<T>(items: T[], perPage: number): T[][] {
  * laid out on the 4-across matrix, the lot handed to the pager. The two flat
  * lists (fresh results, favourites) are exactly this; the history tab builds
  * its own pages because each one is headed by the generation it came from.
+ *
+ * The page's row count comes from `perPage` rather than from a per-tab guess,
+ * so the matrix always declares the frame it is actually paging.
  */
 export function SommelierShelf<T>({
   items,
@@ -461,8 +504,9 @@ export function SommelierShelf<T>({
   cellKey: (item: T, index: number) => string;
   renderCell: (item: T, index: number) => ReactNode;
 }) {
+  const rows = Math.max(1, Math.ceil(perPage / columns));
   const pages = paginate(items, perPage).map((page, pageIdx) => (
-    <SommelierMatrix key={pageIdx} columns={columns}>
+    <SommelierMatrix key={pageIdx} columns={columns} rows={rows}>
       {page.map((item, i) => {
         const index = pageIdx * perPage + i;
         return <Fragment key={cellKey(item, index)}>{renderCell(item, index)}</Fragment>;
@@ -474,16 +518,20 @@ export function SommelierShelf<T>({
 
 /**
  * The sommelier's pager: a tab body overflows by PAGING, never by scrolling
- * (§G2.2), and the marks are true circles riding ON the section rule — the
- * current page a solid `--accent` disc, the others `--accent` rings whose
- * `--bg` interiors visibly interrupt the rule passing behind them (§C-Nav b).
- * The painted dot stays 8px in every state; only its reach is 48px.
+ * (§G2.2), and the marks are the shared `Dot` — true circles riding ON the
+ * section rule, a solid `--accent` disc where you are and `--accent` rings
+ * whose `--bg` interiors interrupt the rule behind them everywhere else
+ * (§C-Nav b). The painted mark stays 8px in every state; only the reach is
+ * 48px, and it belongs to the button, not to the mark.
  *
- * The dot's accessible name is its page NUMBER rather than a sentence: the app
- * has no page-navigation string in any of its 29 locales, and a numeral is the
- * one label that is honest in all of them.
+ * The third hand-rolled copy of that mark lived here (C20): it kept its ring
+ * under the current disc and tagged itself `data-fill="meter"`, which quietly
+ * exempted it from every audit query written against the fill inventory (C21).
+ * The accessible name is now the app's own `app.page` string rather than the
+ * bare numeral this had to fall back on when no locale carried one (R2).
  */
 export function SommelierPager({ pages }: { pages: ReactNode[] }) {
+  const { t } = usePreferences();
   const reduced = usePrefersReducedMotion();
   const [page, setPage] = useState(0);
   const count = Math.max(1, pages.length);
@@ -511,26 +559,12 @@ export function SommelierPager({ pages }: { pages: ReactNode[] }) {
                 key={i}
                 type="button"
                 onClick={() => setPage(i)}
-                aria-label={String(i + 1)}
+                aria-label={fmt(t("app.page" as TranslationKey), { n: i + 1 })}
                 aria-current={i === current ? "true" : undefined}
                 className="tap press w-10"
+                style={{ borderRadius: 0 }}
               >
-                <span
-                  className="block"
-                  data-ui="pager-dot"
-                  /** §8.1c — a position mark, the one place a curve is honest. */
-                  data-fill="meter"
-                  data-selected={i === current ? "true" : "false"}
-                  style={{
-                    width: "var(--dot)",
-                    height: "var(--dot)",
-                    borderRadius: "50%",
-                    backgroundColor: i === current ? "var(--accent)" : "var(--bg)",
-                    borderWidth: "1px",
-                    borderStyle: "solid",
-                    borderColor: "var(--accent)",
-                  }}
-                />
+                <Dot current={i === current} />
               </button>
             ))}
           </div>

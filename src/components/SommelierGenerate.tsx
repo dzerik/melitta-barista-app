@@ -4,11 +4,13 @@ import { usePreferences } from "../lib/preferences";
 import type { TranslationKey } from "../lib/i18n";
 import type { useSommelier } from "../hooks/useSommelier";
 import { sommelierTokens, sommelierLabel, suggestionLabel } from "../lib/sommelier-vocab";
-import { Option } from "./ui/Option";
-import { OptionRow } from "./ui/OptionRow";
-import { Commit } from "./ui/Commit";
-import { Rule } from "./ui/Rule";
-import { SommelierRecipeCard, SommelierShelf, SOMMELIER_COLUMNS } from "./SommelierRecipeCard";
+import { ActionBand, Commit, Field, HANG, Heading, Option, OptionRow, Word } from "./ui";
+import {
+  SommelierRecipeCard,
+  SommelierShelf,
+  shelfScale,
+  SOMMELIER_COLUMNS,
+} from "./SommelierRecipeCard";
 
 type SommelierHook = ReturnType<typeof useSommelier>;
 
@@ -62,6 +64,10 @@ export function SommelierGenerate({ sommelier }: Props) {
     try { await brewRecipe(id); } finally { setBrewingId(null); }
   };
 
+  // §6.3 — the row's maximum belongs to the row, so it is measured once here
+  // rather than guessed inside each cell.
+  const resultScale = shelfScale((currentSession?.recipes ?? []) as never[]);
+
   /** What is loaded in the machine right now — context, not a control. */
   const renderHopper = (num: 1 | 2) => {
     const hopper = num === 1 ? hoppers?.hopper1 : hoppers?.hopper2;
@@ -106,7 +112,7 @@ export function SommelierGenerate({ sommelier }: Props) {
           the shelf of drinks below runs the full rail width, as structure. */}
       <div
         className="shrink-0 space-y-4 py-4"
-        style={{ paddingLeft: "10px", paddingRight: "10px" }}
+        style={{ paddingLeft: HANG, paddingRight: HANG }}
       >
         {/* What the machine is loaded with — one quiet strip, not two cards
             the size of the brief itself. */}
@@ -124,19 +130,22 @@ export function SommelierGenerate({ sommelier }: Props) {
         </div>
 
         {/* The free text leads — it is the one field that can say something
-            the words below cannot. A line to write on, never a filled box. */}
-        <input
-          type="text"
+            the words below cannot. A line to write on, never a filled box —
+            and the line is `--input-border` like every other field in the app,
+            not the `--border-hover` this one had picked for itself (C6). */}
+        <Field
           value={preference}
-          onChange={(e) => setPreference(e.target.value)}
+          onChange={setPreference}
           placeholder={t("sommelier.preference_placeholder" as TranslationKey)}
-          className="tap tap-lg w-full bg-transparent border-b px-0 t-body outline-none transition"
-          style={{ borderColor: "var(--border-hover)", color: "var(--text-primary)", borderRadius: 0 }}
+          ariaLabel={t("sommelier.preference_placeholder" as TranslationKey)}
         />
 
         {/* Two columns of labelled hairline rows: the brief has to leave the
-            page room for the drinks it produces, and the tab does not scroll. */}
-        <div className="grid grid-cols-2 gap-x-8">
+            page room for the drinks it produces, and the tab does not scroll.
+            §G2.6's 12px between sibling control rows applies down a column as
+            well as along one — without it these rows sat hard against their
+            own top rules while every other stack in the app breathed. */}
+        <div className="grid grid-cols-2 gap-x-8 gap-y-3">
           <OptionRow label={t("sommelier.mood" as TranslationKey)} labelWidth="5.5rem">
             {moods.map((m) => (
               <Option
@@ -194,40 +203,36 @@ export function SommelierGenerate({ sommelier }: Props) {
             ))}
           </OptionRow>
         </div>
-
-        {/* One committing action; the second way in is a word (§C3.5). Its
-            width is the brief's own column — never a padding figure. */}
-        <div className="flex items-center gap-6">
-          <div className="flex-1 min-w-0">
-            <Commit
-              label={t("sommelier.generate" as TranslationKey)}
-              busyLabel={t("sommelier.generating" as TranslationKey)}
-              busy={generating && pending !== "surprise"}
-              disabled={generating && pending === "surprise"}
-              icon={<Sparkles size={18} />}
-              onCommit={handleGenerate}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={handleSurprise}
-            disabled={generating}
-            aria-label={t("sommelier.surprise_me" as TranslationKey)}
-            className="tap tap-lg press t-body shrink-0 gap-2"
-            style={{
-              color: "var(--text-secondary)",
-              borderRadius: 0,
-              opacity: generating ? (pending === "surprise" ? 0.5 : 0.35) : 1,
-              pointerEvents: generating ? "none" : undefined,
-            }}
-          >
-            <Shuffle size={18} aria-hidden="true" />
-            {t("sommelier.surprise_me" as TranslationKey)}
-          </button>
-        </div>
       </div>
 
-      <Rule />
+      {/* One committing action; the second way in is a word (§C3.5), and both
+          sit in the app's one action band — the 2px accent rule that opens it
+          is §8.3's single strongest graphic gesture, and this screen used to
+          be one of the four that drew no rule at all while closing with a
+          plain 1px one below (C10). The commit's width comes from the band's
+          row, never from its own padding. */}
+      <ActionBand
+        inset="none"
+        secondary={
+          <Word
+            label={t("sommelier.surprise_me" as TranslationKey)}
+            icon={<Shuffle size={18} />}
+            busy={generating && pending === "surprise"}
+            disabled={generating && pending !== "surprise"}
+            onClick={handleSurprise}
+          />
+        }
+        commit={
+          <Commit
+            label={t("sommelier.generate" as TranslationKey)}
+            busyLabel={t("sommelier.generating" as TranslationKey)}
+            busy={generating && pending !== "surprise"}
+            disabled={generating && pending === "surprise"}
+            icon={<Sparkles size={18} />}
+            onCommit={handleGenerate}
+          />
+        }
+      />
 
       {/* The drinks the brief produced. */}
       <div className="flex min-h-0 flex-1 flex-col pt-3">
@@ -243,12 +248,16 @@ export function SommelierGenerate({ sommelier }: Props) {
 
         {currentSession && !generating && (
           <>
-            <h2 className="t-label text-tertiary shrink-0" style={{ paddingLeft: "10px" }}>
+            {/* One heading treatment in the app: quiet, medium, 16px clear
+                of what it names, hung 10px inside the rail (C31, C23). */}
+            <Heading as="h2" hang="inner" className="shrink-0">
               {t("sommelier.results" as TranslationKey)}
-            </h2>
+            </Heading>
             <div className="min-h-0 flex-1">
               {/* One row of drinks, paged — the brief above it has to leave
-                  the page room for what it produced (§G2.2, no scroll). */}
+                  the page room for what it produced (§G2.2, no scroll). The
+                  cell itself is the same object a 4×2 page draws, because the
+                  matrix caps a row track instead of stretching it (C14). */}
               <SommelierShelf
                 items={currentSession.recipes}
                 perPage={SOMMELIER_COLUMNS}
@@ -261,6 +270,7 @@ export function SommelierGenerate({ sommelier }: Props) {
                     isFavorited={favIds.has(recipe.id)}
                     brewing={brewingId === recipe.id}
                     enterIndex={i}
+                    scaleTo={resultScale(recipe as never)}
                   />
                 )}
               />

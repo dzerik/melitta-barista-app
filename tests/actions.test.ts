@@ -41,6 +41,7 @@ import type { UiContract } from "../src/lib/contract";
 import type { MachineStatusView } from "../src/lib/status";
 import { setServerStrings, resetServerStrings } from "../src/lib/server-strings";
 import { MELITTA_CONTRACT, MELITTA_ACTIONS, clone } from "./fixtures/contracts";
+import { assertHardRules } from "./hard-rules";
 
 /** The §3.7 document extended with the §6.2.2/§9.3.5 action catalog. */
 function contractWithActions(
@@ -323,8 +324,8 @@ describe("display resolution — §6.2.1 icons, §6.3.5.1 labels", () => {
     setServerStrings({ "actions.easy_clean.label": "Served Easy Clean" });
     expect(actionLabel("en", "easy_clean")).toBe("Served Easy Clean");
     resetServerStrings();
-    expect(actionLabel("en", "easy_clean")).toBe("Easy Clean");
-    expect(actionLabel("ru", "easy_clean")).not.toBe("Easy Clean");
+    expect(actionLabel("en", "easy_clean")).toBe("Easy clean");
+    expect(actionLabel("ru", "easy_clean")).not.toBe("Easy clean");
     expect(actionLabel("en", "quantum_flush")).toBe("Quantum flush");
   });
 
@@ -340,10 +341,10 @@ describe("display resolution — §6.2.1 icons, §6.3.5.1 labels", () => {
     setServerStrings({ "actions._groups.cleaning": "Served Cleaning" });
     expect(actionGroupLabel("en", "cleaning")).toBe("Served Cleaning");
     resetServerStrings();
-    expect(actionGroupLabel("en", "cleaning")).toBe("Cleaning & Descaling");
-    expect(actionGroupLabel("en", "filter")).toBe("Water Filter");
+    expect(actionGroupLabel("en", "cleaning")).toBe("Cleaning & descaling");
+    expect(actionGroupLabel("en", "filter")).toBe("Water filter");
     expect(actionGroupLabel("en", "power")).toBe("Other");
-    expect(actionGroupLabel("en", "danger")).toBe("Danger Zone");
+    expect(actionGroupLabel("en", "danger")).toBe("Danger zone");
     expect(actionGroupLabel("en", "experimental")).toBe("Experimental");
   });
 });
@@ -352,47 +353,7 @@ describe("display resolution — §6.2.1 icons, §6.3.5.1 labels", () => {
 // MaintenanceSection — the rebuilt row form
 // ---------------------------------------------------------------------------
 
-/** Fills the language permits; each must announce itself with `data-fill`. */
-const CARVE_OUTS = new Set([
-  "commit",
-  "meter",
-  "glow",
-  "contact",
-  "rule",
-  "scrim",
-  "panel",
-]);
 
-/**
- * The two hard rules, asserted on every node: radius 0 (a true circle —
- * width === height — being the only curve), no undeclared fill, no ring, no
- * shadow, no tracked-out caps.
- */
-function assertHardRules(root: HTMLElement) {
-  root.querySelectorAll<HTMLElement>("*").forEach((el) => {
-    const cls = String(el.className);
-    const radius = el.style?.borderRadius ?? "";
-    if (radius !== "" && radius !== "0px") {
-      expect(radius, `${el.tagName} draws a curve that is not a circle`).toBe("50%");
-      expect(el.style.width).toBe(el.style.height);
-    }
-    expect(cls).not.toMatch(/(^|\s)rounded/);
-    expect(cls).not.toMatch(/(^|\s)ring-/);
-    expect(cls).not.toMatch(/shadow-|tracking-|uppercase|backdrop-blur/);
-    const shadow = el.style?.boxShadow ?? "";
-    if (shadow !== "") expect(shadow).toBe("none");
-
-    const painted =
-      (el.style?.backgroundColor ?? "") !== "" ||
-      (el.style?.backgroundImage ?? "") !== "";
-    if (!painted) return;
-    const declared = el.getAttribute("data-fill");
-    expect(
-      declared !== null && CARVE_OUTS.has(declared),
-      `${el.tagName} paints without declaring a carve-out (data-fill=${declared})`,
-    ).toBe(true);
-  });
-}
 
 const CTX = { id: "", user_id: null, parent_id: null };
 const ent = (state: string) => ({
@@ -426,7 +387,7 @@ describe("MaintenanceSection — hairline rows, no cards", () => {
   it("draws each action as a hairline row with no fill, ring or radius", () => {
     const { container } = renderMaintenance();
 
-    const label = screen.getByText("Easy Clean");
+    const label = screen.getByText("Easy clean");
     const row = label.closest<HTMLElement>("div.settings-card-enter")!;
     expect(row.style.backgroundColor).toBe("");
     expect(row.style.borderTopColor).toBe("var(--border)");
@@ -438,29 +399,36 @@ describe("MaintenanceSection — hairline rows, no cards", () => {
     assertHardRules(container);
   });
 
-  it("keeps the action a bare word whose underline slot is always reserved", () => {
+  it("draws the action as the shared bare word — no rule under it at all", () => {
     renderMaintenance();
 
     const start = screen.getAllByRole("button", { name: "Start" })[0];
+    expect(start).toHaveAttribute("data-ui", "word");
     expect(start.style.backgroundColor).toBe("");
     expect(start.style.border).toBe("");
-    expect(start.style.borderBottomWidth).toBe("1px");
-    expect(start.style.borderBottomColor).toBe("transparent");
+    // C5: this row was the ONE action in the app wearing a reserved underline
+    // slot. An underline means "chosen" here, and Start is not a choice — so
+    // the slot is gone and nothing under it can shift when the row arms.
+    expect(start.style.borderBottomWidth).toBe("");
+    expect(start.style.borderBottomColor).toBe("");
     expect(start.style.color).toBe("var(--text-secondary)");
     expect(start.className).toContain("tap");
     expect(start.className).toContain("press");
   });
 
-  it("arms on the first tap: the word escalates, the layout does not move", () => {
+  it("arms on the first tap: the word escalates in ink, the layout does not move", () => {
     renderMaintenance();
 
     const start = screen.getAllByRole("button", { name: "Start" })[0];
-    const widthBefore = start.style.borderBottomWidth;
     fireEvent.click(start);
 
+    // §10 destructive-armed says it with type, not with a line and not with a
+    // box: one armed look for every action, because every armed action is one
+    // tap from happening.
     const armed = screen.getByRole("button", { name: "Confirm" });
-    expect(armed.style.borderBottomColor).toBe("var(--accent)");
-    expect(armed.style.borderBottomWidth).toBe(widthBefore);
+    expect(armed).toHaveAttribute("data-tone", "destructive");
+    expect(armed.style.color).toBe("var(--error-text)");
+    expect(armed.style.borderBottomWidth).toBe("");
     expect(armed.style.backgroundColor).toBe("");
   });
 
@@ -470,9 +438,9 @@ describe("MaintenanceSection — hairline rows, no cards", () => {
 
     const duration = screen.getByText("примерно 20 минут");
     expect(duration).toHaveAttribute("data-ui", "action-duration");
-    // The row it belongs to is still the Easy Clean row, above its action word.
+    // The row it belongs to is still the Easy clean row, above its action word.
     expect(duration.closest("div.settings-card-enter")!.textContent).toContain(
-      "Easy Clean",
+      "Easy clean",
     );
   });
 

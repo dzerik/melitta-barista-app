@@ -1,19 +1,42 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
+  ActionBand,
   Commit,
+  Dot,
   DrinkStage,
+  Field,
+  Glyph,
+  GLYPH_OPACITY,
+  GLYPH_OPACITY_UNLIT,
+  GLYPH_PX,
+  Heading,
   Meter,
   MeterField,
   Option,
   OptionRow,
+  Panel,
   Rule,
   TickRing,
+  Word,
   completedTicks,
   filledSegments,
+  truthScale,
+  underlineSlot,
+  HANG,
+  INPUT_RULE,
+  PANEL_PAD,
+  RAIL_TEXT,
   TICK_COUNT,
+  TRUTH_CEIL,
+  TRUTH_FLOOR,
+  TRUTH_UNSERVED,
+  UNDERLINE_W,
+  UNDERLINE_W_NAV,
 } from "../src/components/ui";
+import { CoffeeIcon } from "../src/components/CoffeeIcon";
+import { CARVE_OUTS } from "./hard-rules";
 
 /* ══════════════════════════════════════════════════════════════════════
    The underline contract (owner decision 1, §C3.1)
@@ -538,11 +561,742 @@ describe("Rule", () => {
 });
 
 /* ══════════════════════════════════════════════════════════════════════
+   Word — acting, and therefore NOT underlined (C5, R8)
+   ══════════════════════════════════════════════════════════════════════ */
+describe("Word — the bare secondary action", () => {
+  it("wears no underline at all: a rule under a word says 'chosen'", () => {
+    render(<Word label="Отмена" onClick={() => {}} />);
+    const el = screen.getByRole("button", { name: "Отмена" });
+
+    expect(el.style.borderBottomWidth).toBe("");
+    expect(el.style.borderBottomStyle).toBe("");
+    expect(el.style.borderBottomColor).toBe("");
+    // ...and it is not an Option in disguise, so nothing reserves a slot.
+    expect(el).not.toHaveAttribute("data-underline");
+    expect(el).toHaveAttribute("data-ui", "word");
+  });
+
+  it("paints nothing and rounds nothing", () => {
+    render(<Word label="Отмена" onClick={() => {}} />);
+    const el = screen.getByRole("button", { name: "Отмена" });
+    expect(el.style.backgroundColor).toBe("");
+    expect(el.style.borderRadius).toBe("0px");
+    expect(el.style.boxShadow).toBe("");
+  });
+
+  it("carries rank in ink, at one type step for every tone", () => {
+    const ink = (tone: "quiet" | "strong" | "destructive") => {
+      const { container, unmount } = render(
+        <Word label="Отмена" tone={tone} onClick={() => {}} />,
+      );
+      const el = container.firstElementChild as HTMLElement;
+      const out = [el.style.color, el.className.includes("t-body")] as const;
+      unmount();
+      return out;
+    };
+
+    expect(ink("quiet")).toEqual(["var(--text-secondary)", true]);
+    expect(ink("strong")).toEqual(["var(--text-primary)", true]);
+    expect(ink("destructive")).toEqual(["var(--error-text)", true]);
+  });
+
+  it("carries a word beside its glyph — the disclosure is never naked (R8)", () => {
+    render(
+      <Word
+        label="Подробнее"
+        icon={<svg data-testid="chevron" width={16} height={16} />}
+        onClick={() => {}}
+      />,
+    );
+    const el = screen.getByRole("button", { name: "Подробнее" });
+
+    expect(el).toHaveTextContent("Подробнее");
+    expect(screen.getByTestId("chevron")).toBeInTheDocument();
+    // The glyph is decoration; the word is the accessible name.
+    expect(screen.getByTestId("chevron").parentElement).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+  });
+
+  it("can announce and perform collapse, which its predecessor could not", async () => {
+    const onClick = vi.fn();
+    const { rerender } = render(
+      <Word label="Подробнее" ariaExpanded={false} onClick={onClick} />,
+    );
+    expect(screen.getByRole("button", { name: "Подробнее" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Подробнее" }));
+    expect(onClick).toHaveBeenCalledTimes(1);
+
+    rerender(<Word label="Подробнее" ariaExpanded onClick={onClick} />);
+    expect(screen.getByRole("button", { name: "Подробнее" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+  });
+
+  it("keeps its 48px reach and press feedback", () => {
+    render(<Word label="Отмена" onClick={() => {}} />);
+    const el = screen.getByRole("button", { name: "Отмена" });
+    expect(el.className).toContain("tap");
+    expect(el.className).toContain("press");
+  });
+
+  it("swaps to the progressive verb at opacity .5 while busy, refusing taps", async () => {
+    const onClick = vi.fn();
+    render(
+      <Word label="Сбросить" busyLabel="Сбрасываем…" busy onClick={onClick} />,
+    );
+    const el = screen.getByRole("button", { name: "Сбрасываем…" });
+
+    expect(screen.queryByText("Сбросить")).not.toBeInTheDocument();
+    expect(el.style.opacity).toBe("0.5");
+    expect(el).toHaveAttribute("aria-busy", "true");
+    await userEvent.click(el).catch(() => {});
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("dims to 0.35 and refuses taps when disabled", async () => {
+    const onClick = vi.fn();
+    render(<Word label="Отмена" disabled onClick={onClick} />);
+    const el = screen.getByRole("button", { name: "Отмена" });
+
+    expect(el.style.opacity).toBe("0.35");
+    await userEvent.click(el).catch(() => {});
+    expect(onClick).not.toHaveBeenCalled();
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+   Field — one hairline under every input in the app (C6)
+   ══════════════════════════════════════════════════════════════════════ */
+describe("Field — the underline input", () => {
+  it("is a line to write on: no fill, no box, no radius, one rule", () => {
+    const { container } = render(
+      <Field label="Название" value="Утренний" onChange={() => {}} />,
+    );
+    const input = container.querySelector<HTMLInputElement>(
+      '[data-ui="field-input"]',
+    )!;
+
+    expect(input.style.backgroundColor).toBe("transparent");
+    expect(input.style.borderRadius).toBe("0px");
+    expect(input.style.paddingLeft).toBe("0px");
+    expect(input.style.outline).toBe("none");
+    expect(input.style.borderBottomStyle).toBe("solid");
+  });
+
+  it("takes its hairline colour and width from the tokens, not from a literal", () => {
+    const { container } = render(<Field value="" onChange={() => {}} ariaLabel="URL" />);
+    const input = container.querySelector<HTMLInputElement>(
+      '[data-ui="field-input"]',
+    )!;
+
+    expect(input.style.borderBottomColor).toBe(INPUT_RULE);
+    expect(INPUT_RULE).toBe("var(--input-border)");
+    expect(input.style.borderBottomWidth).toBe(UNDERLINE_W);
+    expect(UNDERLINE_W).toBe("var(--underline-w)");
+  });
+
+  it("keeps the 48px reach on the input itself, where the pointer lands", () => {
+    const { container } = render(<Field value="" onChange={() => {}} ariaLabel="URL" />);
+    const input = container.querySelector<HTMLInputElement>(
+      '[data-ui="field-input"]',
+    )!;
+    expect(input.style.minHeight).toBe("var(--tap)");
+  });
+
+  it("passes type, inputMode, bounds and aria straight through", () => {
+    const { container } = render(
+      <Field
+        value={120}
+        type="number"
+        inputMode="numeric"
+        min={30}
+        max={240}
+        step={10}
+        ariaLabel="Порция"
+        ariaDescribedBy="hint"
+        onChange={() => {}}
+      />,
+    );
+    const input = container.querySelector<HTMLInputElement>(
+      '[data-ui="field-input"]',
+    )!;
+
+    expect(input.type).toBe("number");
+    expect(input).toHaveAttribute("inputmode", "numeric");
+    expect(input).toHaveAttribute("min", "30");
+    expect(input).toHaveAttribute("max", "240");
+    expect(input).toHaveAttribute("step", "10");
+    expect(input).toHaveAttribute("aria-describedby", "hint");
+    expect(input).toHaveAccessibleName("Порция");
+    // §7.6 — a machine number is tabular, spelled `.num` and never `tabular-nums`.
+    expect(input.className).toContain("num");
+    expect(input.className).not.toContain("tabular-nums");
+  });
+
+  it("names itself from its visible label when no ariaLabel is given", () => {
+    render(<Field label="Название" value="" onChange={() => {}} />);
+    expect(screen.getByRole("textbox")).toHaveAccessibleName("Название");
+  });
+
+  it("reports the raw string on every keystroke", async () => {
+    const onChange = vi.fn();
+    render(<Field label="Название" value="" onChange={onChange} />);
+    await userEvent.type(screen.getByRole("textbox"), "a");
+    expect(onChange).toHaveBeenCalledWith("a");
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+   Panel — the §5.B modal shell (C7, C8, C9, R3)
+   ══════════════════════════════════════════════════════════════════════ */
+describe("Panel", () => {
+  const open = (extra: Partial<React.ComponentProps<typeof Panel>> = {}) =>
+    render(
+      <Panel title="Выбор рецепта" closeLabel="Отмена" onClose={() => {}} {...extra}>
+        <p>тело</p>
+      </Panel>,
+    );
+
+  it("draws a scrim plus ONE flat --surface panel, radius 0, no border or shadow", () => {
+    open();
+    const panel = document.querySelector<HTMLElement>('[data-ui="panel"]')!;
+    const scrim = document.querySelector<HTMLElement>('[data-ui="panel-scrim"]')!;
+
+    expect(scrim.style.backgroundColor).toBe("var(--overlay-bg)");
+    expect(scrim).toHaveAttribute("data-fill", "scrim");
+
+    expect(panel.style.backgroundColor).toBe("var(--surface)");
+    expect(panel.style.borderRadius).toBe("0px");
+    expect(panel.style.boxShadow).toBe("none");
+    expect(panel.style.borderWidth).toBe("");
+    expect(panel).toHaveAttribute("data-fill", "panel");
+    expect(panel.className).not.toMatch(/(^|\s)ring-|(^|\s)rounded|shadow-|backdrop-blur/);
+    // The panel is the only fill inside the scrim: the header, the body and
+    // the close control paint nothing, and the header's hairline is a rule.
+    const inner = Array.from(
+      document.querySelectorAll('[data-ui="panel"] [data-fill]'),
+    ).map((el) => el.getAttribute("data-fill"));
+    expect(inner).toEqual(["rule"]);
+  });
+
+  it("sets the fill with backgroundColor, never the background shorthand (R3)", () => {
+    open();
+    const panel = document.querySelector<HTMLElement>('[data-ui="panel"]')!;
+    // jsdom drops `background: var(--x)` outright, so a shorthand fill is
+    // invisible to every assertion in this repo. This is the regression.
+    expect(panel.style.backgroundColor).not.toBe("");
+    expect(panel.className).not.toContain("surface");
+  });
+
+  it("has ONE header: title left, one close control right, one Rule beneath", () => {
+    open();
+    const header = document.querySelector<HTMLElement>('[data-ui="panel-header"]')!;
+    const heading = header.querySelector("h2")!;
+
+    expect(heading.className).toContain("t-title");
+    expect(heading.className).toContain("text-primary");
+    expect(heading.textContent).toBe("Выбор рецепта");
+    expect(header.style.paddingLeft).toBe(PANEL_PAD);
+
+    const closes = document.querySelectorAll('[data-ui="panel-close"]');
+    expect(closes).toHaveLength(1);
+
+    const rules = document.querySelectorAll('[data-ui="panel"] > [data-ui="rule"]');
+    expect(rules).toHaveLength(1);
+  });
+
+  it("draws the close control as one lucide X at one size in one colour (C9)", () => {
+    open();
+    const close = document.querySelector<HTMLElement>('[data-ui="panel-close"]')!;
+    const svg = close.querySelector("svg")!;
+
+    expect(close).toHaveAccessibleName("Отмена");
+    expect(close.style.color).toBe("var(--text-secondary)");
+    expect(close.style.borderRadius).toBe("0px");
+    expect(svg.getAttribute("width")).toBe("20");
+    expect(svg.getAttribute("height")).toBe("20");
+    expect(svg.classList.contains("lucide-x")).toBe(true);
+    expect(close.className).toContain("tap");
+    expect(close.className).toContain("press");
+  });
+
+  it("offers exactly three measures and no ad-hoc max-w class (C8)", () => {
+    const widths: Record<string, string> = {};
+    (["sm", "md", "lg"] as const).forEach((measure) => {
+      const { unmount } = open({ measure });
+      const panel = document.querySelector<HTMLElement>('[data-ui="panel"]')!;
+      widths[measure] = panel.style.maxWidth;
+      expect(panel).toHaveAttribute("data-measure", measure);
+      expect(panel.className).not.toMatch(/max-w-/);
+      unmount();
+    });
+
+    expect(widths).toEqual({ sm: "28rem", md: "42rem", lg: "56rem" });
+    // md is the default, so a caller that says nothing still lands in the set.
+    open();
+    expect(document.querySelector('[data-ui="panel"]')).toHaveAttribute(
+      "data-measure",
+      "md",
+    );
+  });
+
+  it("is a dialog named by its title, holding its body in one scrolling slot", () => {
+    open();
+    const dialog = screen.getByRole("dialog", { name: "Выбор рецепта" });
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+
+    const body = document.querySelector<HTMLElement>('[data-ui="panel-body"]')!;
+    expect(body.textContent).toBe("тело");
+    expect(body.className).toContain("overflow-y-auto");
+    // Body padding is the caller's: a picker grid runs edge to edge.
+    expect(body.style.padding).toBe("");
+  });
+
+  it("closes from the control, from the scrim and from Escape", async () => {
+    const onClose = vi.fn();
+    render(
+      <Panel title="Выбор" closeLabel="Отмена" onClose={onClose}>
+        <p>тело</p>
+      </Panel>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Отмена" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(document.querySelector('[data-ui="panel-scrim"]')!);
+    expect(onClose).toHaveBeenCalledTimes(2);
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(3);
+
+    // A tap inside the panel is not a tap on the scrim.
+    fireEvent.click(document.querySelector('[data-ui="panel-body"]')!);
+    expect(onClose).toHaveBeenCalledTimes(3);
+  });
+
+  it("hangs its action band below the body, untouched", () => {
+    render(
+      <Panel
+        title="Правка"
+        closeLabel="Отмена"
+        onClose={() => {}}
+        actions={<ActionBand commit={<Commit label="Сохранить" scale="panel" onCommit={() => {}} />} />}
+      >
+        <p>тело</p>
+      </Panel>,
+    );
+    const panel = document.querySelector<HTMLElement>('[data-ui="panel"]')!;
+    const band = panel.querySelector('[data-ui="action-band"]')!;
+    expect(band).toBeInTheDocument();
+    expect(panel.lastElementChild).toBe(band);
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+   ActionBand — one arrangement for every screen that commits (C10)
+   ══════════════════════════════════════════════════════════════════════ */
+describe("ActionBand", () => {
+  const band = (extra: Partial<React.ComponentProps<typeof ActionBand>> = {}) =>
+    render(
+      <ActionBand
+        secondary={<Word label="Отмена" onClick={() => {}} />}
+        commit={<Commit label="Сохранить" scale="panel" onCommit={() => {}} />}
+        {...extra}
+      />,
+    );
+
+  it("opens with the one 2px accent rule the language allows (§8.3)", () => {
+    const { container } = band();
+    const rule = container.querySelector<HTMLElement>('[data-ui="rule"]')!;
+
+    expect(rule.style.height).toBe("2px");
+    expect(rule.style.backgroundColor).toBe("var(--accent)");
+    expect(container.firstElementChild!.firstElementChild).toBe(rule);
+  });
+
+  it("puts the words first at their own width and gives the commit the rest", () => {
+    const { container } = band();
+    const row = container.querySelector<HTMLElement>('[data-ui="action-band-row"]')!;
+    const secondary = row.querySelector<HTMLElement>('[data-ui="action-band-secondary"]')!;
+    const commit = row.querySelector<HTMLElement>('[data-ui="action-band-commit"]')!;
+
+    expect(row.firstElementChild).toBe(secondary);
+    expect(secondary.className).toContain("shrink-0");
+    expect(commit.className).toContain("flex-1");
+    // The commit's width comes from this row, never from its own padding.
+    expect(
+      commit.querySelector<HTMLElement>('[data-ui="commit"]')!.className,
+    ).toContain("w-full");
+  });
+
+  it("holds exactly one commit rectangle", () => {
+    const { container } = band();
+    expect(container.querySelectorAll('[data-fill="commit"]')).toHaveLength(1);
+  });
+
+  it("works with no secondary, and can drop the rule", () => {
+    const { container } = band({ secondary: undefined, rule: false });
+    expect(container.querySelector('[data-ui="action-band-secondary"]')).toBeNull();
+    expect(container.querySelector('[data-ui="rule"]')).toBeNull();
+    expect(container.querySelector('[data-ui="action-band-commit"]')).not.toBeNull();
+  });
+
+  it("offers two gutters and spells the 10px hang once (C23)", () => {
+    const gutter = (inset: "panel" | "rail" | "none") => {
+      const { container, unmount } = band({ inset });
+      const row = container.querySelector<HTMLElement>('[data-ui="action-band-row"]')!;
+      const out = row.style.paddingLeft;
+      unmount();
+      return out;
+    };
+
+    expect(gutter("panel")).toBe(PANEL_PAD);
+    expect(gutter("rail")).toBe(`calc(var(--rail) + ${HANG})`);
+    expect(gutter("none")).toBe("");
+    expect(RAIL_TEXT).toBe("calc(var(--rail) + var(--hang))");
+    expect(HANG).toBe("var(--hang)");
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+   Dot — the position mark (C20, C21)
+   ══════════════════════════════════════════════════════════════════════ */
+describe("Dot", () => {
+  it("is a solid accent disc when current and a hollow ring when not", () => {
+    const { container, rerender } = render(<Dot current />);
+    const el = () => container.firstElementChild as HTMLElement;
+
+    expect(el().style.backgroundColor).toBe("var(--accent)");
+    expect(el().style.borderWidth).toBe("0px");
+
+    rerender(<Dot current={false} />);
+    expect(el().style.backgroundColor).toBe("var(--bg)");
+    expect(el().style.borderWidth).toBe("1px");
+    expect(el().style.borderColor).toBe("var(--accent)");
+  });
+
+  it("never changes size between states — no growing capsule", () => {
+    const size = (current: boolean) => {
+      const { container, unmount } = render(<Dot current={current} />);
+      const el = container.firstElementChild as HTMLElement;
+      const out = [el.style.width, el.style.height, el.style.opacity] as const;
+      unmount();
+      return out;
+    };
+
+    expect(size(true)).toEqual(size(false));
+    expect(size(true)[0]).toBe("var(--dot)");
+  });
+
+  it("is a TRUE circle and declares itself as the radius exception", () => {
+    const { container } = render(<Dot current />);
+    const el = container.firstElementChild as HTMLElement;
+
+    expect(el.style.borderRadius).toBe("50%");
+    expect(el).toHaveAttribute("data-shape", "circle");
+    expect(el.style.width).toBe(el.style.height);
+  });
+
+  it("carries ONE data-fill value for every position mark in the app (C21)", () => {
+    const { container, rerender } = render(<Dot current />);
+    expect(container.firstElementChild).toHaveAttribute("data-fill", "dot");
+    rerender(<Dot current={false} />);
+    expect(container.firstElementChild).toHaveAttribute("data-fill", "dot");
+  });
+
+  it("announces nothing — the reach and the name belong to the button around it", () => {
+    const { container } = render(<Dot current />);
+    const el = container.firstElementChild as HTMLElement;
+    expect(el).toHaveAttribute("aria-hidden", "true");
+    expect(el.tagName.toLowerCase()).toBe("span");
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+   Heading (C31) and Glyph (C27, C28)
+   ══════════════════════════════════════════════════════════════════════ */
+describe("Heading", () => {
+  it("has one type, one colour and one bottom margin", () => {
+    const { container } = render(<Heading>Обслуживание</Heading>);
+    const el = container.firstElementChild as HTMLElement;
+
+    expect(el.tagName.toLowerCase()).toBe("h3");
+    expect(el.className).toContain("t-label");
+    expect(el.className).toContain("text-tertiary");
+    // Weight comes from `.t-label`'s own 500 and is never overridden.
+    expect(el.style.fontWeight).toBe("");
+    expect(el.style.marginBottom).toBe("1rem");
+    expect(el.style.marginTop).toBe("0px");
+    expect(el.className).not.toMatch(/mb-\d|font-semibold|font-bold|text-primary/);
+  });
+
+  it("paints nothing and rounds nothing", () => {
+    const { container } = render(<Heading>Обслуживание</Heading>);
+    const el = container.firstElementChild as HTMLElement;
+    expect(el.style.backgroundColor).toBe("");
+    expect(el.style.borderRadius).toBe("0px");
+  });
+
+  it("spells the 10px hang exactly two ways, both from the token (C23)", () => {
+    const pad = (hang: "none" | "rail" | "inner") => {
+      const { container, unmount } = render(<Heading hang={hang}>Х</Heading>);
+      const out = (container.firstElementChild as HTMLElement).style.paddingLeft;
+      unmount();
+      return out;
+    };
+
+    expect(pad("none")).toBe("");
+    expect(pad("rail")).toBe(RAIL_TEXT);
+    expect(pad("inner")).toBe(HANG);
+  });
+
+  it("can render as another element without changing its look", () => {
+    const { container } = render(<Heading as="h2">Х</Heading>);
+    const el = container.firstElementChild as HTMLElement;
+    expect(el.tagName.toLowerCase()).toBe("h2");
+    expect(el.className).toContain("t-label");
+  });
+});
+
+describe("Glyph", () => {
+  it("has a two-rung ladder and one opacity knock-down", () => {
+    expect(GLYPH_PX).toEqual({ row: 20, state: 80 });
+    expect(GLYPH_OPACITY).toBe(0.6);
+    expect(GLYPH_OPACITY_UNLIT).toBe(0.45);
+  });
+
+  it("draws a raster asset at its rung with the state knock-down", () => {
+    const { container } = render(
+      <Glyph src="/offline.png" alt="Машина офлайн" size="state" />,
+    );
+    const img = container.querySelector<HTMLImageElement>("img")!;
+
+    expect(img.style.width).toBe("80px");
+    expect(img.style.height).toBe("80px");
+    expect(img.style.opacity).toBe("0.6");
+    expect(img).toHaveAttribute("alt", "Машина офлайн");
+    expect(img.style.borderRadius).toBe("0px");
+    expect(img.style.backgroundColor).toBe("");
+  });
+
+  it("lights and unlights a row glyph without moving it", () => {
+    const box = (lit: boolean) => {
+      const { container, unmount } = render(
+        <Glyph src="/x.png" alt="" lit={lit} />,
+      );
+      const img = container.querySelector<HTMLImageElement>("img")!;
+      const out = [img.style.width, img.style.opacity] as const;
+      unmount();
+      return out;
+    };
+
+    expect(box(true)).toEqual(["20px", "1"]);
+    expect(box(false)).toEqual(["20px", "0.45"]);
+  });
+
+  it("hides a decorative mark from the accessibility tree", () => {
+    const { container } = render(<Glyph src="/x.png" alt="" />);
+    const img = container.querySelector<HTMLImageElement>("img")!;
+    expect(img).toHaveAttribute("alt", "");
+    expect(img).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("takes a lucide node on the same ladder, so empties stop being a third idiom", () => {
+    const { container } = render(
+      <Glyph size="state" alt="Пусто">
+        <svg data-testid="lucide" />
+      </Glyph>,
+    );
+    const el = container.firstElementChild as HTMLElement;
+
+    expect(el.style.width).toBe("80px");
+    expect(el.style.opacity).toBe("0.6");
+    expect(screen.getByTestId("lucide")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Пусто" })).toBe(el);
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+   Truth scale (§6.3, C17/H8) and the one reflection (C29, R6)
+   ══════════════════════════════════════════════════════════════════════ */
+describe("truth scale", () => {
+  it("maps a 0–1 magnitude onto the 0.55–1.0 band and clamps outside it", () => {
+    expect(TRUTH_FLOOR).toBe(0.55);
+    expect(TRUTH_CEIL).toBe(1);
+    expect(truthScale(0)).toBeCloseTo(0.55);
+    expect(truthScale(1)).toBeCloseTo(1);
+    expect(truthScale(0.5)).toBeCloseTo(0.775);
+    expect(truthScale(-3)).toBeCloseTo(0.55);
+    expect(truthScale(9)).toBeCloseTo(1);
+    expect(truthScale(Number.NaN)).toBeCloseTo(0.55);
+  });
+
+  it("shrinks CoffeeIcon by its real volume, floor 0.55 and ceiling 1.0", () => {
+    const drawn = (props: Record<string, unknown>) => {
+      const { container, unmount } = render(
+        <CoffeeIcon recipe="Espresso" size={140} {...props} />,
+      );
+      const el = container.querySelector("img,svg")!;
+      const out = el.getAttribute("width");
+      unmount();
+      return out;
+    };
+
+    expect(drawn({})).toBe("140");
+    expect(drawn({ scaleTo: 1 })).toBe("140");
+    expect(drawn({ scaleTo: 0 })).toBe("77");
+    // The unserved fallback is a fixed 0.80×, not a claim to full size.
+    expect(TRUTH_UNSERVED).toBe(0.8);
+    expect(drawn({ scaleTo: TRUTH_UNSERVED })).toBe(
+      String(Math.round(140 * truthScale(0.8))),
+    );
+  });
+
+  it("bottom-aligns in a box of the FULL height so bases line up, tops stay ragged", () => {
+    const { container } = render(
+      <CoffeeIcon recipe="Espresso" size={140} scaleTo={0} baseline />,
+    );
+    const box = container.querySelector<HTMLElement>(
+      '[data-ui="coffee-icon-baseline"]',
+    )!;
+
+    // 140 wide → 93 tall at full size; the shrunken glass hangs off that base.
+    expect(box.style.height).toBe("93px");
+    expect(box.className).toContain("items-end");
+    expect(container.querySelector("img")!.getAttribute("height")).toBe(
+      String(Math.round(77 * (720 / 1080))),
+    );
+  });
+
+  it("renders exactly as before when neither prop is passed", () => {
+    const { container } = render(<CoffeeIcon recipe="Espresso" size={120} />);
+    expect(
+      container.querySelector('[data-ui="coffee-icon-baseline"]'),
+    ).toBeNull();
+    expect(container.firstElementChild!.tagName.toLowerCase()).toBe("img");
+  });
+});
+
+describe("DrinkStage serves any drawn object, so there is one reflection (C29)", () => {
+  const Glass = () => <svg data-testid="glass" width={280} height={350} />;
+
+  it("takes the drawn aspect rather than assuming CoffeeIcon's 720/1080", () => {
+    const { container } = render(
+      <DrinkStage size={280} aspect={150 / 120}>
+        <Glass />
+      </DrinkStage>,
+    );
+    const glow = container.querySelector<HTMLElement>('[data-ui="drink-glow"]')!;
+    // 280 wide × 1.25 = 350 drawn tall — not 187.
+    expect(glow.style.height).toBe("350px");
+    expect(
+      container.querySelector<HTMLElement>('[data-ui="drink-reflection"]')!.style
+        .height,
+    ).toBe("63px");
+  });
+
+  it("puts the horizon on the object's base, not on the bottom of its box", () => {
+    const { container } = render(
+      <DrinkStage size={280} aspect={150 / 120} baseFraction={112 / 150}>
+        <Glass />
+      </DrinkStage>,
+    );
+    const glow = container.querySelector<HTMLElement>('[data-ui="drink-glow"]')!;
+    const contact = container.querySelector<HTMLElement>(
+      '[data-ui="drink-contact"]',
+    )!;
+    const reflection = container.querySelector<HTMLElement>(
+      '[data-ui="drink-reflection"]',
+    )!;
+
+    // 350 drawn tall, base at 261 → 89px of empty drawing below it.
+    expect(glow.style.height).toBe("261px");
+    expect(contact.style.marginTop).toBe("-89px");
+    expect(reflection.style.height).toBe("47px");
+    expect(
+      (reflection.firstElementChild as HTMLElement).style.transform,
+    ).toBe("translateY(-89px) scaleY(-1)");
+  });
+
+  it("mirrors by re-rendering the child, so it needs no colour and works in both themes", () => {
+    const { container } = render(
+      <DrinkStage size={140}>
+        <Glass />
+      </DrinkStage>,
+    );
+    const mirrored = container.querySelector<HTMLElement>(
+      '[data-ui="drink-reflection"]',
+    )!.firstElementChild as HTMLElement;
+
+    expect(screen.getAllByTestId("glass")).toHaveLength(2);
+    expect(mirrored.style.transform).toBe("scaleY(-1)");
+    // No hardcoded rgba anywhere: the mirror is the drink, dimmed and masked.
+    expect(mirrored.style.backgroundColor).toBe("");
+    expect(mirrored.style.color).toBe("");
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+   The token helpers (C24)
+   ══════════════════════════════════════════════════════════════════════ */
+describe("underlineSlot — one declaration of how thick an underline is", () => {
+  it("always declares the slot and inks it only when chosen", () => {
+    expect(underlineSlot(false)).toEqual({
+      borderBottomWidth: "var(--underline-w)",
+      borderBottomStyle: "solid",
+      borderBottomColor: "transparent",
+      borderRadius: 0,
+    });
+    expect(underlineSlot(true).borderBottomColor).toBe("var(--accent)");
+  });
+
+  it("doubles at nav level and never anywhere else", () => {
+    expect(underlineSlot(true, "nav").borderBottomWidth).toBe(UNDERLINE_W_NAV);
+    expect(UNDERLINE_W_NAV).toBe("var(--underline-w-nav)");
+  });
+
+  it("keeps the width identical across states, so nothing shifts", () => {
+    expect(underlineSlot(true).borderBottomWidth).toBe(
+      underlineSlot(false).borderBottomWidth,
+    );
+    expect(underlineSlot(true, "nav", { literal: true }).borderBottomWidth).toBe(
+      underlineSlot(false, "nav", { literal: true }).borderBottomWidth,
+    );
+  });
+
+  it("can resolve to px for the one caller whose tests pin the literal", () => {
+    // `Option` takes this path; the measure is still declared once, here.
+    expect(underlineSlot(true, "option", { literal: true }).borderBottomWidth).toBe(
+      "1px",
+    );
+    expect(underlineSlot(true, "nav", { literal: true }).borderBottomWidth).toBe(
+      "2px",
+    );
+  });
+
+  it("is the only way Option writes its slot", () => {
+    render(<Option label="Мягкий" selected onSelect={() => {}} />);
+    const el = screen.getByRole("button", { name: "Мягкий" });
+    const slot = underlineSlot(true, "option", { literal: true });
+
+    expect(el.style.borderBottomWidth).toBe(slot.borderBottomWidth);
+    expect(el.style.borderBottomStyle).toBe(slot.borderBottomStyle);
+    expect(el.style.borderBottomColor).toBe(slot.borderBottomColor);
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════════
    The two hard rules, enforced across the whole primitive set
    ══════════════════════════════════════════════════════════════════════ */
 describe("the hard rules hold across every primitive", () => {
   /** Fills the language permits, each of which must announce itself. */
-  const CARVE_OUTS = new Set(["commit", "meter", "glow", "contact", "rule"]);
 
   const samples: Array<[string, React.ReactElement]> = [
     ["Option (idle)", <Option label="Мягкий" selected={false} onSelect={() => {}} />],
@@ -553,8 +1307,26 @@ describe("the hard rules hold across every primitive", () => {
         <Option label="Бодрый" selected onSelect={() => {}} />
       </OptionRow>,
     ],
+    ["Word", <Word label="Отмена" onClick={() => {}} />],
+    [
+      "Word (destructive, with a glyph)",
+      <Word
+        label="Удалить"
+        tone="destructive"
+        icon={<svg width={16} height={16} />}
+        onClick={() => {}}
+      />,
+    ],
     ["Commit", <Commit label="Заварить" onCommit={() => {}} />],
     ["Commit (busy)", <Commit label="Заварить" busyLabel="Завариваем…" busy onCommit={() => {}} />],
+    [
+      "ActionBand",
+      <ActionBand
+        secondary={<Word label="Отмена" onClick={() => {}} />}
+        commit={<Commit label="Сохранить" scale="panel" onCommit={() => {}} />}
+      />,
+    ],
+    ["Field", <Field label="Название" value="Утренний" onChange={() => {}} />],
     ["Meter", <Meter value={50} max={100} segments={12} />],
     [
       "MeterField",
@@ -567,6 +1339,11 @@ describe("the hard rules hold across every primitive", () => {
       />,
     ],
     ["TickRing", <TickRing value={50} max={100} />],
+    ["Heading", <Heading hang="rail">Обслуживание</Heading>],
+    ["Glyph (row)", <Glyph src="/x.png" alt="" />],
+    ["Glyph (state)", <Glyph src="/x.png" alt="Офлайн" size="state" />],
+    ["Dot (current)", <Dot current />],
+    ["Dot (idle)", <Dot current={false} />],
     [
       "DrinkStage",
       <DrinkStage size={140}>
@@ -574,6 +1351,12 @@ describe("the hard rules hold across every primitive", () => {
       </DrinkStage>,
     ],
     ["Rule", <Rule rail />],
+    [
+      "Panel",
+      <Panel title="Правка" closeLabel="Отмена" portal={false} onClose={() => {}}>
+        <p>тело</p>
+      </Panel>,
+    ],
   ];
 
   it.each(samples)("%s emits no radius other than 0", (_name, element) => {
@@ -582,9 +1365,17 @@ describe("the hard rules hold across every primitive", () => {
 
     all.forEach((el) => {
       const radius = el.style?.borderRadius ?? "";
+      // The one exception the language grants: a TRUE circle, which must say
+      // so and must be as wide as it is tall.
+      if (el.getAttribute("data-shape") === "circle") {
+        expect(radius).toBe("50%");
+        expect(el.style.width).toBe(el.style.height);
+        return;
+      }
       if (radius !== "") expect(radius).toBe("0px");
       // No Tailwind radius utility either — not even rounded-full, which the
-      // primitives have no use for: their only circle is drawn in SVG.
+      // primitives have no use for: their only circle is drawn in SVG or
+      // declared as `data-shape="circle"`.
       expect(String(el.className)).not.toMatch(/(^|\s)rounded/);
     });
   });
@@ -598,6 +1389,8 @@ describe("the hard rules hold across every primitive", () => {
         (el.style?.backgroundColor ?? "") !== "" ||
         (el.style?.backgroundImage ?? "") !== "";
       if (!painted) return;
+      // A transparent ground is the absence of a fill, not a fill.
+      if ((el.style?.backgroundColor ?? "") === "transparent") return;
       const declared = el.getAttribute("data-fill");
       expect(
         declared !== null && CARVE_OUTS.has(declared),
@@ -617,5 +1410,22 @@ describe("the hard rules hold across every primitive", () => {
       expect(String(el.className)).not.toMatch(/shadow-/);
       expect(String(el.className)).not.toMatch(/tracking-|uppercase/);
     });
+  });
+
+  it.each(samples)("%s says 'tabular' one way, and it is `.num` (C25)", (_name, element) => {
+    const { container } = render(element);
+    container.querySelectorAll<HTMLElement>("*").forEach((el) => {
+      expect(String(el.className)).not.toMatch(/(^|\s)tabular-nums(\s|$)/);
+    });
+  });
+
+  it.each(samples)("%s never underlines an action word", (_name, element) => {
+    const { container } = render(element);
+    container
+      .querySelectorAll<HTMLElement>('[data-ui="word"]')
+      .forEach((el) => {
+        expect(el.style.borderBottomWidth).toBe("");
+        expect(el.style.borderBottomColor).toBe("");
+      });
   });
 });

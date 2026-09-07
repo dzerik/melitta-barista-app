@@ -60,7 +60,9 @@ describe("LanguageSelect — visual contract", () => {
     expect(trigger.style.backgroundColor).toBe("");
     expect(trigger.style.backgroundImage).toBe("");
     expect(trigger.style.borderRadius).toBe("0px");
-    expect(trigger.style.borderBottomWidth).toBe("1px");
+    // C6/C24: one input rule in the app — `--input-border` at the shared
+    // `--underline-w`, never a literal 1px and never `--border`.
+    expect(trigger.style.borderBottomWidth).toBe("var(--underline-w)");
     expect(trigger.style.borderBottomColor).toBe("var(--input-border)");
     expect(trigger.getAttribute("class")).not.toMatch(/rounded-|ring-/);
     expect(trigger.className).toContain("tap");
@@ -93,7 +95,10 @@ describe("LanguageSelect — visual contract", () => {
     expect(rows[1].style.borderTopColor).toBe("var(--border)");
   });
 
-  it("selection is value and weight plus an accent check, never a fill", () => {
+  // The mark is the field research's "outline glyph → solid twin": the check
+  // is drawn in the same `--text-primary` ink as the chosen word, never in the
+  // accent (owner decision 1 reserves that), and never as a filled row.
+  it("selection is value and weight plus a check in the chosen word's own ink", () => {
     const { trigger } = setup();
     fireEvent.click(trigger);
     const rows = screen.getAllByRole("option") as HTMLElement[];
@@ -102,7 +107,9 @@ describe("LanguageSelect — visual contract", () => {
     expect(selected.style.color).toBe("var(--text-primary)");
     expect(selected.style.fontWeight).toBe("600");
     expect(selected.style.backgroundColor).toBe("");
-    expect(selected.querySelector("svg")).not.toBeNull();
+    const check = selected.querySelector("svg");
+    expect(check).not.toBeNull();
+    expect(check!.style.color).toBe("var(--text-primary)");
     expect(other.style.color).toBe("var(--text-secondary)");
     expect(other.querySelector("svg")).toBeNull();
   });

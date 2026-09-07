@@ -117,3 +117,91 @@ describe("i18n bundle parity", () => {
     }
   });
 });
+
+/* ══════════════════════════════════════════════════════════════════════
+   §7.5 — SENTENCE CASE (C33)
+   ══════════════════════════════════════════════════════════════════════
+   The sweep that fixed `settings.*` left the rows drawn beside them in Title
+   Case, so one 80px list read "Energy saving" over "Easy Clean". These two
+   tests are what stops the next key from arriving Title-Cased: the rule is not
+   a preference an author has to remember, it is a bundle-wide invariant.
+*/
+
+/**
+ * Words that keep their capital wherever they land: product and platform
+ * names, and the acronyms the app cannot spell out.
+ */
+const PROPER_NOUNS = new Set([
+  "Melitta",
+  "Barista",
+  "Home",
+  "Assistant",
+  "Sommelier", // the product name "AI Sommelier"
+  "Settings", // names a tab of the HA panel, as the user reads it there
+  "Bluetooth",
+  "AI",
+  "HA",
+  "URL",
+  "LLM",
+  "OK",
+]);
+
+/**
+ * The DirectKey labels are exempt as a group. They are not sentence-case
+ * failures: the machine itself reports these drinks as "Milk Froth" and
+ * "Hot Water" (src/lib/entities.ts maps exactly those strings, CoffeeIcon
+ * keys its artwork on them), so a sentence-cased category label would put two
+ * spellings of one drink on one screen — the list view showing the machine's
+ * name beside the category's.
+ */
+const DRINK_NAME_KEYS = /^brew\.dk_/;
+
+/** Splits on sentence ends, so a capital that legitimately OPENS a sentence
+ *  is never read as Title Case. `:` and `→` end a clause the same way here —
+ *  the connect hint's "HA → Profile → …" is a menu path, not a sentence — and
+ *  so does `+`, which joins two whole labels ("Arabica + Robusta"): the second
+ *  is a label in its own right and opens with its own capital. */
+function interiorWords(value: string): string[] {
+  return value
+    .split(/(?<=[.!?:→+])\s+/)
+    .flatMap((sentence) => sentence.split(/\s+/).slice(1))
+    .map((word) => word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ""))
+    .filter(Boolean);
+}
+
+describe("§7.5 sentence case", () => {
+  it("en.json Title-Cases nothing but a proper noun", () => {
+    const offenders: string[] = [];
+    for (const [key, value] of Object.entries(en as Record<string, string>)) {
+      if (DRINK_NAME_KEYS.test(key)) continue;
+      for (const word of interiorWords(value)) {
+        // A capital mid-sentence is Title Case unless the word is a name.
+        if (/^\p{Lu}\p{Ll}+$/u.test(word) && !PROPER_NOUNS.has(word)) {
+          offenders.push(`${key}: "${value}" (${word})`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  // §7.5 permits exactly one all-caps string in the app — a 3-letter language
+  // code, which no bundle carries. `brew.two_cups_on` was "2x ON" (R4); this
+  // is what keeps it from coming back in any of the 29 bundles.
+  it("no bundle shouts", () => {
+    // Acronyms are not shouting. `KI` is German for AI; `ОК` is the Cyrillic
+    // spelling of the same two letters.
+    const ACRONYMS = new Set([...PROPER_NOUNS, "KI", "ОК"]);
+    const offenders: string[] = [];
+    for (const [path, bundle] of Object.entries(BUNDLES)) {
+      for (const [key, value] of Object.entries(bundle)) {
+        for (const word of String(value).split(/[\s/–—-]+/)) {
+          const core = word.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, "");
+          if (core.length > 1 && /^\p{Lu}+$/u.test(core) && !ACRONYMS.has(core)) {
+            offenders.push(`${localeName(path)}.${key}: "${value}"`);
+          }
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});

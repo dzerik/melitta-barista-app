@@ -4,7 +4,7 @@ import { usePreferences } from "../lib/preferences";
 import type { MismatchDirection } from "../lib/contract";
 import { ShieldCheck } from "lucide-react";
 import { LanguageSelect } from "./LanguageSelect";
-import { Commit, Rule } from "./ui";
+import { Commit, Field, Glyph, Rule, Word } from "./ui";
 import logoMelitta from "../assets/logo_melitta.png";
 import machineImg from "../assets/machine.png";
 
@@ -19,33 +19,6 @@ interface MismatchProps {
   direction: MismatchDirection;
   onDisconnect?: () => void;
 }
-
-/**
- * A bare word carrying a 1px `--border` underline — the form of every
- * non-committing action in the app (§C5a). No fill, no ring, no radius.
- */
-const WORD_ACTION = {
-  borderRadius: 0,
-  borderBottomWidth: "1px",
-  borderBottomStyle: "solid" as const,
-  borderBottomColor: "var(--border)",
-};
-
-/**
- * §R1.6 — a text field is a line to write on, and it is the app's only input
- * form: transparent ground, one 1px rule underneath, no box, no radius, no
- * ring. The label above it carries the naming; the rule carries the affordance.
- */
-const UNDERLINE_INPUT = {
-  borderRadius: 0,
-  // §C3.6: no control is under 48px of reach, an input included.
-  minHeight: "var(--tap)",
-  backgroundColor: "transparent",
-  borderBottomWidth: "1px",
-  borderBottomStyle: "solid" as const,
-  borderBottomColor: "var(--input-border)",
-  color: "var(--text-primary)",
-};
 
 /** The commit is a submit button; the form itself owns submission. */
 const SUBMIT_HANDLED_BY_FORM = () => {};
@@ -62,23 +35,28 @@ export function VersionMismatchScreen({ direction, onDisconnect }: MismatchProps
 
   return (
     <div className="flex h-full items-center justify-center p-6 bg-page">
-      <div className="flex flex-col items-center text-center space-y-4 max-w-md">
+      {/* §G2.3: the one permitted cap is the prose measure, and the app's
+          three full-screen blocked/empty columns (here, the ResolutionGuard
+          block, App's "looking for the integration") now share it rather than
+          each picking its own `max-w-*`. */}
+      <div className="flex flex-col items-center text-center space-y-4 max-w-prose">
         <img src={logoMelitta} alt="Melitta" className="h-10 object-contain" draggable={false} />
-        <img src={machineImg} alt="" className="h-24 object-contain opacity-50" draggable={false} />
+        {/* §6.6 / C27: a blocked page's mark is the `state` rung, 80px at the
+            one knock-down — not an `h-24` picked here and nowhere else. */}
+        <Glyph src={machineImg} size="state" />
         <h2 className="t-title text-primary">
           {t(isAppOld ? "contract.update_app_title" : "contract.update_integration_title")}
         </h2>
         <p className="t-body text-tertiary leading-relaxed">
           {t(isAppOld ? "contract.update_app_desc" : "contract.update_integration_desc")}
         </p>
+        {/* C5: an action, so no underline — that mark means "chosen" here. */}
         {onDisconnect && (
-          <button
+          <Word
+            label={t("app.disconnect")}
             onClick={onDisconnect}
-            className="tap press mt-4 t-body text-secondary hover:text-primary"
-            style={WORD_ACTION}
-          >
-            {t("app.disconnect")}
-          </button>
+            className="mt-4"
+          />
         )}
       </div>
     </div>
@@ -101,8 +79,16 @@ export function ConnectScreen({ onConnect, error, connecting }: Props) {
   const [token, setToken] = useState(saved.token);
   const { t, locale, setLocale } = usePreferences();
 
+  // `Field` is the app's one input form and it does not carry `required` — the
+  // native validation bubble is a rounded, filled, system-drawn box, which is
+  // the one shape this language has no room for. The same guarantee is spelled
+  // in the language instead: an incomplete form leaves the commit at §10's
+  // disabled value, and the handler refuses it either way.
+  const complete = url.trim() !== "" && token.trim() !== "";
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!complete) return;
     const cleanUrl = url.replace(/\/+$/, "");
     saveConfig(cleanUrl, token);
     onConnect(cleanUrl, token);
@@ -119,37 +105,31 @@ export function ConnectScreen({ onConnect, error, connecting }: Props) {
           </p>
         </div>
 
+        {/* C6/C24: two lines to write on, and `Field` owns the line. It reads
+            `--underline-w` for the weight and `--input-border` for the ink, so
+            the three rival hairline colours under the one input role collapse
+            to the one token that exists for it. */}
         <div className="space-y-4">
-          <div>
-            <label htmlFor="connect-url" className="block t-label text-secondary mb-1">
-              {t("connect.url_label")}
-            </label>
-            <input
-              id="connect-url"
-              type="url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="http://homeassistant.local:8123"
-              className="w-full px-0 py-3 t-body outline-none transition"
-              style={UNDERLINE_INPUT}
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="connect-token" className="block t-label text-secondary mb-1">
-              {t("connect.token_label")}
-            </label>
-            <input
-              id="connect-token"
-              type="password"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              placeholder="eyJhbGciOiJIUzI1NiIs..."
-              className="w-full px-0 py-3 t-body outline-none transition"
-              style={UNDERLINE_INPUT}
-              required
-            />
-          </div>
+          <Field
+            id="connect-url"
+            type="url"
+            label={t("connect.url_label")}
+            value={url}
+            onChange={setUrl}
+            placeholder="http://homeassistant.local:8123"
+            autoComplete="url"
+            spellCheck={false}
+          />
+          <Field
+            id="connect-token"
+            type="password"
+            label={t("connect.token_label")}
+            value={token}
+            onChange={setToken}
+            placeholder="eyJhbGciOiJIUzI1NiIs..."
+            autoComplete="current-password"
+            spellCheck={false}
+          />
         </div>
 
         {/* §10 error: `--error-text` type between two 1px `--error-border`
@@ -172,6 +152,7 @@ export function ConnectScreen({ onConnect, error, connecting }: Props) {
           label={t("connect.button")}
           busyLabel={t("connect.connecting")}
           busy={connecting}
+          disabled={!complete}
           onCommit={SUBMIT_HANDLED_BY_FORM}
         />
 

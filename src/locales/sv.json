@@ -91,7 +91,6 @@
   "sommelier.generate": "Generera",
   "sommelier.hopper": "Bönbehållare",
   "sommelier.surprise_me": "Överraska mig",
-  "sommelier.brew": "Brygg",
   "sommelier.brewing": "Brygger…",
   "sommelier.favorite": "Lägg till i favoriter",
   "sommelier.remove": "Ta bort",
@@ -149,5 +148,14 @@
   "wizard.machine.failed": "Bryggningen misslyckades",
   "wizard.machine.confirm": "Bekräfta",
   "wizard.finish.button": "Stäng",
-  "wizard.close.stay": "Stanna"
+  "wizard.close.stay": "Stanna",
+  "app.decrease": "Minska",
+  "app.increase": "Öka",
+  "app.page": "Sida {n}",
+  "freestyle.drink_name": "Dryckens namn",
+  "app.close": "Stäng",
+  "brew.two_cups": "2x",
+  "brew.two_cups_on": "2x på",
+  "app.previous": "Föregående",
+  "app.next": "Nästa"
 }

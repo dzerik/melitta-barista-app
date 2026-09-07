@@ -15,64 +15,10 @@ import { renderWithProviders } from "./test-utils";
 import { SommelierHistory } from "../src/components/SommelierHistory";
 import { SommelierFavorites } from "../src/components/SommelierFavorites";
 import { StatsSection } from "../src/components/StatsSection";
+import en from "../src/locales/en.json";
 import type { useSommelier } from "../src/hooks/useSommelier";
+import { hardRuleViolations } from "./hard-rules";
 
-/**
- * The two hard rules, read off the rendered tree.
- *
- * Radius: only a true circle (50%) survives; every other rounding — inline or
- * via a `rounded-*` utility — is a violation. Fill: an element that paints a
- * background must DECLARE what the paint is, and only the §5 carve-outs are
- * legal names.
- */
-/**
- * The primitives' allowlist, extended by the two carve-outs this pass needed:
- * `scrim`/`panel` (§5.A/§5.B, the details drawer) and `ground` — §S4.3's
- * 1px-gap mosaic, where a cell paints `--bg` to let the page ground show
- * through the hairline grid rather than to give itself a surface. `ground` is
- * held to that one value below, so it cannot become a licence for a tint.
- */
-const LEGAL_FILLS = new Set([
-  "commit",
-  "meter",
-  "glow",
-  "contact",
-  "rule",
-  "scrim",
-  "panel",
-  "ground",
-]);
-
-function hardRuleViolations(root: HTMLElement): string[] {
-  const found: string[] = [];
-  for (const el of Array.from(root.querySelectorAll<HTMLElement>("*"))) {
-    const cls = el.getAttribute("class") ?? "";
-    if (/(^|\s)rounded-/.test(cls)) found.push(`rounded class: ${cls}`);
-    if (/(^|\s)ring-[0-9]/.test(cls)) found.push(`ring class: ${cls}`);
-    if (/(^|\s)shadow-/.test(cls)) found.push(`shadow class: ${cls}`);
-    if (/tracking-(wide|widest)/.test(cls)) found.push(`tracking class: ${cls}`);
-    if (/(^|\s)uppercase(\s|$)/.test(cls)) found.push(`uppercase class: ${cls}`);
-
-    const radius = el.style.borderRadius;
-    if (radius && radius !== "0px" && radius !== "0" && radius !== "50%") {
-      found.push(`inline radius: ${radius}`);
-    }
-    if (el.style.letterSpacing) found.push(`inline letterSpacing: ${el.style.letterSpacing}`);
-    if (el.style.boxShadow && el.style.boxShadow !== "none") {
-      found.push(`inline boxShadow: ${el.style.boxShadow}`);
-    }
-
-    const paints = Boolean(el.style.backgroundColor) || Boolean(el.style.backgroundImage);
-    const declared = el.getAttribute("data-fill");
-    if (paints && (declared === null || !LEGAL_FILLS.has(declared))) {
-      found.push(`undeclared fill: ${el.tagName}.${cls} → ${declared ?? "(none)"}`);
-    }
-    if (declared === "ground" && el.style.backgroundColor !== "var(--bg)") {
-      found.push(`"ground" fill that is not the page ground: ${el.style.backgroundColor}`);
-    }
-  }
-  return found;
-}
 
 type SommelierHook = ReturnType<typeof useSommelier>;
 
@@ -274,6 +220,80 @@ describe("the sommelier drink cell", () => {
     // Retired: the 84px left-rail thumbnail. A cell's glass is 140.
     const img = stage.querySelector("img");
     if (img) expect(img.getAttribute("width")).not.toBe("84");
+
+    // C11 — the name is set at the same type step a Recipes cell uses. It
+    // read `t-title` here, two steps up from the identical cell next door.
+    expect(name.className).toContain("t-body");
+    expect(name.className).not.toContain("t-title");
+  });
+
+  it("scales a cell's glass to its volume on a common baseline (§6.3)", () => {
+    // Two drinks in one generation, one twice the pour of the other: the
+    // bases land on one line and the glasses do NOT come out the same size.
+    const session = {
+      ...SESSION,
+      recipes: [
+        recipe("r1", "Long", {
+          machine_phases: [{ component: { ...COFFEE, portion_ml: 200 }, user_action_before: [] }],
+        }),
+        recipe("r2", "Short", {
+          machine_phases: [{ component: { ...COFFEE, portion_ml: 30 }, user_action_before: [] }],
+        }),
+      ],
+    };
+    const { container } = renderWithProviders(
+      <SommelierHistory sommelier={hook({ history: [session] as never })} />,
+    );
+
+    const cells = Array.from(container.querySelectorAll('[data-ui="sommelier-cell"]'));
+    const drawn = cells.map(
+      (cell) => Number(cell.querySelector("img")!.getAttribute("width")),
+    );
+    expect(drawn[0]).toBeGreaterThan(drawn[1]);
+    // The band is 0.55×–1.0× of the 140px cell glass, never outside it.
+    expect(drawn[0]).toBe(140);
+    expect(drawn[1]).toBeGreaterThanOrEqual(Math.round(140 * 0.55));
+
+    // The shrunken glass still reserves the full box, so bases align.
+    for (const cell of cells) {
+      const box = cell.querySelector<HTMLElement>('[data-ui="coffee-icon-baseline"]')!;
+      expect(box).toBeTruthy();
+      expect(box.style.height).toBe(`${Math.round(140 * (720 / 1080))}px`);
+    }
+  });
+
+  it("splits the number from its unit in the value strip (C22)", () => {
+    const { container } = renderWithProviders(
+      <SommelierHistory sommelier={hook({ history: [SESSION] as never })} />,
+    );
+    const cell = container.querySelector('[data-ui="sommelier-cell"]')!;
+    const strip = cell.children[3] as HTMLElement;
+
+    // …the label half in accent, the figure in primary, the unit one value
+    // step quieter — three spans, never one baked "40 ml" string.
+    const value = Array.from(strip.querySelectorAll("span")).find(
+      (s) => s.textContent?.trim() === "40",
+    )!;
+    expect(value).toBeTruthy();
+    expect(value.className).toContain("num");
+    expect(value.className).toContain("text-primary");
+    const unit = value.nextElementSibling as HTMLElement;
+    expect(unit.textContent).toBe(" ml");
+    expect(unit.className).toContain("text-tertiary");
+  });
+
+  it("gives the details disclosure a word beside its chevron, and it toggles (R8)", () => {
+    renderWithProviders(<SommelierHistory sommelier={hook({ history: [SESSION] as never })} />);
+    const details = screen.getAllByRole("button", { name: /details/i })[0];
+
+    // Not a naked 16px chevron: the quietest target in the cell now says
+    // what it does, and `aria-expanded` is a live contract in both directions.
+    expect(details.textContent).toContain("Details");
+    expect(details.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(details);
+    expect(
+      screen.getAllByRole("button", { name: /details/i })[0].getAttribute("aria-expanded"),
+    ).toBe("true");
   });
 
   it("brews from a bare word — no chip, and no underline either", () => {
@@ -286,10 +306,16 @@ describe("the sommelier drink cell", () => {
     // one: eight cells each underlining their verb read as eight selections.
     expect(brew.style.borderBottomColor).toBe("");
     expect(brew.style.borderBottomWidth).toBe("");
-    // §7.7 — the same verb must not sit two type steps below the Recipes Brew.
+    // §7.7 / C3 — the same verb must not sit two type steps below the
+    // Recipes Brew, and `Word` has exactly one type step for that reason.
     expect(brew.className).toContain("t-body");
     expect(brew.className).toContain("tap");
     expect(brew.className).toContain("press");
+    expect(brew.getAttribute("data-ui")).toBe("word");
+    // C2 — one verb, one key. `sommelier.brew` had drifted to a different
+    // Russian word from `brew.brew` and nothing in the app caught it.
+    expect(brew.textContent).toBe(en["brew.brew"]);
+    expect(en).not.toHaveProperty("sommelier.brew");
   });
 
   it("opens the details drawer as a scrim over one flat panel", () => {
@@ -309,6 +335,16 @@ describe("the sommelier drink cell", () => {
     expect(panel.style.borderRadius).toBe("0px");
     expect(panel.style.boxShadow).toBe("none");
     expect(screen.getByText("Long evening")).toBeTruthy();
+
+    // C7/C8/C9/R3 — the shared `Panel`: one measure, one header, one close
+    // control (an X, not this file's private ChevronUp), and the fill set as
+    // a `backgroundColor` longhand rather than through the `surface` class,
+    // whose `background` shorthand jsdom drops entirely.
+    expect(panel.getAttribute("data-ui")).toBe("panel");
+    expect(panel.getAttribute("data-measure")).toBe("lg");
+    expect(panel.style.backgroundColor).toBe("var(--surface)");
+    expect(panel.className).not.toContain("surface");
+    expect(panel.querySelector('[data-ui="panel-close"]')).toBeTruthy();
   });
 });
 
@@ -332,36 +368,69 @@ describe("the sommelier lists page instead of scrolling", () => {
     expect(matrix.className).not.toMatch(/max-w-/);
   });
 
-  it("marks position with 8px circles — a solid disc now, rings for the rest", () => {
+  it("marks position with the shared Dot — a solid disc now, rings for the rest", () => {
     const { container } = renderWithProviders(
       <SommelierFavorites sommelier={hook({ favorites: manyFavorites(12) as never })} />,
     );
-    const dots = Array.from(container.querySelectorAll<HTMLElement>('[data-ui="pager-dot"]'));
+    // C20 — one implementation of the mark, not a third hand-rolled copy.
+    const dots = Array.from(container.querySelectorAll<HTMLElement>('[data-ui="dot"]'));
     expect(dots.length).toBe(2);
-    expect(dots.map((d) => d.dataset.selected)).toEqual(["true", "false"]);
+    expect(dots.map((d) => d.dataset.current)).toEqual(["true", "false"]);
     for (const dot of dots) {
       expect(dot.style.width).toBe("var(--dot)");
       expect(dot.style.height).toBe("var(--dot)");
       expect(dot.style.borderRadius).toBe("50%");
+      // C21 — a position mark declares itself "dot", which is what the fill
+      // inventory is queried on. This copy used to claim "meter".
+      expect(dot.getAttribute("data-fill")).toBe("dot");
     }
     expect(dots[0].style.backgroundColor).toBe("var(--accent)");
+    // …and the current disc drops its ring, which this copy alone kept.
+    expect(dots[0].style.borderWidth).toBe("0px");
     expect(dots[1].style.backgroundColor).toBe("var(--bg)");
     expect(dots[1].style.borderColor).toBe("var(--accent)");
+  });
+
+  it("names each page in the user's language, not in hardcoded English", () => {
+    const { container } = renderWithProviders(
+      <SommelierFavorites sommelier={hook({ favorites: manyFavorites(12) as never })} />,
+    );
+    // R2 — the bare numeral was a workaround for a string no locale carried.
+    const marks = Array.from(container.querySelectorAll<HTMLElement>('[data-ui="dot"]')).map(
+      (d) => d.closest("button")!,
+    );
+    expect(marks.map((m) => m.getAttribute("aria-label"))).toEqual(["Page 1", "Page 2"]);
   });
 
   it("turns a page when its mark is pressed, and keeps the 48px reach", () => {
     const { container } = renderWithProviders(
       <SommelierFavorites sommelier={hook({ favorites: manyFavorites(12) as never })} />,
     );
-    const marks = Array.from(container.querySelectorAll<HTMLElement>('[data-ui="pager-dot"]')).map(
+    const marks = Array.from(container.querySelectorAll<HTMLElement>('[data-ui="dot"]')).map(
       (d) => d.closest("button")!,
     );
     expect(marks[0].className).toContain("tap");
     fireEvent.click(marks[1]);
     expect(
-      container.querySelector<HTMLElement>('[data-ui="pager-dot"][data-selected="true"]')!
+      container.querySelector<HTMLElement>('[data-ui="dot"][data-current="true"]')!
         .closest("button"),
     ).toBe(marks[1]);
+  });
+
+  it("pages every shelf at one cell proportion (C14)", () => {
+    const { container } = renderWithProviders(
+      <SommelierFavorites sommelier={hook({ favorites: manyFavorites(12) as never })} />,
+    );
+    // The frame is declared, not grown: explicit row tracks capped at the
+    // cell's own measure, so a page that is not full cannot inflate its
+    // cells the way a one-row Generate page used to.
+    for (const m of Array.from(
+      container.querySelectorAll<HTMLElement>('[data-ui="sommelier-matrix"]'),
+    )) {
+      expect(m.style.gridTemplateColumns).toBe("repeat(4, minmax(0, 1fr))");
+      expect(m.style.gridTemplateRows).toBe("repeat(2, minmax(0, 280px))");
+      expect(m.style.gridAutoRows).toBe("");
+    }
   });
 
   it("asks for more history with a word, not a ringed slab", () => {
@@ -377,7 +446,12 @@ describe("the sommelier lists page instead of scrolling", () => {
     const more = screen.getByRole("button", { name: /load more/i });
     expect(more.style.backgroundColor).toBe("");
     expect(more.style.borderRadius).toBe("0px");
-    expect(more.style.borderBottomColor).toBe("var(--border)");
+    // C5 — the shared `Word`, and bare: an underline in this language means
+    // "chosen", so an action wears none. This copy used to draw a --border
+    // rule under itself, one of eight hand-rolled variants of the same word.
+    expect(more.getAttribute("data-ui")).toBe("word");
+    expect(more.style.borderBottomWidth).toBe("");
+    expect(more.style.borderBottomColor).toBe("");
     fireEvent.click(more);
     expect(loadMoreHistory).toHaveBeenCalled();
   });
@@ -418,16 +492,52 @@ describe("StatsSection", () => {
     const { container } = renderWithProviders(
       <StatsSection entities={entities({ Espresso: 40, Cappuccino: 10 })} prefix="mel" />,
     );
-    const washes = Array.from(container.querySelectorAll<HTMLElement>('[data-fill="glow"]'));
+    // The value tint has its own name now: the drink's §6.2 glow is a
+    // `data-fill="glow"` too, and the two must not be read as one another.
+    const washes = Array.from(container.querySelectorAll<HTMLElement>('[data-ui="stat-wash"]'));
     // The leader is the row maximum: 0.06 + 1 × 0.10. Nothing may exceed it.
     expect(washes[0].style.opacity).toBe("0.16");
     expect(Number(washes[1].style.opacity)).toBeLessThan(0.16);
     for (const wash of washes) expect(Number(wash.style.opacity)).toBeLessThanOrEqual(0.16);
 
-    // §6.3 truth scale: a quarter of the leader's count is a smaller glass.
-    const [lead, minor] = Array.from(container.querySelectorAll<HTMLElement>("img"));
+    // §6.3 truth scale: a quarter of the leader's count is a smaller glass —
+    // now through CoffeeIcon's own `scaleTo`, not a local copy of the maths.
+    const tiles = Array.from(container.querySelectorAll<HTMLElement>('[data-ui="stat-tile"]'));
+    const [lead, minor] = tiles.map((tile) => tile.querySelector("img")!);
     expect(Number(lead.getAttribute("width"))).toBeGreaterThan(
       Number(minor.getAttribute("width")),
     );
+    // …bottom-aligned inside a box of the FULL unscaled height, so the bases
+    // of a row land on one line while the tops stay ragged.
+    for (const tile of tiles) {
+      const box = tile.querySelector<HTMLElement>('[data-ui="coffee-icon-baseline"]')!;
+      expect(box.style.height).toBe(`${Math.round(64 * (720 / 1080))}px`);
+    }
+  });
+
+  it("stands its drink on the same ground as every other drink (C16)", () => {
+    const { container } = renderWithProviders(
+      <StatsSection entities={entities({ Espresso: 40, Cappuccino: 10 })} prefix="mel" />,
+    );
+    for (const tile of Array.from(
+      container.querySelectorAll<HTMLElement>('[data-ui="stat-tile"]'),
+    )) {
+      const stage = tile.querySelector('[data-ui="drink-stage"]')!;
+      expect(stage).toBeTruthy();
+      expect(stage.querySelector('[data-ui="drink-glow"]')).toBeTruthy();
+      expect(stage.querySelector('[data-ui="drink-contact"]')).toBeTruthy();
+      expect(stage.querySelector('[data-ui="drink-reflection"]')).toBeTruthy();
+    }
+  });
+
+  it("marks the leader with the shared Dot, not with a meter segment (C21)", () => {
+    const { container } = renderWithProviders(
+      <StatsSection entities={entities({ Espresso: 40, Cappuccino: 10 })} prefix="mel" />,
+    );
+    const marks = Array.from(container.querySelectorAll<HTMLElement>('[data-ui="dot"]'));
+    expect(marks.length).toBe(1);
+    expect(marks[0].getAttribute("data-fill")).toBe("dot");
+    expect(marks[0].getAttribute("data-current")).toBe("true");
+    expect(marks[0].style.borderRadius).toBe("50%");
   });
 });

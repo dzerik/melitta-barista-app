@@ -98,7 +98,6 @@
   "sommelier.generate": "Генерирай",
   "sommelier.hopper": "Бункер",
   "sommelier.surprise_me": "Изненадай ме",
-  "sommelier.brew": "Приготви",
   "sommelier.brewing": "Приготвя се…",
   "sommelier.favorite": "В любими",
   "sommelier.remove": "Премахни",
@@ -162,5 +161,14 @@
   "wizard.machine.failed": "Приготвянето не бе успешно",
   "wizard.machine.confirm": "Потвърди",
   "wizard.finish.button": "Затвори",
-  "wizard.close.stay": "Остани"
+  "wizard.close.stay": "Остани",
+  "app.decrease": "Намаляване",
+  "app.increase": "Увеличаване",
+  "app.page": "Страница {n}",
+  "freestyle.drink_name": "Име на напитката",
+  "app.close": "Затвори",
+  "brew.two_cups": "2x",
+  "brew.two_cups_on": "2x вкл.",
+  "app.previous": "Предишен",
+  "app.next": "Следващ"
 }

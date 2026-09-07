@@ -4,7 +4,13 @@ import { usePreferences } from "../lib/preferences";
 import type { TranslationKey } from "../lib/i18n";
 import type { AiRecipe, Favorite, useSommelier } from "../hooks/useSommelier";
 import { fmt } from "../lib/brew-plan";
-import { SommelierRecipeCard, SommelierShelf, SOMMELIER_COLUMNS } from "./SommelierRecipeCard";
+import { Glyph } from "./ui";
+import {
+  SommelierRecipeCard,
+  SommelierShelf,
+  shelfScale,
+  SOMMELIER_COLUMNS,
+} from "./SommelierRecipeCard";
 
 type SommelierHook = ReturnType<typeof useSommelier>;
 
@@ -49,10 +55,18 @@ export function SommelierFavorites({ sommelier }: Props) {
     return `${times} · ${t("sommelier.last_brewed" as TranslationKey)} ${date}`;
   };
 
+  // §6.3 — every glass on this shelf is measured against the same maximum.
+  const favScale = shelfScale(favorites as never[]);
+
   if (favorites.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4">
-        <Star size={40} className="text-tertiary opacity-60" aria-hidden="true" />
+        {/* §6.6 / C27 — the empty-page mark is the shared `Glyph`, the same
+            box and the same ink whether it is drawn from a raster asset or a
+            lucide node. The sommelier empties used to be a third size. */}
+        <Glyph size="state" alt="" className="text-tertiary">
+          <Star size={40} strokeWidth={1.75} />
+        </Glyph>
         <div className="t-body text-tertiary text-center">
           {t("sommelier.no_favorites" as TranslationKey)}
         </div>
@@ -72,6 +86,7 @@ export function SommelierFavorites({ sommelier }: Props) {
           onRemove={removeFavorite}
           brewing={brewingId === fav.id}
           meta={metaLine(fav)}
+          scaleTo={favScale(fav as never)}
         />
       )}
     />

@@ -74,4 +74,36 @@ describe("ViewModeToggle", () => {
     renderWithProviders(<ViewModeToggle />);
     expect(screen.getByRole("radiogroup")).toBeInTheDocument();
   });
+
+  it("is the shared Option, not a fourth hand-rolled copy of one", () => {
+    renderWithProviders(<ViewModeToggle />);
+    for (const button of screen.getAllByRole("radio")) {
+      expect(button.getAttribute("data-ui")).toBe("option");
+    }
+  });
+
+  it("says the chosen mode with a lit underline in an always-reserved slot", () => {
+    renderWithProviders(<ViewModeToggle />);
+    const [grid, list] = screen.getAllByRole("radio");
+
+    expect(grid.getAttribute("data-underline")).toBe("lit");
+    expect(list.getAttribute("data-underline")).toBe("reserved");
+    expect(grid.style.borderBottomColor).toBe("var(--accent)");
+    expect(list.style.borderBottomColor).toBe("transparent");
+    // The slot is declared in both states, so choosing shifts nothing.
+    expect(list.style.borderBottomWidth).toBe(grid.style.borderBottomWidth);
+    expect(list.style.borderBottomStyle).toBe("solid");
+  });
+
+  it("paints nothing and curves nothing — the fill and the radius are gone", () => {
+    renderWithProviders(<ViewModeToggle />);
+    for (const button of screen.getAllByRole("radio")) {
+      expect(button.style.backgroundColor).toBe("");
+      expect(button.style.background).toBe("");
+      expect(button.style.borderRadius).toBe("0px");
+      expect(button.className).not.toMatch(/rounded-|ring-|shadow-/);
+      expect(button.className).toContain("tap");
+      expect(button.className).toContain("press");
+    }
+  });
 });

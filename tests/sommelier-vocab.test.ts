@@ -133,22 +133,22 @@ describe("sommelierLabel", () => {
   });
 
   it("falls back to the legacy bundle entry per family prefix", () => {
-    expect(sommelierLabel("en", "roast", "medium_dark")).toBe("Medium-Dark");
+    expect(sommelierLabel("en", "roast", "medium_dark")).toBe("Medium-dark");
     expect(sommelierLabel("en", "bean_type", "arabica")).toBe("Arabica");
     expect(sommelierLabel("ru", "roast", "medium_dark")).toBe("Средне-тёмная");
-    expect(sommelierLabel("en", "dietary", "no_sugar")).toBe("No Sugar");
+    expect(sommelierLabel("en", "dietary", "no_sugar")).toBe("No sugar");
     expect(sommelierLabel("en", "caffeine", "low")).toBe("Low");
     expect(sommelierLabel("en", "temperature", "iced")).toBe("Iced");
     expect(sommelierLabel("en", "mood", "dessert")).toBe("Dessert");
   });
 
   it("maps the served espresso_cup token onto the legacy cup_espresso bundle entry", () => {
-    expect(sommelierLabel("en", "cup_size", "espresso_cup")).toBe("Espresso Cup");
+    expect(sommelierLabel("en", "cup_size", "espresso_cup")).toBe("Espresso cup");
     expect(sommelierLabel("ru", "cup_size", "espresso_cup")).toBe("Чашка эспрессо");
   });
 
   it("maps single_origin onto the legacy origin_single bundle entry", () => {
-    expect(sommelierLabel("en", "origin", "single_origin")).toBe("Single Origin");
+    expect(sommelierLabel("en", "origin", "single_origin")).toBe("Single origin");
   });
 
   it("humanizes tokens with neither server string nor bundle entry", () => {

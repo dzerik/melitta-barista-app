@@ -2,7 +2,7 @@ import type { HassEntities } from "home-assistant-js-websocket";
 import { getEntity } from "../lib/entities";
 import { usePreferences } from "../lib/preferences";
 import { CoffeeIcon } from "./CoffeeIcon";
-import { Rule } from "./ui/Rule";
+import { Dot, DrinkStage, Glyph, Mosaic, Rule } from "./ui";
 
 interface Props {
   entities: HassEntities;
@@ -17,18 +17,8 @@ interface CounterEntry {
 /** §6.1 ladder — a mosaic/stat tile draws its drink at 64. */
 const TILE_ICON_SIZE = 64;
 
-/**
- * §6.3 truth scale: within a row, a glass is sized by its real magnitude
- * against the row's maximum, floor 0.55×, ceiling 1.0×, every base landing on
- * the same line. Tops come out deliberately ragged — that ragged edge is the
- * comparison, read before any number is.
- */
 /** Six across at every supported width — the app never renders below 1024px. */
 const STAT_COLUMNS = 6;
-
-function truthScale(fraction: number): number {
-  return Math.round(TILE_ICON_SIZE * (0.55 + 0.45 * Math.max(0, Math.min(1, fraction))));
-}
 
 /**
  * How much of the machine's life each drink accounts for.
@@ -43,6 +33,16 @@ function truthScale(fraction: number): number {
  * share of the row (§6.3) and a proportional accent wash rises behind it,
  * capped at the §5.D ceiling of `0.06 + fraction × 0.10`. The paint IS the
  * value; it is not a container fill.
+ *
+ * The truth scale and the common baseline used to be hand-rolled here — a
+ * local `truthScale()` and a fixed-height align box — which made this the one
+ * row of drinks in the app that was volume-scaled while every other row drew
+ * flat (C17). Both now come from `CoffeeIcon`'s own `scaleTo`/`baseline`
+ * props, so the shelf, the sommelier and this mosaic share one implementation
+ * and one 0.55–1.0 band. The glass also gets the §6.2 ground every other drink
+ * in the app has — glow, horizon, contact line and mirrored copy (C16) — which
+ * is what makes it read as an object standing in the cell rather than as a
+ * sticker printed on it.
  */
 export function StatsSection({ entities, prefix }: Props) {
   const { t } = usePreferences();
@@ -86,23 +86,7 @@ export function StatsSection({ entities, prefix }: Props) {
         style={{ paddingLeft: "var(--rail)", paddingRight: "var(--rail)", paddingTop: "16px", paddingBottom: "16px" }}
       >
         {counters.length > 0 && (
-          <div
-            data-ui="stats-mosaic"
-            /** §S4.3 — the 1px grid gap IS the hairline; cells are the ground. */
-            data-fill="rule"
-            className="grid"
-            style={{
-              gap: "1px",
-              backgroundColor: "var(--section-divider)",
-              // A fixed column count, not auto-fit: the mosaic's ground shows
-              // through the 1px gaps only, so a half-empty last row has to be
-              // completed with ground cells rather than left as a tinted block.
-              // Franke does the same — the grid stays drawn where a slot is
-              // empty instead of reflowing.
-              gridTemplateColumns: `repeat(${STAT_COLUMNS}, minmax(0, 1fr))`,
-              borderRadius: 0,
-            }}
-          >
+          <Mosaic id="stats-mosaic" columns={STAT_COLUMNS} count={counters.length}>
             {counters.map(({ name, count }, i) => {
               const fraction = maxCount > 0 ? count / maxCount : 0;
               const isTop = i === 0;
@@ -118,7 +102,8 @@ export function StatsSection({ entities, prefix }: Props) {
                   {/* §5.D — the one value tint: a magnitude, not a container. */}
                   <div
                     aria-hidden="true"
-                    data-fill="glow"
+                    data-ui="stat-wash"
+                    data-fill="magnitude"
                     className="pointer-events-none absolute bottom-0 left-0 right-0 transition-all duration-700"
                     style={{
                       height: `${fraction * 100}%`,
@@ -128,13 +113,16 @@ export function StatsSection({ entities, prefix }: Props) {
                     }}
                   />
                   <div className="relative z-10 flex w-full flex-col items-center">
-                    {/* Bases align, tops stay ragged (§6.3). */}
-                    <div
-                      className="flex w-full items-end justify-center"
-                      style={{ height: Math.round(TILE_ICON_SIZE * (720 / 1080)) }}
-                    >
-                      <CoffeeIcon recipe={name} size={truthScale(fraction)} />
-                    </div>
+                    {/* Bases align, tops stay ragged (§6.3), over the same
+                        ground every other drink in the app stands on (§6.2). */}
+                    <DrinkStage size={TILE_ICON_SIZE} active={isTop}>
+                      <CoffeeIcon
+                        recipe={name}
+                        size={TILE_ICON_SIZE}
+                        baseline
+                        scaleTo={fraction}
+                      />
+                    </DrinkStage>
                     <span className="t-label text-secondary mt-1 w-full truncate text-center leading-tight">
                       {name}
                     </span>
@@ -145,51 +133,25 @@ export function StatsSection({ entities, prefix }: Props) {
                       {count}
                     </span>
                   </div>
-                  {/* A true circle — the one honest curve — marks the leader. */}
-                  {isTop && (
-                    <div
-                      aria-hidden="true"
-                      /** §8.1c — a position mark, the same ink as a pager dot. */
-                      data-fill="meter"
-                      className="absolute right-1.5 top-1.5"
-                      style={{
-                        width: "var(--dot)",
-                        height: "var(--dot)",
-                        borderRadius: "50%",
-                        backgroundColor: "var(--accent)",
-                      }}
-                    />
-                  )}
+                  {/* A true circle — the one honest curve — marks the leader.
+                      It is the same `Dot` the pagers draw, so it carries the
+                      same `data-fill="dot"` the fill inventory is queried on
+                      rather than the `"meter"` it used to claim (C21). */}
+                  {isTop && <Dot current className="absolute right-1.5 top-1.5" />}
                 </div>
               );
             })}
-            {Array.from(
-              { length: (STAT_COLUMNS - (counters.length % STAT_COLUMNS)) % STAT_COLUMNS },
-              (_, i) => (
-                <div
-                  key={`empty-${i}`}
-                  aria-hidden="true"
-                  data-ui="stat-tile-empty"
-                  data-fill="ground"
-                  style={{ backgroundColor: "var(--bg)", borderRadius: 0 }}
-                />
-              ),
-            )}
-          </div>
+          </Mosaic>
         )}
 
         {counters.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-4 py-16">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1"
-              className="w-16 h-16 text-tertiary opacity-60"
-              aria-hidden="true"
-            >
-              <path d="M18 8h1a4 4 0 010 8h-1M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8zM6 1v3M10 1v3M14 1v3" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            {/* §6.6 / C27 — the empty-page mark is one size and one ink. */}
+            <Glyph size="state" alt="" className="text-tertiary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" width="100%" height="100%">
+                <path d="M18 8h1a4 4 0 010 8h-1M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8zM6 1v3M10 1v3M14 1v3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Glyph>
             <p className="text-tertiary t-body">{t("stats.no_cups")}</p>
           </div>
         )}

@@ -2,7 +2,7 @@ import type { HassEntities } from "home-assistant-js-websocket";
 import { deriveMachineStatus } from "../lib/status";
 import { usePreferences } from "../lib/preferences";
 import { Settings } from "lucide-react";
-import { Rule } from "./ui";
+import { RAIL_TEXT, Rule, Word } from "./ui";
 import logoMelitta from "../assets/logo_melitta.png";
 import iconBtConnected from "../assets/icons/bt_connected.png";
 import iconBtDisconnected from "../assets/icons/bt_disconnected.png";
@@ -13,12 +13,6 @@ interface Props {
   onDisconnect: () => void;
   onOpenPrefs: () => void;
 }
-
-/**
- * §G2.1: the rule runs rail to rail and the first text pixel hangs 10px
- * inside it. This is the one margin the app has.
- */
-const RAIL_TEXT = "calc(var(--rail) + 10px)";
 
 /**
  * The always-visible truth line: BLE link state, machine state, and the
@@ -84,13 +78,14 @@ export function StatusBar({ entities, prefix, onDisconnect, onOpenPrefs }: Props
           >
             <Settings size={20} strokeWidth={1.75} />
           </button>
-          <button
+          {/* C5/C3: one shape and one type step for every action word in the
+              app — the same verb also appears on App's looking-for-machine
+              screen, and the two must not sit a type step apart. */}
+          <Word
+            label={t("app.disconnect")}
             onClick={onDisconnect}
-            className="tap press px-4 t-label text-secondary hover:text-primary"
-            style={{ borderRadius: 0 }}
-          >
-            {t("app.disconnect")}
-          </button>
+            className="px-4"
+          />
         </div>
       </div>
       <Rule rail />

@@ -102,7 +102,6 @@
   "sommelier.generate": "Згенерувати",
   "sommelier.hopper": "Бункер для зерен",
   "sommelier.surprise_me": "Здивуй мене",
-  "sommelier.brew": "Приготувати",
   "sommelier.brewing": "Готується…",
   "sommelier.favorite": "В обране",
   "sommelier.remove": "Видалити",
@@ -166,5 +165,14 @@
   "wizard.machine.failed": "Не вдалося приготувати",
   "wizard.machine.confirm": "Підтвердити",
   "wizard.finish.button": "Закрити",
-  "wizard.close.stay": "Залишитися"
+  "wizard.close.stay": "Залишитися",
+  "app.decrease": "Зменшити",
+  "app.increase": "Збільшити",
+  "app.page": "Сторінка {n}",
+  "freestyle.drink_name": "Назва напою",
+  "app.close": "Закрити",
+  "brew.two_cups": "2x",
+  "brew.two_cups_on": "2x увімк.",
+  "app.previous": "Попередній",
+  "app.next": "Наступний"
 }

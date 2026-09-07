@@ -102,7 +102,6 @@
   "sommelier.generate": "Генериши",
   "sommelier.hopper": "Резервоар за зрна",
   "sommelier.surprise_me": "Изненади ме",
-  "sommelier.brew": "Припреми",
   "sommelier.brewing": "Припрема се…",
   "sommelier.favorite": "У омиљене",
   "sommelier.remove": "Уклони",
@@ -166,5 +165,14 @@
   "wizard.machine.failed": "Припрема није успела",
   "wizard.machine.confirm": "Потврди",
   "wizard.finish.button": "Затвори",
-  "wizard.close.stay": "Остани"
+  "wizard.close.stay": "Остани",
+  "app.decrease": "Смањи",
+  "app.increase": "Повећај",
+  "app.page": "Страница {n}",
+  "freestyle.drink_name": "Назив напитка",
+  "app.close": "Затвори",
+  "brew.two_cups": "2x",
+  "brew.two_cups_on": "2x укљ.",
+  "app.previous": "Претходно",
+  "app.next": "Следеће"
 }

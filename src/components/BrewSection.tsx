@@ -29,8 +29,22 @@ import { RecipeCarousel } from "./RecipeCarousel";
 import { RecipeCard } from "./RecipeCard";
 import { RecipeGrid } from "./RecipeGrid";
 import { ViewModeToggle } from "./ViewModeToggle";
-import { Commit, DrinkStage, Meter, Option, Rule, TickRing } from "./ui";
-import { Snowflake, Flame } from "lucide-react";
+import {
+  ActionBand,
+  Commit,
+  DrinkStage,
+  Field,
+  Glyph,
+  Meter,
+  Mosaic,
+  Option,
+  RAIL_TEXT,
+  Rule,
+  TickRing,
+  Word,
+  underlineSlot,
+} from "./ui";
+import { Snowflake, Flame, X } from "lucide-react";
 import type { TranslationKey } from "../lib/i18n";
 import iconBean from "../assets/icons/bean.png";
 import iconMilk from "../assets/icons/milk.png";
@@ -115,6 +129,36 @@ const PROCESS_LABEL: Record<string, TranslationKey> = {
   milk: "process.milk",
   water: "process.water",
 };
+
+/**
+ * The abort mark of a full-screen takeover (§C5b / §5.C form (ii)).
+ *
+ * One solid circle ~30px across, holding a single glyph at about a third of
+ * the diameter, with its WORD OUTSIDE it to the right — which is why it is
+ * passed as `Word`'s `icon` rather than drawn as a ninth hand-rolled button
+ * (C5). A true circle (width === height) is the one curve L1 permits, and on
+ * the brewing screen it is the only saturated shape there is, so it declares
+ * the `commit` carve-out and nothing else on that screen may paint.
+ */
+function AbortCircle() {
+  return (
+    <span
+      aria-hidden="true"
+      data-ui="abort-circle"
+      data-fill="commit"
+      className="flex shrink-0 items-center justify-center"
+      style={{
+        width: 30,
+        height: 30,
+        borderRadius: "50%",
+        backgroundColor: "var(--error-text)",
+        color: "var(--text-inverse)",
+      }}
+    >
+      <X size={10} strokeWidth={2.5} />
+    </span>
+  );
+}
 
 /**
  * The composition read-out, as the app's universal value strip (§C7).
@@ -221,8 +265,17 @@ function RecipeInfo({ details, vertical, animated, compact, onAccent, t }: {
               />
             )}
             {c.process === "coffee" && c.shots > 0 && (
-              <span className="num" style={{ color: ink.quiet, opacity: onAccent ? 0.7 : 1 }}>
-                {c.shots}x
+              // C22: a figure and its unit are two spans, never one baked
+              // string — the number stays `--text-primary` at 600 and the "x"
+              // drops to `--text-tertiary` at the SAME size, exactly as the
+              // ml pair beside it does. "2x" written as one string could not
+              // be re-inked later, which is the whole defect C22 names. They
+              // sit in their own gapless flex so the pair still reads "2x".
+              <span className="inline-flex items-baseline">
+                <span className="num" style={{ fontWeight: 600, color: ink.value }}>
+                  {c.shots}
+                </span>
+                <span style={{ color: ink.quiet, opacity: onAccent ? 0.7 : 1 }}>x</span>
               </span>
             )}
             {c.process !== "coffee" && c.temp === "high" && !compact && (
@@ -313,6 +366,10 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
   }, [recipeOptions, cupCounts]);
 
   const selectedDetails = allRecipes[selectedRecipe || ""] as RecipeDetails | undefined;
+
+  // The band is a mosaic, so it needs to know how many tiles it draws: the
+  // served categories the machine actually has a button for, plus the 2x tile.
+  const directKeyTiles = model.categories.filter((c) => c.machineButton);
   const hasSelectedDetails = selectedDetails?.c1_process !== undefined;
 
   const brewId = `button.${prefix}_brew`;
@@ -327,7 +384,6 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
   const longPressTriggered = useRef(false);
   const dkLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dkLongPressTriggered = useRef(false);
-  const profileNameInputRef = useRef<HTMLInputElement>(null);
 
   // Recipe data (§9.3.6 rule 5): WS recipes/list rows joined on
   // profile_id + category token when the contract serves a directkey block;
@@ -418,7 +474,6 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
       if (canRenameProfileSlot(model, slot, entities, prefix)) {
         setEditingProfileIdx(slot.slot);
         setEditingProfileName(name);
-        setTimeout(() => profileNameInputRef.current?.focus(), 50);
       }
     }, 500);
   }, [model, entities, prefix]);
@@ -443,7 +498,6 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
     if (canRenameProfileSlot(model, slot, entities, prefix)) {
       setEditingProfileIdx(slot.slot);
       setEditingProfileName(name);
-      setTimeout(() => profileNameInputRef.current?.focus(), 50);
     }
   }, [model, entities, prefix]);
 
@@ -495,37 +549,62 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
   );
 
   if (isBrewing) {
-    // Owner decision 4: the busy state ADDS the bar, it does not take the
-    // screen away. The drink, its name and its composition stay exactly where
-    // they were; a square-cut segmented Meter is pinned to the bottom edge
-    // between the rails, and one explicitly labelled Cancel is the only
-    // control while a pour whose end we can only estimate runs.
+    // C1 — THE ONE BREWING TAKEOVER, AND IT LIVES HERE.
+    //
+    // Two components used to draw `view.brewing`: this one and a z-50
+    // `StatusOverlay` portal that mounted on top of it, so this screen was
+    // never actually seen. Owner decision 4 settles which of the two is the
+    // specified form — "the screen keeps the drink, its name and its
+    // composition exactly where they were… No takeover, no modal, no spinner"
+    // — and only this one can draw them, because a portal over the tab bar
+    // never sees a recipe. The portal's brewing branch is gone; the one
+    // property it alone had right, the §5.C(ii) abort circle with its word
+    // outside it, came here with it.
+    //
+    // So the busy state ADDS the bar and takes nothing away: the drink, its
+    // name and its composition stay put, a square-cut segmented Meter is
+    // pinned to the bottom edge between the rails, the activity is the small
+    // status word below the strip (§7.4), and one explicitly labelled abort is
+    // the only control while a pour whose end we can only ESTIMATE runs.
+    //
+    // The drink is the CHOSEN RECIPE, not the activity. This screen used to
+    // pass the sub-process label ("Grinding") to `CoffeeIcon` as if it were a
+    // drink name, which matches no entry in the image table and fell through
+    // to the freestyle placeholder every time — invisible for exactly as long
+    // as the portal covered it.
+    const brewingDrink = selectedRecipe || activity || "";
+    const statusWord = activity && activity !== brewingDrink ? activity : "";
     return (
       <div className="relative flex h-full flex-col items-center justify-center gap-6 px-6">
         <DrinkStage size={260} active>
-          <CoffeeIcon recipe={activity || "Espresso"} size={260} />
+          <CoffeeIcon recipe={brewingDrink || "Espresso"} size={260} />
         </DrinkStage>
 
         <div className="flex flex-col items-center gap-3 max-w-full">
-          <div className="t-title text-primary text-center">{activity}</div>
+          {/* §7.2: the drink's name is the largest type on its own screen. */}
+          <div className="t-title text-primary text-center">{brewingDrink}</div>
           {hasSelectedDetails && selectedDetails && (
             <RecipeInfo details={selectedDetails} t={t} />
           )}
+          {/* §7.4: the status word is the smallest white text on a busy
+              screen — the meter carries the message, the word only names it. */}
+          {statusWord && (
+            <div className="t-label text-primary text-center">{statusWord}</div>
+          )}
         </div>
 
-        <button
+        {/* Jura's rule: while the machine prepares, the only control is the
+            universal abort word — and it is a `Word` carrying the §5.C(ii)
+            circle as its icon, not a ninth hand-rolled copy of one (C5). It
+            wears no rule: an underline in this language says "chosen", and an
+            abort is not chosen. */}
+        <Word
+          label={t("brew.cancel")}
+          tone="strong"
+          icon={<AbortCircle />}
           onClick={() => safeCall(() => pressButton(conn, cancelId))}
-          className="tap tap-lg press t-body"
-          style={{
-            color: "var(--text-secondary)",
-            borderBottomWidth: "var(--underline-w)",
-            borderBottomStyle: "solid",
-            borderBottomColor: "var(--border)",
-            borderRadius: 0,
-          }}
-        >
-          {t("brew.cancel")}
-        </button>
+          className="tap-lg"
+        />
 
         {progress && (
           <div
@@ -536,7 +615,7 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
               value={progressNum}
               max={100}
               role="progressbar"
-              ariaLabel={activity || t("brew.brew")}
+              ariaLabel={statusWord || brewingDrink || t("brew.brew")}
             />
           </div>
         )}
@@ -546,9 +625,14 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
 
   if (statusView.offline || statusView.off) {
     return (
+      // C26/C27: ONE blocked-page treatment — the 80px state glyph at the one
+      // 0.6 knock-down, `t-title` at its declared weight (never a per-page
+      // `fontWeight` override), and a 48px rule closing the block. The glyph's
+      // `alt="offline"` was hardcoded English; the headline beside it already
+      // says it, so the mark is decorative.
       <div className="flex h-full flex-col items-center justify-center px-8">
         <div className="flex flex-col items-center gap-6 max-w-sm">
-          <img src={iconNotConnected} alt="offline" className="w-24 h-24 object-contain opacity-60" draggable={false} />
+          <Glyph size="state" src={iconNotConnected} alt="" />
           <div className="text-center">
             <div className="t-title text-primary">{t("brew.offline_title")}</div>
             <div className="t-body text-tertiary mt-2 leading-relaxed">{t("brew.offline_desc")}</div>
@@ -576,10 +660,17 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
         <div className="flex flex-col items-center max-w-sm">
           {progress ? (
             <TickRing value={progressNum} max={100} tone="service" ariaLabel={serviceTitle}>
-              <img src={iconService} alt="service" className="w-12 h-12 object-contain opacity-70" draggable={false} />
+              {/* §9.1: the glyph in the ring's centre moat is its own rung —
+                  50px with a wide empty ring around it — so it is not one of
+                  `Glyph`'s two and cannot adopt it (C27). It is spelled the
+                  same 50px the overlay's moat glyph is, rather than a 48px
+                  `w-12` with a private `opacity-70`: one role, one size, one
+                  value. The hardcoded `alt="service"` is gone either way —
+                  the ring already announces the cycle. */}
+              <img src={iconService} alt="" aria-hidden="true" className="w-[50px] h-[50px] object-contain" draggable={false} />
             </TickRing>
           ) : (
-            <img src={iconService} alt="service" className="w-20 h-20 object-contain opacity-70" draggable={false} />
+            <Glyph size="state" src={iconService} alt="" />
           )}
           <div className="text-center" style={{ marginTop: progress ? 59 : 24 }}>
             <div className="t-title text-primary">{serviceTitle}</div>
@@ -609,7 +700,7 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
             data-fill="panel"
             style={{ backgroundColor: "var(--surface)", borderRadius: 0 }}
           >
-            <img src={iconNotConnected} alt="action required" className="w-20 h-20 object-contain" draggable={false} />
+            <Glyph size="state" src={iconNotConnected} alt="" />
             <div className="text-center">
               <div className="t-title text-primary">{actionLabel}</div>
               {actionHint && <div className="t-body text-tertiary mt-2 leading-relaxed">{actionHint}</div>}
@@ -629,10 +720,7 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
         <div className="shrink-0">
           <div
             className="flex gap-8 overflow-x-auto"
-            style={{
-              paddingLeft: "calc(var(--rail) + 10px)",
-              paddingRight: "calc(var(--rail) + 10px)",
-            }}
+            style={{ paddingLeft: RAIL_TEXT, paddingRight: RAIL_TEXT }}
           >
             {visibleSlots.map((slot) => {
               const opt = profileOptions[slot.slot];
@@ -646,30 +734,30 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
               const isEditing = editingProfileIdx === slot.slot;
 
               if (isEditing) {
+                // C6: one input form in the app — a line to write on at
+                // `--input-border`, not a third hairline weight invented for
+                // this row. It keeps the nav row's 60px pitch and centred
+                // text so renaming a profile does not shift the strip.
                 return (
-                  <input
+                  <span
                     key={slot.slot}
-                    ref={profileNameInputRef}
-                    type="text"
-                    value={editingProfileName}
-                    onChange={(e) => setEditingProfileName(e.target.value)}
-                    onBlur={commitProfileName}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") commitProfileName();
-                      if (e.key === "Escape") setEditingProfileIdx(null);
-                    }}
+                    className="inline-flex"
                     onClick={(e) => e.stopPropagation()}
-                    className="t-body text-center outline-none bg-transparent min-w-[80px]"
-                    style={{
-                      color: "var(--text-primary)",
-                      borderBottomWidth: "var(--underline-w-nav)",
-                      borderBottomStyle: "solid",
-                      borderBottomColor: "var(--accent)",
-                      borderRadius: 0,
-                      minHeight: "var(--tap-lg)",
-                      marginBottom: "-1px",
-                    }}
-                  />
+                  >
+                    <Field
+                      value={editingProfileName}
+                      onChange={setEditingProfileName}
+                      autoFocus
+                      ariaLabel={label}
+                      onBlur={commitProfileName}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitProfileName();
+                        if (e.key === "Escape") setEditingProfileIdx(null);
+                      }}
+                      inputClassName="text-center min-w-[80px]"
+                      inputStyle={{ minHeight: "var(--tap-lg)" }}
+                    />
+                  </span>
                 );
               }
 
@@ -701,23 +789,18 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
       {/* DirectKey recipe grid */}
       {isReady && hasDkRecipes && (
         <div className="shrink-0">
-          <div
-            className="grid"
-            /** §S4.3: a 1px grid gap over `--section-divider` — the mosaic's
-                dividers ARE this paint, which is why it is not a container fill. */
-            data-fill="rule"
-            style={{
-              gap: "1px",
-              backgroundColor: "var(--section-divider)",
-              // Auto-fit keeps every cell above the tap floor and never
-              // leaves a hole when a category is hidden (milk on the TS).
-              gridTemplateColumns: "repeat(auto-fit, minmax(96px, 1fr))",
-            }}
+          <Mosaic
+            id="directkey-mosaic"
+            // The band is one row: as many columns as it has tiles, so it
+            // never invents an empty slot. A machine with fewer categories
+            // gets wider tiles, not a hole.
+            columns={directKeyTiles.length + 1}
+            count={directKeyTiles.length + 1}
           >
             {/* Served category order (§9.3.6 rule 2); machine_button false →
                 hidden, matching the legacy hard omission of milk (§9.3.1 —
                 the BLE brew path itself is never disabled by the flag). */}
-            {model.categories.filter((c) => c.machineButton).map((entry) => {
+            {directKeyTiles.map((entry) => {
               const cat = entry.category;
               const recipe = activeProfileRecipes[cat];
               if (!recipe) return null;
@@ -740,7 +823,20 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
                   // own ground so the 1px gaps read as hairlines.
                   data-ui={isSelected ? "commit" : undefined}
                   data-fill={isSelected ? "commit" : "rule"}
-                  className="tap press relative flex flex-col items-center justify-center p-2 pb-7 overflow-hidden"
+                  // C12 — ONE COMPOSITION FOR A MOSAIC TILE, AND THIS IS IT.
+                  // The two hairline mosaics in the app were built two ways:
+                  // this band pinned its caption absolutely inside a `pb-9`
+                  // reservation while the stats tile let its label and figure
+                  // flow under the drink on `p-2 pb-3`. The flow form is the
+                  // one both now use — it is the same mechanism §R1.5 already
+                  // uses for a drink cell (a hard-reserved band, in flow),
+                  // it survives a second flow line the way the stats tile's
+                  // figure needs, and it needs no z-index to sit above the
+                  // composition overlay. What the pinning bought — the glyph
+                  // never moving when the caption swaps `t-label` → `t-body`
+                  // on arming — is bought instead by the caption band's fixed
+                  // height below.
+                  className="tap press relative flex flex-col items-center justify-center overflow-hidden p-2 pb-3"
                   style={{
                     backgroundColor: isSelected ? "var(--accent)" : "var(--bg)",
                     borderRadius: 0,
@@ -767,9 +863,24 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
                       <RecipeInfo details={recipe} compact animated onAccent t={t} />
                     </div>
                   )}
+                  {/* C3 — ONE VERB, ONE SCALE BAND. Armed, this span is the
+                      label of the screen's commit rectangle, so it takes the
+                      commit's in-container step, `t-body` (§7.7); at rest it
+                      is a mosaic tile's caption and stays `t-label`. "Brew"
+                      used to be set at `t-label` here against `t-title` on
+                      the page commit two metres away — three of the four type
+                      steps for one verb. It is now two adjacent ones.
+
+                      C12: in flow, not pinned — with the band's height and
+                      leading fixed, so the two type steps occupy exactly the
+                      same box and arming a tile never moves the glyph. */}
                   <span
-                    className="absolute bottom-0 left-0 right-0 text-center t-label py-1.5 transition-all duration-300 z-10 truncate px-1"
+                    className={`relative z-10 mt-1 w-full truncate px-1 text-center transition-colors duration-300 ${
+                      isSelected ? "t-body" : "t-label"
+                    }`}
                     style={{
+                      height: "1.75rem",
+                      lineHeight: "1.75rem",
                       color: isSelected ? "var(--text-inverse)" : "var(--text-tertiary)",
                       fontWeight: isSelected ? 600 : 500,
                     }}
@@ -789,7 +900,8 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
               onClick={() => setTwoCups((v) => !v)}
               aria-pressed={twoCups}
               data-fill="rule"
-              className="tap press relative flex flex-col items-center justify-center p-2 pb-7 overflow-hidden"
+              /** C12: the same mosaic-tile composition as its neighbours. */
+              className="tap press relative flex flex-col items-center justify-center overflow-hidden p-2 pb-3"
               style={{
                 backgroundColor: "var(--bg)",
                 borderRadius: 0,
@@ -799,7 +911,10 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
               <div className="flex items-center justify-center" style={{ width: 64, height: 64 }}>
                 <img
                   src={isDark ? iconTwoCupsWhite : iconTwoCups}
-                  alt="2x"
+                  // Decorative: the word below is the button's own label, and
+                  // `alt="2x"` was a hardcoded string duplicating it.
+                  alt=""
+                  aria-hidden="true"
                   className="object-contain transition-all duration-300"
                   style={{
                     width: twoCups ? 52 : 44,
@@ -810,21 +925,20 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
                 />
               </div>
               <span
-                className="absolute bottom-0 left-0 right-0 text-center t-label py-1.5 transition-all duration-300 z-10 truncate px-1"
+                className="relative z-10 mt-1 w-full truncate px-1 text-center t-label transition-colors duration-300"
                 data-underline={twoCups ? "lit" : "reserved"}
                 style={{
+                  height: "1.75rem",
+                  lineHeight: "1.75rem",
                   color: twoCups ? "var(--text-primary)" : "var(--text-tertiary)",
                   fontWeight: twoCups ? 600 : 500,
-                  borderBottomWidth: "var(--underline-w)",
-                  borderBottomStyle: "solid",
-                  borderBottomColor: twoCups ? "var(--accent)" : "transparent",
+                  ...underlineSlot(twoCups),
                 }}
               >
                 {twoCups ? t("brew.two_cups_on") : t("brew.two_cups")}
               </span>
             </button>
-
-          </div>
+          </Mosaic>
         </div>
       )}
 
@@ -883,43 +997,43 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
                   const isSelected = opt === selectedRecipe && !selectedDk;
                   return (
                     <div key={opt}>
-                      {/* No wash, no fill: the chosen row is said by a 2px
-                          `--accent` tick in the gutter — a position mark whose
-                          slot is always reserved — plus the name in
-                          `--text-primary`. Hover changes colour only (§C3.4). */}
-                      <div className="flex items-stretch">
+                      {/* H12 — SELECTION IS NEVER A FILL. This row used to say
+                          "chosen" with a 2px `--accent` gutter painted down
+                          its left edge. Owner decision 1 fixes selection for
+                          every control in the app as one mark, and it is not
+                          that one: the name turns `--text-primary` over a lit
+                          1px `--accent` underline in a slot that is ALWAYS
+                          declared, so nothing shifts — byte-identical to what
+                          the grid cell does two views away (RecipeCard). A
+                          gutter tick was a third selection idiom and an accent
+                          fill marking a chosen option, which §8.2 withholds.
+                          Hover still changes colour only (§C3.4). */}
+                      <button
+                        onClick={() => handleCarouselSelect(opt)}
+                        onPointerEnter={() => setHoveredRecipe(opt)}
+                        onPointerLeave={() => setHoveredRecipe((h) => h === opt ? null : h)}
+                        aria-pressed={isSelected}
+                        data-ui="recipe-row"
+                        data-underline={isSelected ? "lit" : "reserved"}
+                        className="tap press w-full min-w-0 flex items-center gap-3 px-4"
+                        style={{ borderRadius: 0 }}
+                      >
+                        <CoffeeIcon recipe={opt} size={36} />
                         <span
-                          aria-hidden="true"
-                          data-fill="rule"
-                          data-selected={isSelected ? "true" : "false"}
+                          data-ui="recipe-name"
+                          className="t-label text-left truncate transition-colors duration-300"
                           style={{
-                            width: 2,
-                            backgroundColor: isSelected ? "var(--accent)" : "transparent",
+                            color:
+                              isSelected || hoveredRecipe === opt
+                                ? "var(--text-primary)"
+                                : "var(--text-secondary)",
+                            fontWeight: isSelected ? 600 : 400,
+                            ...underlineSlot(isSelected),
                           }}
-                        />
-                        <button
-                          onClick={() => handleCarouselSelect(opt)}
-                          onPointerEnter={() => setHoveredRecipe(opt)}
-                          onPointerLeave={() => setHoveredRecipe((h) => h === opt ? null : h)}
-                          aria-pressed={isSelected}
-                          className="tap press flex-1 min-w-0 flex items-center gap-3 px-4"
-                          style={{ borderRadius: 0 }}
                         >
-                          <CoffeeIcon recipe={opt} size={36} />
-                          <span
-                            className="t-label text-left truncate transition-colors duration-300"
-                            style={{
-                              color:
-                                isSelected || hoveredRecipe === opt
-                                  ? "var(--text-primary)"
-                                  : "var(--text-tertiary)",
-                              fontWeight: isSelected ? 600 : 400,
-                            }}
-                          >
-                            {opt}
-                          </span>
-                        </button>
-                      </div>
+                          {opt}
+                        </span>
+                      </button>
                       <Rule variant="inline" tone="border-hover" className="ml-4" />
                     </div>
                   );
@@ -944,13 +1058,21 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
                     renderInfo={carouselRenderInfo}
                     className="pt-4 px-4 pb-3 h-full"
                   />
-                  {/* Brew — width locked to this 45% pane, and it stands down
-                      while a DirectKey tile holds the screen's one commit. */}
-                  {!selectedDk && (
-                    <div className="shrink-0 w-full px-4 pb-3">
-                      <Commit label={t("brew.brew")} onCommit={handleCarouselBrew} />
-                    </div>
-                  )}
+                  {/* Brew — the one action band (C10), width locked to this
+                      45% pane rather than to the button's own padding. The
+                      commit stands down while a DirectKey tile holds the
+                      screen's one commit rectangle; the band's 2px accent
+                      rule stays, so the pane never resizes. */}
+                  <ActionBand
+                    inset="none"
+                    className="w-full px-4"
+                    style={{ minHeight: "calc(var(--tap-lg) + 2rem + 2px)" }}
+                    commit={
+                      selectedDk ? undefined : (
+                        <Commit label={t("brew.brew")} onCommit={handleCarouselBrew} />
+                      )
+                    }
+                  />
                 </div>
               )}
             </div>

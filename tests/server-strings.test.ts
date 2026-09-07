@@ -125,8 +125,8 @@ describe("preference order: server string → client bundle → humanized token"
 
   it("uses the locale bundle before the en bundle", () => {
     // No server strings at all.
-    expect(displayNameFor("ru", "intensity", "very_mild")).not.toBe("Very Mild");
-    expect(displayNameFor("en", "intensity", "very_mild")).toBe("Very Mild");
+    expect(displayNameFor("ru", "intensity", "very_mild")).not.toBe("Very mild");
+    expect(displayNameFor("en", "intensity", "very_mild")).toBe("Very mild");
   });
 
   it("humanizes the raw token when neither server nor bundle has it", () => {

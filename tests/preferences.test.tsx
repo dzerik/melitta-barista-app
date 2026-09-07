@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { fireEvent, renderHook, act, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { PreferencesProvider, usePreferences } from "../src/lib/preferences";
@@ -197,10 +197,64 @@ describe("PreferencesModal", () => {
     const panels = document.querySelectorAll<HTMLElement>('[data-fill="panel"]');
     expect(panels).toHaveLength(1);
     const panel = panels[0];
-    expect(panel.className).toContain("surface");
+    // R3: the fill is a `backgroundColor` LONGHAND, not `className="surface"`
+    // — that rule uses the `background` shorthand, which jsdom drops, so the
+    // one carve-out fill on this overlay used to be invisible to this very
+    // assertion. Reading the property is the whole point of the change.
+    expect(panel.style.backgroundColor).toBe("var(--surface)");
+    expect(panel.className).not.toContain("surface");
     expect(panel.style.borderRadius).toBe("0px");
     expect(panel.className).not.toMatch(/(^|\s)ring-|(^|\s)rounded|shadow-|backdrop-blur/);
-    expect(panel.style.boxShadow).toBe("");
+    expect(panel.style.boxShadow).toBe("none");
+  });
+
+  it("shares the one modal shell: a dialog with one header and one close X", () => {
+    open();
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.dataset.ui).toBe("panel");
+    // C8: three measures exist and a short list takes the smallest.
+    expect(dialog.dataset.measure).toBe("sm");
+    expect(dialog).toHaveAccessibleName("Preferences");
+    expect(
+      dialog.querySelectorAll('[data-ui="panel-header"]'),
+    ).toHaveLength(1);
+    // C9: one close control, at one size, in one colour — the hand-rolled
+    // 24-viewBox X, the `X size={18}` and the `ChevronUp size={16}` are gone.
+    const closes = dialog.querySelectorAll<HTMLElement>('[data-ui="panel-close"]');
+    expect(closes).toHaveLength(1);
+    expect(closes[0]).toHaveAccessibleName("Cancel");
+    expect(closes[0].style.color).toBe("var(--text-secondary)");
+  });
+
+  it("closes from the scrim, the X and Escape", () => {
+    const onClose = vi.fn();
+    renderWithProviders(<PreferencesModal onClose={onClose} />);
+    fireEvent.click(
+      document.querySelector<HTMLElement>('[data-ui="panel-close"]')!,
+    );
+    expect(onClose).toHaveBeenCalledTimes(1);
+    fireEvent.click(document.querySelector<HTMLElement>('[data-fill="scrim"]')!);
+    expect(onClose).toHaveBeenCalledTimes(2);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(3);
+  });
+
+  it("names its two groups with the one shared heading treatment", () => {
+    open();
+    const headings = document.querySelectorAll<HTMLElement>('[data-ui="heading"]');
+    expect(Array.from(headings).map((h) => h.textContent)).toEqual([
+      "Theme",
+      "Language",
+    ]);
+    headings.forEach((h) => {
+      // C31: one type, one colour, one margin — `t-label` tertiary at the
+      // weight `.t-label` already carries, never a 600-weight primary variant.
+      expect(h.className).toContain("t-label");
+      expect(h.className).toContain("text-tertiary");
+      expect(h.className).not.toMatch(/font-medium|font-semibold|text-primary/);
+      expect(h.style.marginBottom).toBe("1rem");
+      expect(h.style.fontWeight).toBe("");
+    });
   });
 
   it("makes the three themes words with a reserved underline, not ringed tiles", () => {
@@ -215,11 +269,24 @@ describe("PreferencesModal", () => {
     expect(chosen.style.color).toBe("var(--text-primary)");
     // Selection is never a fill, a ring or a background swap.
     expect(chosen.style.backgroundColor).toBe("");
+    // The contract is that the slot is ALWAYS declared and identical in both
+    // states, so lighting it shifts nothing. It is deliberately NOT pinned to
+    // the resolved "1px": the measure lives in `--underline-w`, and pinning
+    // the literal here is what forced `Option` to keep a private
+    // `underlineSlot(…, { literal: true })` escape (C24). Comparing the two
+    // states to each other tests the invariant and frees the token.
+    const slot = words[0].style.borderBottomWidth;
+    expect(slot).not.toBe("");
     words.forEach((w) => {
-      expect(w.style.borderBottomWidth).toBe("1px");
+      expect(w.style.borderBottomWidth).toBe(slot);
+      expect(w.style.borderBottomStyle).toBe("solid");
       expect(w.className).toContain("tap");
       expect(w.className).toContain("press");
     });
+    expect(chosen.style.borderBottomColor).toBe("var(--accent)");
+    expect(
+      words.find((w) => w !== chosen)!.style.borderBottomColor,
+    ).toBe("transparent");
   });
 
   it("picks a theme through the same word row", () => {
@@ -262,10 +329,13 @@ describe("PreferencesModal", () => {
     });
   });
 
-  it("paints nothing but the scrim and that one panel", () => {
+  it("paints nothing but the scrim, that one panel and its hairlines", () => {
     open();
     const scrim = document.querySelector<HTMLElement>('[data-fill="scrim"]')!;
-    const allowed = new Set(["scrim", "panel"]);
+    // A 1px `--border` hairline is §S4.2 — a drawn boundary, not a container
+    // fill — and it declares itself `data-fill="rule"` so the inventory query
+    // still sees every painted pixel on the screen.
+    const allowed = new Set(["scrim", "panel", "rule"]);
     [scrim, ...Array.from(scrim.querySelectorAll<HTMLElement>("*"))].forEach(
       (el) => {
         const painted =

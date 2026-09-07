@@ -96,7 +96,6 @@
   "sommelier.generate": "Ustvari",
   "sommelier.hopper": "Posoda za zrna",
   "sommelier.surprise_me": "Preseneti me",
-  "sommelier.brew": "Pripravi",
   "sommelier.brewing": "Pripravljam…",
   "sommelier.favorite": "Med priljubljene",
   "sommelier.remove": "Odstrani",
@@ -157,5 +156,14 @@
   "wizard.machine.failed": "Priprava ni uspela",
   "wizard.machine.confirm": "Potrdi",
   "wizard.finish.button": "Zapri",
-  "wizard.close.stay": "Ostani"
+  "wizard.close.stay": "Ostani",
+  "app.decrease": "Zmanjšaj",
+  "app.increase": "Povečaj",
+  "app.page": "Stran {n}",
+  "freestyle.drink_name": "Ime napitka",
+  "app.close": "Zapri",
+  "brew.two_cups": "2x",
+  "brew.two_cups_on": "2x vklj.",
+  "app.previous": "Prejšnje",
+  "app.next": "Naslednje"
 }

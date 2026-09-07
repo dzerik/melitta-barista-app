@@ -1,6 +1,9 @@
 import type { CSSProperties, ReactNode } from "react";
 
 /** §9.1: 90 ticks on a 4° pitch — one full turn. */
+// The ring's geometry is TypeScript, not CSS: the tick angles are computed,
+// so the numbers have to live where the maths is. index.css used to declare
+// --tick-* beside these and nothing read them — one shape, one source.
 export const TICK_COUNT = 90;
 export const TICK_PITCH_DEG = 360 / TICK_COUNT;
 

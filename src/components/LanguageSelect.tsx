@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { SUPPORTED_LOCALES, LOCALE_ENDONYM, type Locale } from "../lib/i18n";
+import { INPUT_RULE, UNDERLINE_W } from "./ui";
 
 interface Props {
   value: Locale;
@@ -20,16 +21,26 @@ interface Props {
  * and keeps every row at the 48px target the rest of the app uses.
  *
  * Drawn form: the trigger is an underline input (§R1.6) — a line to write on
- * with the current endonym written on it — and the list is a hairline-divided
- * column of words, not a bordered popover. It keeps one flat `--surface` fill
- * because it is an overlay laid over the form fields above it, which is
- * exactly the §5.B carve-out; it drops the ring, the shadow and the radius
- * that made it a card. Selection is the word in `--text-primary` at weight 600
- * with the check in `--accent` — never a filled row.
+ * with the current endonym written on it, taking the one input rule every
+ * field in the app takes (`--input-border` at `--underline-w`, C6/C24) — and
+ * the list is a hairline-divided column of words, not a bordered popover. It
+ * keeps one flat `--surface` fill because it is an overlay laid over the form
+ * fields above it, which is exactly the §5.B carve-out; it drops the ring, the
+ * shadow and the radius that made it a card. That fill is set with the
+ * `backgroundColor` LONGHAND rather than the `background` shorthand, which
+ * jsdom drops — the R3 defect that made two other panels' fills invisible to
+ * every test in the repo never applied here, and must not start to.
  *
  * The rows stay native `role="option"` inside a `role="listbox"` rather than
  * becoming `<Option>`: a listbox child must expose `aria-selected`, which is a
- * different ARIA contract from Option's `aria-pressed`/`aria-checked`.
+ * different ARIA contract from Option's `aria-pressed`/`aria-checked`. So
+ * selection is the word in `--text-primary` at weight 600 plus a trailing
+ * check in the same ink — the field research's "outline glyph → solid twin"
+ * marker, which clears 3:1 on its own (WCAG 1.4.11) and, being at the row's
+ * far end, shifts nothing when it appears. It is deliberately NOT the accent
+ * (owner decision 1 reserves that ink) and deliberately NOT a full-row
+ * underline: a rule across a 100%-wide row reads as a divider between two
+ * rows, not as the mark under a chosen word.
  */
 export function LanguageSelect({ value, onChange, label, id }: Props) {
   const [open, setOpen] = useState(false);
@@ -77,9 +88,9 @@ export function LanguageSelect({ value, onChange, label, id }: Props) {
         style={{
           justifyContent: "space-between",
           borderRadius: 0,
-          borderBottomWidth: "1px",
+          borderBottomWidth: UNDERLINE_W,
           borderBottomStyle: "solid",
-          borderBottomColor: "var(--input-border)",
+          borderBottomColor: INPUT_RULE,
           color: "var(--text-primary)",
         }}
       >

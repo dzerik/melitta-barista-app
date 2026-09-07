@@ -98,7 +98,6 @@
   "sommelier.generate": "Generuoti",
   "sommelier.hopper": "Talpykla",
   "sommelier.surprise_me": "Nustebink mane",
-  "sommelier.brew": "Paruošti",
   "sommelier.brewing": "Ruošiama…",
   "sommelier.favorite": "Į mėgstamus",
   "sommelier.remove": "Pašalinti",
@@ -159,5 +158,14 @@
   "wizard.machine.failed": "Ruošimas nepavyko",
   "wizard.machine.confirm": "Patvirtinti",
   "wizard.finish.button": "Uždaryti",
-  "wizard.close.stay": "Likti"
+  "wizard.close.stay": "Likti",
+  "app.decrease": "Sumažinti",
+  "app.increase": "Padidinti",
+  "app.page": "{n} puslapis",
+  "freestyle.drink_name": "Gėrimo pavadinimas",
+  "app.close": "Uždaryti",
+  "brew.two_cups": "2x",
+  "brew.two_cups_on": "2x įjungta",
+  "app.previous": "Ankstesnis",
+  "app.next": "Kitas"
 }

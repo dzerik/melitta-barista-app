@@ -3,11 +3,12 @@ import { Sparkles, Shuffle, Clock } from "lucide-react";
 import { usePreferences } from "../lib/preferences";
 import type { TranslationKey } from "../lib/i18n";
 import type { useSommelier } from "../hooks/useSommelier";
-import { Rule } from "./ui/Rule";
+import { Glyph, Rule, Word } from "./ui";
 import {
   SommelierRecipeCard,
   SommelierMatrix,
   SommelierPager,
+  shelfScale,
   SOMMELIER_COLUMNS,
 } from "./SommelierRecipeCard";
 
@@ -66,7 +67,10 @@ export function SommelierHistory({ sommelier }: Props) {
   if (history.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4">
-        <Clock size={40} className="text-tertiary opacity-60" aria-hidden="true" />
+        {/* §6.6 / C27 — one box, one ink, whichever mark stands in it. */}
+        <Glyph size="state" alt="" className="text-tertiary">
+          <Clock size={40} strokeWidth={1.75} />
+        </Glyph>
         <div className="t-body text-tertiary text-center">
           {t("sommelier.no_history" as TranslationKey)}
         </div>
@@ -86,6 +90,8 @@ export function SommelierHistory({ sommelier }: Props) {
     const showDate = date !== lastDate;
     lastDate = date;
     const ModeIcon = session.mode === "surprise_me" ? Shuffle : Sparkles;
+    // §6.3 — one generation is one shelf, so it carries its own maximum.
+    const sessionScale = shelfScale(session.recipes as never[]);
     const brief =
       session.mode === "surprise_me"
         ? t("sommelier.surprise_me" as TranslationKey)
@@ -116,6 +122,7 @@ export function SommelierHistory({ sommelier }: Props) {
                 onFavorite={addFavorite}
                 isFavorited={favIds.has(recipe.id)}
                 brewing={brewingId === recipe.id}
+                scaleTo={sessionScale(recipe as never)}
               />
             ))}
           </SommelierMatrix>
@@ -130,23 +137,15 @@ export function SommelierHistory({ sommelier }: Props) {
         <SommelierPager pages={pages} />
       </div>
 
-      {/* Not a commit and not a slab: one more page of the log is a word. */}
+      {/* Not a commit and not a slab: one more page of the log is a word —
+          the shared one, and bare, because an underline in this language
+          means "chosen" rather than "tappable" (C5). */}
       {history.length >= 20 && (
         <div className="flex shrink-0 justify-center py-1">
-          <button
-            type="button"
+          <Word
+            label={t("sommelier.load_more" as TranslationKey)}
             onClick={loadMoreHistory}
-            className="tap press t-body"
-            style={{
-              color: "var(--text-secondary)",
-              borderBottomWidth: "1px",
-              borderBottomStyle: "solid",
-              borderBottomColor: "var(--border)",
-              borderRadius: 0,
-            }}
-          >
-            {t("sommelier.load_more" as TranslationKey)}
-          </button>
+          />
         </div>
       )}
     </div>

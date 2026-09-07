@@ -2,19 +2,19 @@
  * Served machine-state descriptions in the status surfaces (§6.3.7), plus the
  * StatusOverlay's rebuilt visual contract.
  *
- * The overlay's second line is machine-domain wording: the integration now
- * serves `status.process.<TOKEN>.description` and
- * `status.sub_process.<TOKEN>.description`, and the app's own `status.*_desc`
+ * The overlay's second line is machine-domain wording: the integration serves
+ * `status.process.<TOKEN>.description`, and the app's own `status.*_desc`
  * bundle entries stay as the tier-2 fallback (offline use, pre-0.94 servers).
  * These tests pin both tiers and the unchanged action-required branch, for
  * the full-screen StatusOverlay and for BrewSection's service-cycle screen
  * (whose sublabel is the same machine-domain sentence).
  *
- * The last block pins the geometry the overlay was rebuilt to (owner decision
- * 4): a pour is the bottom-pinned segmented meter with one labelled abort
- * circle, a known-duration maintenance programme is the desaturated tick ring,
- * and nothing anywhere carries a radius, a ring, a shadow or an undeclared
- * fill.
+ * The middle block pins C1: the overlay draws the states in which the MACHINE
+ * has the floor — a prompt, a fault, a switched-off machine, a running service
+ * programme — and it no longer competes for `view.brewing`, which BrewSection
+ * owns (owner decision 4). The last block pins the geometry that is left: a
+ * known-duration maintenance programme is the desaturated tick ring, and
+ * nothing anywhere carries a radius, a ring, a shadow or an undeclared fill.
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { screen } from "@testing-library/react";
@@ -23,6 +23,7 @@ import { renderWithProviders } from "./test-utils";
 import { StatusOverlay } from "../src/components/StatusOverlay";
 import { BrewSection } from "../src/components/BrewSection";
 import { setServerStrings, resetServerStrings } from "../src/lib/server-strings";
+import { assertHardRules } from "./hard-rules";
 
 const CTX = { id: "", user_id: null, parent_id: null };
 
@@ -78,27 +79,6 @@ describe("StatusOverlay descriptions", () => {
     expect(screen.queryByText("Machine is turned off.")).not.toBeInTheDocument();
   });
 
-  it("brewing: the served sub-process description beats the bare activity label", () => {
-    setServerStrings({
-      "status.process.PRODUCT.description": "The machine is preparing a drink.",
-      "status.sub_process.GRINDING.description": "Grinding beans from the selected hopper.",
-    });
-    renderOverlay({ process_token: "PRODUCT", is_brewing: true, sub_process_token: "GRINDING" });
-    expect(screen.getByText("Grinding beans from the selected hopper.")).toBeInTheDocument();
-  });
-
-  it("brewing: keeps the activity label when only the sub-process description is missing", () => {
-    setServerStrings({ "status.process.PRODUCT.description": "The machine is preparing a drink." });
-    renderOverlay({ process_token: "PRODUCT", is_brewing: true, sub_process_token: "GRINDING" });
-    expect(screen.getByText("Grinding")).toBeInTheDocument();
-  });
-
-  it("brewing without a sub-process falls back to the process description", () => {
-    setServerStrings({ "status.process.PRODUCT.description": "The machine is preparing a drink." });
-    renderOverlay({ process_token: "PRODUCT", is_brewing: true });
-    expect(screen.getByText("The machine is preparing a drink.")).toBeInTheDocument();
-  });
-
   it("action-required keeps the manipulation title, descriptions notwithstanding", () => {
     setServerStrings({
       "status.process.READY.description": "The machine is on and ready to brew.",
@@ -113,54 +93,55 @@ describe("StatusOverlay descriptions", () => {
 });
 
 /* ══════════════════════════════════════════════════════════════════════
+   C1 — one brewing takeover, and it is not this one
+   ══════════════════════════════════════════════════════════════════════ */
+
+describe("StatusOverlay yields the pour to BrewSection (C1)", () => {
+  it("renders nothing at all while the machine is brewing", () => {
+    setServerStrings({ "status.process.PRODUCT.description": "The machine is preparing a drink." });
+    const { container } = renderOverlay({
+      process_token: "PRODUCT",
+      is_brewing: true,
+      sub_process_token: "GRINDING",
+    });
+
+    expect(container).toBeEmptyDOMElement();
+    // The portal writes to document.body, so absence has to be asserted there.
+    expect(document.querySelector('[data-fill="scrim"]')).toBeNull();
+    expect(screen.queryByText("The machine is preparing a drink.")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+    expect(document.querySelector('[data-ui="meter"]')).toBeNull();
+  });
+
+  it("does not re-take the screen for a brewing machine on an unknown token", () => {
+    // The unknown-token branch renders neutral "busy" (§5.3.2 rule 2), and a
+    // brewing machine outside the v1 vocabulary hits both. The brewing guard
+    // is tested FIRST precisely so this cannot put a scrim over the pour.
+    renderOverlay({ process_token: "NOT_IN_VOCAB", is_brewing: true });
+    expect(document.querySelector('[data-fill="scrim"]')).toBeNull();
+  });
+
+  it("still surfaces a fault raised during a pour, and only the fault", () => {
+    renderOverlay({
+      process_token: "PRODUCT",
+      is_brewing: true,
+      manipulation_token: "FILL_WATER",
+    });
+
+    expect(screen.getByText("Action required")).toBeInTheDocument();
+    // No abort circle and no progress furniture ride along with it: the fault
+    // screen is one thing, not the old takeover wearing a different title.
+    expect(document.querySelector('[data-ui="abort-circle"]')).toBeNull();
+    expect(document.querySelector('[data-ui="meter"]')).toBeNull();
+    expect(document.querySelector('[data-ui="tick-ring"]')).toBeNull();
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════════
    The rebuilt visual contract (the two hard rules + owner decision 4)
    ══════════════════════════════════════════════════════════════════════ */
 
-/** Fills the language permits; each must announce itself with `data-fill`. */
-const CARVE_OUTS = new Set([
-  "commit",
-  "meter",
-  "glow",
-  "contact",
-  "rule",
-  "scrim",
-  "panel",
-]);
 
-/**
- * Walk a rendered tree and assert the two hard rules on every node: radius 0
- * (a true circle — width === height — being the only curve), no fill that has
- * not declared itself a carve-out, no ring, no shadow, no tracked-out caps,
- * and `backdrop-blur` only on a scrim.
- */
-function assertHardRules(root: HTMLElement) {
-  root.querySelectorAll<HTMLElement>("*").forEach((el) => {
-    const cls = String(el.className);
-    const radius = el.style?.borderRadius ?? "";
-    if (radius !== "" && radius !== "0px") {
-      expect(radius, `${el.tagName} draws a curve that is not a circle`).toBe("50%");
-      expect(el.style.width).toBe(el.style.height);
-    }
-    expect(cls).not.toMatch(/(^|\s)rounded/);
-    expect(cls).not.toMatch(/(^|\s)ring-/);
-    expect(cls).not.toMatch(/shadow-|tracking-|uppercase/);
-    if (/backdrop-blur/.test(cls)) {
-      expect(el.getAttribute("data-fill")).toBe("scrim");
-    }
-    const shadow = el.style?.boxShadow ?? "";
-    if (shadow !== "") expect(shadow).toBe("none");
-
-    const painted =
-      (el.style?.backgroundColor ?? "") !== "" ||
-      (el.style?.backgroundImage ?? "") !== "";
-    if (!painted) return;
-    const declared = el.getAttribute("data-fill");
-    expect(
-      declared !== null && CARVE_OUTS.has(declared),
-      `${el.tagName} paints without declaring a carve-out (data-fill=${declared})`,
-    ).toBe(true);
-  });
-}
 
 describe("StatusOverlay — the rebuilt visual contract", () => {
   function renderWithProgress(tokens: Record<string, unknown>, progress: string) {
@@ -173,34 +154,24 @@ describe("StatusOverlay — the rebuilt visual contract", () => {
     );
   }
 
-  it("draws a pour as the segmented meter — no ring, no capsule, no amber", () => {
+  it("draws no progress form for a pour, with or without a served figure", () => {
+    // The bottom-pinned meter went to BrewSection with the rest of the
+    // takeover (C1); a reported figure no longer pulls this portal open.
     renderWithProgress({ process_token: "PRODUCT", is_brewing: true }, "40");
 
-    const meter = document.querySelector('[data-ui="meter"]')!;
-    expect(meter).toBeTruthy();
-    // round(0.40 × 12) segments painted, the paint IS the value.
-    expect(meter.getAttribute("data-filled")).toBe("5");
-    expect(meter.getAttribute("data-segments")).toBe("12");
+    expect(document.querySelector('[data-ui="meter"]')).toBeNull();
     expect(document.querySelector('[data-ui="tick-ring"]')).toBeNull();
     expect(document.body.innerHTML).not.toMatch(/amber/);
     assertHardRules(document.body);
   });
 
-  it("collapses to one labelled abort: a true circle with its word outside it", () => {
-    renderWithProgress({ process_token: "PRODUCT", is_brewing: true }, "40");
-
-    const cancel = screen.getByRole("button", { name: "Cancel" });
-    expect(cancel.className).toContain("tap");
-    expect(cancel.className).toContain("press");
-    // The word is a sibling of the circle, never inside it.
-    const circle = cancel.querySelector<HTMLElement>('[data-ui="abort-circle"]')!;
-    expect(circle.style.backgroundColor).toBe("var(--error-text)");
-    expect(circle.style.borderRadius).toBe("50%");
-    expect(circle.style.width).toBe(circle.style.height);
-    expect(circle).toHaveAttribute("data-fill", "commit");
-    expect(circle.textContent).toBe("");
-    // Exactly one saturated shape on the whole screen.
-    expect(document.querySelectorAll('[data-fill="commit"]')).toHaveLength(1);
+  it("spends no saturated fill on any screen it still draws", () => {
+    // The abort circle was the overlay's one `data-fill="commit"`, and it left
+    // with the takeover. What remains — prompt, fault, off, service — commits
+    // to nothing, so the scrim is the only fill on the screen.
+    renderWithProgress({ process_token: "DESCALING" }, "50");
+    expect(document.querySelectorAll('[data-fill="commit"]')).toHaveLength(0);
+    expect(document.querySelector('[data-ui="abort-circle"]')).toBeNull();
   });
 
   it("gives a known-duration maintenance programme the desaturated tick ring", () => {

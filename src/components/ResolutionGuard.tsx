@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { usePreferences } from "../lib/preferences";
-import { Rule } from "./ui";
+import { Glyph, Rule } from "./ui";
 import iconNotConnected from "../assets/icons/not_connected.png";
 
 const MIN_WIDTH = 1024;
@@ -10,11 +10,22 @@ const MIN_HEIGHT = 690;
 /**
  * The blocking notice shown below the app's minimum working size.
  *
- * Two of the four permitted fills and nothing else: the scrim (§5.A — the
- * removal of the page, not a container tint) and the one flat `--surface`
- * panel this overlay is allowed (§5.B), square-cornered with no ring and no
- * shadow. The dimensions read out as tabular figures between two hairlines
- * rather than inside a tinted chip.
+ * ONE FILL, NOT TWO — AND IT IS NOT A PANEL (C7/C8/C9).
+ * This used to hand-roll the §5.B shape: a `--surface` rectangle at its own
+ * `max-w-sm`, with its own header treatment and no close control. Two things
+ * are wrong with that. First, `Panel` — the primitive that owns §5.B — cannot
+ * draw a panel without a close control: `onClose` and `closeLabel` are
+ * required and the `X` always renders. Second, that is correct of it. A panel
+ * is a modal: a thing you opened, over a page you can go back to. This is
+ * neither. There is nothing to close to; the window is the wrong size and the
+ * only way out is to resize it. Drawing a close control here would be a
+ * control that lies, and drawing a panel without one forks the primitive.
+ *
+ * So the block keeps only the scrim (§5.A — the removal of the page, not a
+ * container tint) and stands bare on it: a state glyph, a title, a line of
+ * prose, and the figures between two hairlines. No second fill, no measure of
+ * its own — the rail bounds it like everything else, and the one `max-w-*`
+ * left is `max-w-prose` on running prose, which is the only cap §G2.3 allows.
  */
 export function ResolutionGuard() {
   const { t } = usePreferences();
@@ -33,28 +44,28 @@ export function ResolutionGuard() {
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center backdrop-blur-md"
       data-fill="scrim"
-      style={{ backgroundColor: "var(--overlay-bg)" }}
+      style={{
+        backgroundColor: "var(--overlay-bg)",
+        paddingLeft: "var(--rail)",
+        paddingRight: "var(--rail)",
+      }}
     >
       <div
-        className="flex flex-col items-center gap-5 max-w-sm mx-6 px-8 py-10 text-center"
-        data-fill="panel"
-        style={{ backgroundColor: "var(--surface)", borderRadius: 0 }}
+        data-ui="resolution-block"
+        className="flex w-full max-w-prose flex-col items-center gap-5 text-center"
       >
-        <img
-          src={iconNotConnected}
-          alt=""
-          className="w-16 h-16 object-contain opacity-60"
-          draggable={false}
-        />
-        <div className="t-title text-primary">
+        {/* §6.6 / C27: the `state` rung — 80px at the one 0.6 knock-down. */}
+        <Glyph src={iconNotConnected} size="state" />
+        <h2 className="t-title text-primary">
           {t("app.resolution_title")}
-        </div>
+        </h2>
         <div className="t-body text-secondary leading-relaxed">
           {t("app.resolution_desc")}
         </div>
         <div className="w-full">
           <Rule />
-          <div className="t-label text-tertiary tabular-nums py-2">
+          {/* C25: `.num` is the app's one spelling of "tabular". */}
+          <div className="t-label text-tertiary num py-2">
             {t("app.resolution_min")}: {MIN_WIDTH}×{MIN_HEIGHT}px
             <br />
             {t("app.resolution_current")}: {size.w}×{size.h}px

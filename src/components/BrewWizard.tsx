@@ -1,7 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { createPortal } from "react-dom";
-import { X, Check, Coffee } from "lucide-react";
+import { Check, Coffee } from "lucide-react";
 import { usePreferences } from "../lib/preferences";
 import { displayNameFor, tServer, type TranslationKey } from "../lib/i18n";
 import {
@@ -19,7 +18,7 @@ import {
   type PhaseTarget,
 } from "../hooks/useBrewPhase";
 import type { AiRecipe } from "../hooks/useSommelier";
-import { Commit, Meter, Rule } from "./ui";
+import { ActionBand, Commit, Meter, Panel, Rule, Word } from "./ui";
 
 interface Props {
   open: boolean;
@@ -51,42 +50,6 @@ const ERROR_RULES: CSSProperties = {
 };
 
 /**
- * A secondary action: a bare word over a 1px `--border` underline inside a
- * 48px reach (§C5a). Every action that is not the step's single commit takes
- * this form — the wizard used to draw five filled `rounded-xl` slabs per
- * screen, which is exactly the vocabulary spend the language forbids.
- */
-function WordButton({
-  label,
-  onClick,
-  disabled = false,
-}: {
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="tap press t-body"
-      style={{
-        color: "var(--text-secondary)",
-        borderBottomWidth: "1px",
-        borderBottomStyle: "solid",
-        borderBottomColor: "var(--border)",
-        borderRadius: 0,
-        opacity: disabled ? 0.35 : 1,
-        pointerEvents: disabled ? "none" : undefined,
-      }}
-    >
-      {label}
-    </button>
-  );
-}
-
-/**
  * Linear step-machine wizard for brewing a sommelier recipe (Zone P-H).
  *
  * Compiles the recipe into one numbered checklist (cup step + pre steps +
@@ -96,15 +59,22 @@ function WordButton({
  * confirmation prompts inline, and persists the position per recipe id in
  * localStorage (2 h TTL) so closing mid-brew resumes where the user left off.
  *
- * VISUAL CONTRACT. The wizard is the app's one §5.B panel-in-an-overlay: one
- * flat `--surface` rectangle at radius 0 with no ring and no shadow, and
- * nothing inside it paints. The step list is hairline rows; a pour's progress
- * is the segmented Meter (owner decision 4 — the tick ring is a full-screen
- * takeover only); the composition of a phase is the §C7 value strip, which is
- * the earlier fix that puts the phase's make-up on the step rather than a bare
- * "phase 1/2", now drawn as hairline-divided label/value pairs instead of
- * capsule pills. Exactly ONE commit rectangle is rendered per step view; every
- * other action is a word.
+ * VISUAL CONTRACT. The wizard is drawn by the shared `Panel` — the app's one
+ * §5.B shape (C7, C8, C9). It used to hand-roll its own scrim, its own
+ * `max-w-lg` measure, its own `px-5 py-4 border-b` header and its own `X` at
+ * 18px, which is three of the five rival header treatments and one of the five
+ * rival panel widths the audit found; all of that now lives in one place and
+ * the wizard only says which measure it is (`sm`) and what its header carries.
+ * Nothing inside the panel paints.
+ *
+ * The step list is hairline rows; a pour's progress is the segmented Meter
+ * (owner decision 4 — the tick ring is a full-screen takeover only) and it
+ * carries NO percentage (C18: a progress meter's end is estimated, so a figure
+ * on it is false precision); the composition of a phase is the §C7 value strip,
+ * which is the earlier fix that puts the phase's make-up on the step rather
+ * than a bare "phase 1/2", now drawn as hairline-divided label/value pairs
+ * instead of capsule pills. Exactly ONE commit rectangle is rendered per step
+ * view, it sits in an `ActionBand`, and every other action is a `Word`.
  */
 export function BrewWizard({
   open,
@@ -202,16 +172,39 @@ export function BrewWizard({
    * groups divided by short 1px hairlines, the LABEL half in `--accent` and
    * the VALUE half in `--text-primary`. The process itself is pure identity
    * and carries no label half, so it spends no accent.
+   *
+   * C22 — A NUMBER AND ITS UNIT ARE TWO THINGS. "120 ml" used to be baked into
+   * one string and rendered wholly in `--text-primary`, which means the unit
+   * could never be re-inked: §7.6 drops a unit to `--text-tertiary` at the SAME
+   * size (never to an off-scale 9px or 11px), and a string cannot be given two
+   * colours. So a fact carries `value` and `unit` separately and the strip
+   * inks each half itself — the shape `RecipeInfo` already draws in
+   * BrewSection, where the figure is `--text-primary` at 600 and "ml" sits
+   * beside it in `--text-tertiary`.
+   *
+   * `numeric` is what earns the `.num` tabular utility (§R1.8): a machine
+   * FIGURE gets it so digits line up down a column; a token name like "strong"
+   * is a word and would only be given false alignment by it.
    */
   const componentStrip = (step: MachineWizardStep) => {
     const c = step.component;
-    const facts: { label?: string; value: string; key: string }[] = [];
+    const facts: {
+      label?: string;
+      value: string;
+      unit?: string;
+      numeric?: boolean;
+      key: string;
+    }[] = [];
     if (c.process)
       facts.push({ value: displayNameFor(locale, "process", c.process), key: "process" });
     if (c.portion_ml)
       facts.push({
         label: t("freestyle.portion" as TranslationKey),
-        value: `${c.portion_ml} ml`,
+        value: String(c.portion_ml),
+        // The SI symbol, not a translatable word — it is spelled the same way
+        // in every one of the 29 bundles and in every other strip in the app.
+        unit: "ml",
+        numeric: true,
         key: "ml",
       });
     if (c.shots)
@@ -221,6 +214,7 @@ export function BrewWizard({
           typeof c.shots === "number"
             ? String(c.shots)
             : displayNameFor(locale, "shots", c.shots),
+        numeric: typeof c.shots === "number",
         key: "shots",
       });
     if (c.intensity)
@@ -244,9 +238,20 @@ export function BrewWizard({
             {fact.label === undefined ? null : (
               <span style={{ color: "var(--accent)" }}>{fact.label} </span>
             )}
-            <span className="num" style={{ color: "var(--text-primary)" }}>
+            <span
+              className={fact.numeric ? "num" : undefined}
+              style={{
+                // The value half of a labelled pair carries the weight; a bare
+                // identity word (the process) is not a value and does not.
+                fontWeight: fact.label === undefined ? undefined : 600,
+                color: "var(--text-primary)",
+              }}
+            >
               {fact.value}
             </span>
+            {fact.unit === undefined ? null : (
+              <span style={{ color: "var(--text-tertiary)" }}>{` ${fact.unit}`}</span>
+            )}
           </span>
         ))}
       </div>
@@ -258,7 +263,9 @@ export function BrewWizard({
       <div className="mt-3">
         <Rule />
         <div className="pt-2 t-label" style={{ color: "var(--text-secondary)" }}>
-          <div className="font-medium text-tertiary">{tw("wizard.machine.during_hint")}</div>
+          {/* §7.3/C31: weight comes from `.t-label`'s own 500 and is never
+              restated — a caption is ranked by ink, not by boldness. */}
+          <div className="text-tertiary">{tw("wizard.machine.during_hint")}</div>
           <ul className="mt-1 list-disc pl-4 space-y-0.5">
             {step.hints.map((h, i) => (
               <li key={i}>{h}</li>
@@ -276,11 +283,17 @@ export function BrewWizard({
     <div className="mt-3 py-2 space-y-2 t-label" style={ERROR_RULES}>
       <div>{fmt(tw("wizard.machine.prompt"), { prompt: m.prompt })}</div>
       {env?.confirmEntityId ? (
-        <Commit
-          label={tw("wizard.machine.confirm")}
-          scale="panel"
-          busy={m.confirmBusy}
-          onCommit={() => void phase.confirmPrompt()}
+        <ActionBand
+          rule={false}
+          inset="none"
+          commit={
+            <Commit
+              label={tw("wizard.machine.confirm")}
+              scale="panel"
+              busy={m.confirmBusy}
+              onCommit={() => void phase.confirmPrompt()}
+            />
+          }
         />
       ) : (
         <div>{tw("wizard.machine.confirm_manual")}</div>
@@ -302,20 +315,24 @@ export function BrewWizard({
         <>
           {componentStrip(step)}
           {hints(step)}
-          <div className="mt-3">
-            <Commit
-              label={
-                step.legacyFull
-                  ? tw("wizard.machine.start_full")
-                  : tw("wizard.machine.start")
-              }
-              scale="panel"
-              icon={<Coffee size={18} />}
-              onCommit={() =>
-                void phase.startPhase(step, recipe as BrewPlanRecipe, target)
-              }
-            />
-          </div>
+          <ActionBand
+            rule={false}
+            inset="none"
+            commit={
+              <Commit
+                label={
+                  step.legacyFull
+                    ? tw("wizard.machine.start_full")
+                    : tw("wizard.machine.start")
+                }
+                scale="panel"
+                icon={<Coffee size={18} />}
+                onCommit={() =>
+                  void phase.startPhase(step, recipe as BrewPlanRecipe, target)
+                }
+              />
+            }
+          />
         </>
       );
     }
@@ -325,33 +342,41 @@ export function BrewWizard({
           <div role="alert" className="mt-2 py-2 t-label" style={ERROR_RULES}>
             {tw("wizard.machine.failed")}: {m.error}
           </div>
-          <div className="mt-2 flex justify-end">
-            <WordButton label={tw("wizard.machine.skip")} onClick={advance} />
-          </div>
-          <div className="mt-2">
-            <Commit
-              label={tw("wizard.machine.retry")}
-              scale="panel"
-              onCommit={() =>
-                void phase.startPhase(step, recipe as BrewPlanRecipe, target)
-              }
-            />
-          </div>
+          {/* C10: one arrangement — the word first at its own width, the
+              commit taking the rest of the row. Not a word right-aligned on
+              its own line ABOVE a full-width commit, which is what this was. */}
+          <ActionBand
+            rule={false}
+            inset="none"
+            secondary={<Word label={tw("wizard.machine.skip")} onClick={advance} />}
+            commit={
+              <Commit
+                label={tw("wizard.machine.retry")}
+                scale="panel"
+                onCommit={() =>
+                  void phase.startPhase(step, recipe as BrewPlanRecipe, target)
+                }
+              />
+            }
+          />
         </>
       );
     }
     // brewing (and the momentary "done" before auto-advance)
     return (
       <>
-        {/* §C-Numeric: the readout lives in the label row, never on the bar. */}
+        {/*
+          C18, settled: a PROGRESS meter carries no numeric readout — not on
+          the track and not in a label row beside it. This wait's end is only
+          ever estimated (that is precisely why it is a linear meter and not
+          the §9.1 ring), so a percentage derived from the estimate is false
+          precision, and every other progress meter in the app already omits
+          it. The estimate itself stays, because it is the honest figure. A
+          VALUE meter still prints its number: the user chose that one.
+        */}
         <div className="mt-2 space-y-1.5">
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="t-label text-tertiary">
-              {fmt(tw("wizard.machine.estimated"), { sec: m.estimated })}
-            </span>
-            <span className="t-label num text-tertiary">
-              {Math.round(m.progress)}%
-            </span>
+          <div className="t-label text-tertiary">
+            {fmt(tw("wizard.machine.estimated"), { sec: m.estimated })}
           </div>
           <Meter
             value={m.progress}
@@ -363,31 +388,40 @@ export function BrewWizard({
         </div>
         {hints(step)}
         {promptCard}
-        <div className="mt-3">
-          {m.manualFinish ? (
-            hasPromptCommit ? (
-              <div className="flex justify-end">
-                <WordButton
+        {m.manualFinish ? (
+          <ActionBand
+            rule={false}
+            inset="none"
+            // While a machine prompt is showing, Confirm IS the step's commit,
+            // so "I'm done" steps back to being a word.
+            secondary={
+              hasPromptCommit ? (
+                <Word
                   label={tw("wizard.machine.im_done")}
                   onClick={phase.finishManually}
                 />
-              </div>
-            ) : (
-              <Commit
-                label={tw("wizard.machine.im_done")}
-                scale="panel"
-                onCommit={phase.finishManually}
-              />
-            )
-          ) : (
-            // §9.3: busy with no measure breathes on the subject glyph. No
-            // spinner anywhere in the app any more.
+              ) : undefined
+            }
+            commit={
+              hasPromptCommit ? undefined : (
+                <Commit
+                  label={tw("wizard.machine.im_done")}
+                  scale="panel"
+                  onCommit={phase.finishManually}
+                />
+              )
+            }
+          />
+        ) : (
+          // §9.3: busy with no measure breathes on the subject glyph. No
+          // spinner anywhere in the app any more.
+          <div className="mt-3">
             <span className="flex items-center justify-end gap-2 t-label text-tertiary">
               <Coffee size={16} className="status-icon-pulse" />
               {tw("wizard.machine.waiting")}
             </span>
-          )}
-        </div>
+          </div>
+        )}
       </>
     );
   };
@@ -439,13 +473,17 @@ export function BrewWizard({
                   {step.notes && (
                     <div className="t-label text-tertiary">{step.notes}</div>
                   )}
-                  <div className="mt-3">
-                    <Commit
-                      label={tw("wizard.step.done")}
-                      scale="panel"
-                      onCommit={advance}
-                    />
-                  </div>
+                  <ActionBand
+                    rule={false}
+                    inset="none"
+                    commit={
+                      <Commit
+                        label={tw("wizard.step.done")}
+                        scale="panel"
+                        onCommit={advance}
+                      />
+                    }
+                  />
                 </>
               ) : (
                 machineCard(step)
@@ -464,16 +502,20 @@ export function BrewWizard({
         <p className="mt-2 t-body text-secondary italic">{recipe.extras.instruction}</p>
       )}
       <p className="mt-2 t-label text-tertiary">{tw("wizard.finish.message")}</p>
-      <div className="mt-4">
-        <Commit
-          label={tw("wizard.finish.button")}
-          scale="panel"
-          onCommit={() => {
-            clearWizardPosition(recipe.id);
-            close();
-          }}
-        />
-      </div>
+      <ActionBand
+        rule={false}
+        inset="none"
+        commit={
+          <Commit
+            label={tw("wizard.finish.button")}
+            scale="panel"
+            onCommit={() => {
+              clearWizardPosition(recipe.id);
+              close();
+            }}
+          />
+        }
+      />
     </div>
   );
 
@@ -487,22 +529,26 @@ export function BrewWizard({
       <div className="w-full max-w-xs">
         <h3 className="t-title text-primary">{tw("wizard.close.title")}</h3>
         <p className="mt-2 t-body text-secondary">{tw("wizard.close.message")}</p>
-        <div className="mt-3 flex justify-end">
-          <WordButton
-            label={tw("wizard.close.stay")}
-            onClick={() => setConfirmClose(false)}
-          />
-        </div>
-        <div className="mt-3">
-          <Commit
-            label={tw("wizard.close.leave")}
-            scale="panel"
-            onCommit={() => {
-              saveWizardPosition(recipe.id, stepIndex);
-              close();
-            }}
-          />
-        </div>
+        <ActionBand
+          rule={false}
+          inset="none"
+          secondary={
+            <Word
+              label={tw("wizard.close.stay")}
+              onClick={() => setConfirmClose(false)}
+            />
+          }
+          commit={
+            <Commit
+              label={tw("wizard.close.leave")}
+              scale="panel"
+              onCommit={() => {
+                saveWizardPosition(recipe.id, stepIndex);
+                close();
+              }}
+            />
+          }
+        />
       </div>
     </div>
   );
@@ -510,62 +556,40 @@ export function BrewWizard({
   const total = steps.length;
   const current = Math.min(stepIndex + 1, Math.max(total, 1));
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
-      data-fill="scrim"
-      style={{ backgroundColor: "var(--overlay-bg)" }}
-      onClick={requestClose}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        /** The one §5.B flat panel: radius 0, no ring, no border, no shadow. */
-        data-fill="panel"
-        className="relative w-full max-w-lg max-h-[85vh] mx-4 overflow-hidden flex flex-col"
-        style={{ backgroundColor: "var(--surface)", borderRadius: 0 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between gap-2 px-5 py-4 border-b border-border">
-          <span className="t-body font-semibold text-primary truncate">
-            {recipe.name || tw("wizard.title")}
+  return (
+    <Panel
+      title={recipe.name || tw("wizard.title")}
+      onClose={requestClose}
+      closeLabel={tw("wizard.close.title")}
+      /** §5.B measure: a linear checklist is a short list, not an editor. */
+      measure="sm"
+      bodyClassName="p-5"
+      headerExtra={
+        total > 0 && !finished ? (
+          <span className="t-label num text-tertiary">
+            {fmt(tw("wizard.step_of"), { n: current, m: total })}
           </span>
-          <div className="flex items-center gap-2 shrink-0">
-            {total > 0 && !finished && (
-              <span className="t-label num text-tertiary">
-                {fmt(tw("wizard.step_of"), { n: current, m: total })}
-              </span>
-            )}
-            <button
-              aria-label={tw("wizard.close.title")}
-              onClick={requestClose}
-              className="tap press text-secondary hover:text-primary"
-              style={{ borderRadius: 0 }}
-            >
-              <X size={18} />
-            </button>
+        ) : null
+      }
+    >
+      {resumed && !finished && (
+        <div className="mb-4">
+          <Rule />
+          <div className="flex items-center justify-between gap-3 py-2 t-label text-secondary">
+            <span>{tw("wizard.resumed")}</span>
+            <Word label={tw("wizard.restart")} onClick={restart} />
           </div>
+          <Rule />
         </div>
-        <div className="flex-1 overflow-y-auto custom-scroll p-5">
-          {resumed && !finished && (
-            <div className="mb-4">
-              <Rule />
-              <div className="flex items-center justify-between gap-3 py-2 t-label text-secondary">
-                <span>{tw("wizard.resumed")}</span>
-                <WordButton label={tw("wizard.restart")} onClick={restart} />
-              </div>
-              <Rule />
-            </div>
-          )}
-          {finished || total === 0 ? (
-            finishView
-          ) : (
-            <ol>{steps.map(renderStep)}</ol>
-          )}
-        </div>
-        {confirmClose && confirmCloseView}
-      </div>
-    </div>,
-    document.body,
+      )}
+      {finished || total === 0 ? finishView : <ol>{steps.map(renderStep)}</ol>}
+      {/*
+        The leave-confirmation covers the whole panel rather than stacking a
+        second filled card on it. It is `absolute inset-0` against the panel —
+        the body it sits in is `position: static`, so the body's own scrolling
+        neither moves nor clips it.
+      */}
+      {confirmClose && confirmCloseView}
+    </Panel>
   );
 }

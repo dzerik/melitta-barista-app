@@ -98,7 +98,6 @@
   "sommelier.generate": "Ģenerēt",
   "sommelier.hopper": "Tvertne",
   "sommelier.surprise_me": "Pārsteidz mani",
-  "sommelier.brew": "Pagatavot",
   "sommelier.brewing": "Gatavo…",
   "sommelier.favorite": "Pievienot izlasei",
   "sommelier.remove": "Noņemt",
@@ -159,5 +158,14 @@
   "wizard.machine.failed": "Pagatavošana neizdevās",
   "wizard.machine.confirm": "Apstiprināt",
   "wizard.finish.button": "Aizvērt",
-  "wizard.close.stay": "Palikt"
+  "wizard.close.stay": "Palikt",
+  "app.decrease": "Samazināt",
+  "app.increase": "Palielināt",
+  "app.page": "{n}. lappuse",
+  "freestyle.drink_name": "Dzēriena nosaukums",
+  "app.close": "Aizvērt",
+  "brew.two_cups": "2x",
+  "brew.two_cups_on": "2x ieslēgts",
+  "app.previous": "Iepriekšējais",
+  "app.next": "Nākamais"
 }

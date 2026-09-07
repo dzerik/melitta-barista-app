@@ -53,6 +53,7 @@ import { SommelierFavorites } from "../src/components/SommelierFavorites";
 import { SommelierSection } from "../src/components/SommelierSection";
 import { BrewWizardContext, type BrewWizardEnv } from "../src/hooks/useBrewPhase";
 import type { AiRecipe } from "../src/hooks/useSommelier";
+import { assertHardRules } from "./hard-rules";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -544,7 +545,12 @@ describe("BrewWizard", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2100); // poll 1: brewing observed
     });
-    expect(screen.getByText("40%")).toBeInTheDocument();
+    // C18: a progress meter carries no percentage, so the polled figure is
+    // read off the paint — round(0.40 × 12) segments.
+    expect(document.querySelector('[data-ui="meter"]')).toHaveAttribute(
+      "data-filled",
+      "5",
+    );
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2100); // poll 2: done
     });
@@ -643,50 +649,7 @@ describe("BrewWizard", () => {
 // BrewWizard component — the rebuilt visual contract
 // ---------------------------------------------------------------------------
 
-/** Fills the language permits; each must announce itself with `data-fill`. */
-const CARVE_OUTS = new Set([
-  "commit",
-  "meter",
-  "glow",
-  "contact",
-  "rule",
-  "scrim",
-  "panel",
-]);
 
-/**
- * The two hard rules, asserted on every node of a rendered tree: radius 0 (a
- * true circle — width === height — being the only curve), no undeclared fill,
- * no ring, no shadow, no tracked-out caps, `backdrop-blur` only on a scrim.
- */
-function assertHardRules(root: HTMLElement) {
-  root.querySelectorAll<HTMLElement>("*").forEach((el) => {
-    const cls = String(el.className);
-    const radius = el.style?.borderRadius ?? "";
-    if (radius !== "" && radius !== "0px") {
-      expect(radius, `${el.tagName} draws a curve that is not a circle`).toBe("50%");
-      expect(el.style.width).toBe(el.style.height);
-    }
-    expect(cls).not.toMatch(/(^|\s)rounded/);
-    expect(cls).not.toMatch(/(^|\s)ring-/);
-    expect(cls).not.toMatch(/shadow-|tracking-|uppercase/);
-    if (/backdrop-blur/.test(cls)) {
-      expect(el.getAttribute("data-fill")).toBe("scrim");
-    }
-    const shadow = el.style?.boxShadow ?? "";
-    if (shadow !== "") expect(shadow).toBe("none");
-
-    const painted =
-      (el.style?.backgroundColor ?? "") !== "" ||
-      (el.style?.backgroundImage ?? "") !== "";
-    if (!painted) return;
-    const declared = el.getAttribute("data-fill");
-    expect(
-      declared !== null && CARVE_OUTS.has(declared),
-      `${el.tagName} paints without declaring a carve-out (data-fill=${declared})`,
-    ).toBe(true);
-  });
-}
 
 const commits = () => document.querySelectorAll('[data-ui="commit"]');
 
@@ -749,9 +712,13 @@ describe("BrewWizard — the rebuilt visual contract", () => {
       "commit",
     );
     const skip = screen.getByRole("button", { name: "Skip" });
+    expect(skip).toHaveAttribute("data-ui", "word");
     expect(skip).not.toHaveAttribute("data-ui", "commit");
     expect(skip.style.backgroundColor).toBe("");
-    expect(skip.style.borderBottomColor).toBe("var(--border)");
+    // C5: an action wears NO rule. An underline means "chosen" in this
+    // language, and Skip is not a choice among Skip and something else.
+    expect(skip.style.borderBottomWidth).toBe("");
+    expect(skip.style.borderBottomColor).toBe("");
     expect(skip.className).toContain("tap");
     // §10 error: type between two 1px --error-border rules, no box, no fill.
     const alert = screen.getByRole("alert");
@@ -783,9 +750,13 @@ describe("BrewWizard — the rebuilt visual contract", () => {
     expect(meter).toBeTruthy();
     expect(meter.getAttribute("data-filled")).toBe("3"); // round(0.25 × 12)
     expect(document.querySelector('[data-ui="tick-ring"]')).toBeNull();
-    // The readout lives in the label row above the bar, never on it.
+    // C18: a PROGRESS meter carries no numeric readout at all — not on the
+    // track and not in a label row beside it. The estimate, which is the one
+    // figure we honestly have, stays.
     expect(meter.textContent).toBe("");
-    expect(screen.getByText("25%")).toBeInTheDocument();
+    expect(screen.queryByText("25%")).toBeNull();
+    expect(screen.queryByText(/^\d+%$/)).toBeNull();
+    expect(screen.getByText(/^Estimated ~\d+ s$/)).toBeInTheDocument();
     // §9.3: no spinner survives anywhere.
     expect(document.querySelector(".animate-spin")).toBeNull();
     assertHardRules(document.body);
@@ -809,6 +780,31 @@ describe("BrewWizard — the rebuilt visual contract", () => {
     // No pill, no badge, no fill: the groups are divided by hairlines only.
     expect(strip.innerHTML).not.toMatch(/rounded|background/);
     expect(strip.querySelector(".border-l")).toBeTruthy();
+
+    // C22: the figure and its unit are two elements, so they can be inked
+    // apart — 40 is `--text-primary` at 600 and tabular, "ml" is
+    // `--text-tertiary` at the SAME type step (§7.6), never an off-scale size.
+    // The portion group is the strip's second: process, portion, intensity.
+    const portion = strip.children[1] as HTMLElement;
+    expect(portion.textContent).toBe("Portion 40 ml");
+    const [portionLabel, portionValue, portionUnit] = Array.from(
+      portion.querySelectorAll<HTMLElement>("span"),
+    );
+    expect(portionLabel.style.color).toBe("var(--accent)");
+    expect(portionValue.textContent).toBe("40");
+    expect(portionValue.style.color).toBe("var(--text-primary)");
+    expect(portionValue.className).toContain("num");
+    expect(portionValue.style.fontWeight).toBe("600");
+    expect(portionUnit.textContent).toBe(" ml");
+    expect(portionUnit.style.color).toBe("var(--text-tertiary)");
+    // §7.6: the unit drops a VALUE STEP, never a type step — no size class.
+    expect(portionUnit.className).toBe("");
+    // Nothing bakes the two halves back into one string.
+    expect(
+      Array.from(strip.querySelectorAll("span")).some(
+        (s) => s.textContent === "40 ml",
+      ),
+    ).toBe(false);
   });
 
   it("draws step markers as bare ordinals — no disc, no ring, no fill", () => {
@@ -840,8 +836,11 @@ describe("BrewWizard — the rebuilt visual contract", () => {
       "commit",
     );
     const stay = screen.getByRole("button", { name: "Stay" });
+    expect(stay).toHaveAttribute("data-ui", "word");
     expect(stay.style.backgroundColor).toBe("");
-    expect(stay.style.borderBottomColor).toBe("var(--border)");
+    // C5 again: no rule under an action, here or anywhere.
+    expect(stay.style.borderBottomWidth).toBe("");
+    expect(stay.style.borderBottomColor).toBe("");
     // The confirm step removes the panel beneath it rather than stacking a
     // second filled card on top of it.
     expect(document.querySelectorAll('[data-fill="panel"]')).toHaveLength(1);

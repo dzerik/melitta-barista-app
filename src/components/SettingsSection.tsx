@@ -27,33 +27,32 @@ import {
   numberBounds,
 } from "../lib/settings";
 import { resolveMdiIcon } from "../lib/icons";
-import { Option } from "./ui/Option";
-import { OptionRow } from "./ui/OptionRow";
-import { MeterField } from "./ui/Meter";
-import { Commit } from "./ui/Commit";
-import { Rule } from "./ui/Rule";
+import {
+  ActionBand,
+  Commit,
+  Field,
+  Glyph,
+  GLYPH_PX,
+  Heading,
+  MeterField,
+  Option,
+  OptionRow,
+  Word,
+  HANG,
+  INPUT_RULE,
+  UNDERLINE_W,
+} from "./ui";
+import {
+  ROW_DESC_CLASS,
+  ROW_GUTTER,
+  RowHeading,
+  settingsRowStyle,
+} from "./SettingsRow";
 import iconBean from "../assets/icons/bean.png";
 import iconWater from "../assets/icons/water.png";
 import iconTemperature from "../assets/icons/temperature.png";
 import iconMaintenance from "../assets/icons/maintenance.png";
 import iconSettings from "../assets/icons/settings.png";
-
-/**
- * A raster brand glyph, bare on the ground. §6.6: non-drink raster icons keep
- * a fixed square size and carry their state as an opacity knock-down — there
- * is no 36×36 plate behind them any more.
- */
-function MelittaIcon({ src, alt, lit = false }: { src: string; alt: string; lit?: boolean }) {
-  return (
-    <img
-      src={src}
-      alt={alt}
-      className="w-5 h-5 object-contain shrink-0"
-      style={{ opacity: lit ? 1 : 0.45 }}
-      draggable={false}
-    />
-  );
-}
 
 interface Props {
   conn: Connection;
@@ -68,12 +67,16 @@ interface SwitchDef {
   labelKey: TranslationKey;
   descKey: TranslationKey;
   iconSrc: string;
-  iconAlt: string;
 }
 
 /**
  * Legacy hardcoded switch table — the permanent tier-2 fallback (§9.1.6
  * rule 1) rendered whenever the contract serves no settings block.
+ *
+ * The raster marks carry no `alt`: they are decorative twins of the row label
+ * standing immediately beside them, and the six alt strings that used to live
+ * here ("energy", "bean", "rinsing", "water", "auto-off", "temp") were
+ * hardcoded English announced to every non-English screen-reader user.
  */
 const SWITCHES: SwitchDef[] = [
   {
@@ -81,21 +84,18 @@ const SWITCHES: SwitchDef[] = [
     labelKey: "settings.energy_saving",
     descKey: "settings.energy_saving_desc",
     iconSrc: iconSettings,
-    iconAlt: "energy",
   },
   {
     suffix: "auto_bean_select",
     labelKey: "settings.auto_bean",
     descKey: "settings.auto_bean_desc",
     iconSrc: iconBean,
-    iconAlt: "bean",
   },
   {
     suffix: "rinsing_disabled",
     labelKey: "settings.rinsing",
     descKey: "settings.rinsing_desc",
     iconSrc: iconMaintenance,
-    iconAlt: "rinsing",
   },
 ];
 
@@ -110,7 +110,6 @@ interface NumberDef {
   descKey: TranslationKey;
   format: "level" | "minutes";
   iconSrc: string;
-  iconAlt: string;
 }
 
 /** Legacy hardcoded number table — the permanent tier-2 fallback (§9.1.6). */
@@ -121,7 +120,6 @@ const NUMBERS: NumberDef[] = [
     descKey: "settings.water_hardness_desc",
     format: "level",
     iconSrc: iconWater,
-    iconAlt: "water",
   },
   {
     suffix: "auto_off_after",
@@ -129,7 +127,6 @@ const NUMBERS: NumberDef[] = [
     descKey: "settings.auto_off_desc",
     format: "minutes",
     iconSrc: iconSettings,
-    iconAlt: "auto-off",
   },
   {
     suffix: "brew_temperature",
@@ -137,7 +134,6 @@ const NUMBERS: NumberDef[] = [
     descKey: "settings.brew_temp_desc",
     format: "level",
     iconSrc: iconTemperature,
-    iconAlt: "temp",
   },
 ];
 
@@ -200,44 +196,25 @@ const stagger = (index: number) => ({ animationDelay: `${index * 60}ms` });
  */
 const WORD_ROW_OPTION_CAP = 5;
 
-/**
- * §G2.7 row pitch. A setting is one 80px row — label left, control right,
- * separated from the next by a single hairline. No card, no zebra, no group
- * box: the two-axis `--surface-card` / `--surface-card-active` fill-plus-ring
- * state model is gone, and "changed" now lives in the VALUE's colour (§10).
- */
-const ROW_MIN_H = "80px";
-
-/** Content hangs 10px inside the rail-to-rail rule (§G2.1). */
-const ROW_INSET = "10px";
-
-function rowStyle(index: number): React.CSSProperties {
-  return {
-    ...stagger(index),
-    borderTopWidth: "1px",
-    borderTopStyle: "solid",
-    borderTopColor: "var(--border)",
-    borderRadius: 0,
-    minHeight: ROW_MIN_H,
-    paddingLeft: ROW_INSET,
-    paddingRight: ROW_INSET,
-  };
-}
+/* The 80px row — its pitch, its gutter, its label type and its 10px hang —
+   lives in `SettingsRow` so the maintenance list can draw the identical role
+   identically instead of re-deciding it (C4, C23). */
+const rowStyle = settingsRowStyle;
 
 /**
- * A bare 20px lucide glyph. §C3: `--accent` when the setting is on,
- * `--text-tertiary` when it is not — and no plate behind it either way.
+ * A bare 20px lucide glyph on the row rung. §C3: `--accent` when the setting
+ * is on, `--text-tertiary` when it is not — and no plate behind it either way.
+ *
+ * It goes through `Glyph` rather than a hand-rolled span so the lucide mark
+ * and the raster mark beside it occupy the same box: C28 found the two row
+ * glyph families drawn at two sizes with two opacity models.
  */
 function settingGlyph(icon: string, tone: string) {
   const Icon = resolveMdiIcon(icon);
   return (
-    <span
-      aria-hidden="true"
-      className="shrink-0 inline-flex items-center"
-      style={{ color: tone }}
-    >
-      <Icon size={20} strokeWidth={1.75} />
-    </span>
+    <Glyph alt="" style={{ color: tone }}>
+      <Icon size={GLYPH_PX.row} strokeWidth={1.75} />
+    </Glyph>
   );
 }
 
@@ -245,6 +222,13 @@ function settingGlyph(icon: string, tone: string) {
  * Segment count for a bounded number: one segment per served step, capped at
  * the §C-Numeric continuous default of 12 so a 15-step ladder does not shred
  * into hairlines.
+ *
+ * These are VALUE meters, which is the half of the C18 labelling rule that
+ * prints its number: the readout is the thing the user is choosing, it lives
+ * in `MeterField`'s label row (right-aligned, tabular, 600) and never on the
+ * track. The other half is the wizard's pour, a PROGRESS meter, which carries
+ * no figure at all because its end is estimated. One rule, stated once in
+ * `ui/Meter.tsx`: if the user picked it, print it; if we estimated it, don't.
  */
 function meterSegments(min: number, max: number, step: number): number {
   if (!(max > min) || !(step > 0)) return 12;
@@ -253,6 +237,38 @@ function meterSegments(min: number, max: number, step: number): number {
   return Math.max(2, Math.min(12, steps));
 }
 
+/**
+ * The settings tab: one 80px row per setting, grouped under quiet headings,
+ * with a single commit band that appears only when something is unsaved.
+ *
+ * WHY THIS TAB SCROLLS AND THE RECIPE SHELF PAGES (C32). §G2.2's "overflow
+ * inside a tab is PAGED, never scrolled" is written about the paged drink
+ * matrix, and it works there because a drink cell has a FIXED size: eight
+ * cells fill a page exactly, so a page boundary never lands inside a cell.
+ * A settings row does not: its height is content-driven — a label, a
+ * server-served description that wraps to one, two or three lines depending
+ * on the locale, and sometimes a meter under it — so no fixed rows-per-page
+ * exists that neither clips a row nor leaves half a page of ground. Paging
+ * would also break the one relationship this screen is built on: the user
+ * changes water hardness and auto-off and commits BOTH with one Apply, and a
+ * pager would put half of that edit off-screen while they press it. The drink
+ * shelf has no cross-page state to lose.
+ *
+ * So the rule this app follows is not "tabs page" but: FIXED-SIZE CELLS PAGE,
+ * CONTENT-HEIGHT ROWS SCROLL. Recipes and the sommelier shelf page; settings,
+ * maintenance and stats scroll, all three through the same `.custom-scroll`
+ * treatment, which is the §G2.2 sanctioned scroll. That is one decision
+ * applied twice, not two solutions to one problem.
+ *
+ * And they scroll through the same BOX, which they did not before: one
+ * `flex-1 min-h-0` child of the tab root, one `.custom-scroll`, one browser
+ * default for overscroll. Maintenance used to scroll its root instead, so the
+ * two lists behaved differently at their edges for no reason a reader could
+ * name. Overscroll is deliberately left unset in all three: `body` is
+ * `overflow: hidden` (index.css:217), so a scroll here has no ancestor to
+ * chain into and `overscroll-behavior: contain` would be a declaration that
+ * reads as a rule while changing nothing observable.
+ */
 export function SettingsSection({ conn, entities, prefix, contract = null }: Props) {
   const { t, locale } = usePreferences();
 
@@ -412,12 +428,7 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
   };
 
   const rowHeading = (label: string, description: string | null) => (
-    <div className="flex-1 min-w-0">
-      <div className="t-body font-medium text-primary">{label}</div>
-      {description !== null && description !== undefined && (
-        <div className="t-label text-tertiary leading-tight mt-0.5">{description}</div>
-      )}
-    </div>
+    <RowHeading label={label} description={description} />
   );
 
   // -------------------------------------------------------------------------
@@ -431,12 +442,15 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
     return (
       <div
         key={entry.setting}
-        className="settings-card-enter flex items-center gap-3 py-3"
+        className={`settings-card-enter flex items-center ${ROW_GUTTER} py-3`}
         style={rowStyle(idx)}
       >
         {settingGlyph(
           settingIconName(entry),
-          isOn ? "var(--accent)" : "var(--text-tertiary)",
+          // A toggled state is none of the accent's four places — the same
+          // ruling that took accent off the sommelier's favourite mark. The
+          // chosen word beside it carries the state.
+          isOn ? "var(--text-primary)" : "var(--text-tertiary)",
         )}
         {rowHeading(label, settingDescription(locale, entry.setting))}
         {booleanRow(label, entry.setting, isOn, changed, (next) =>
@@ -459,7 +473,7 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
     return (
       <div
         key={entry.setting}
-        className="settings-card-enter flex items-start gap-3 py-3"
+        className={`settings-card-enter flex items-start ${ROW_GUTTER} py-3`}
         style={rowStyle(idx)}
       >
         <span className="mt-0.5 flex">
@@ -480,23 +494,21 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
                   {display}
                 </span>
               </div>
-              <input
+              {/* §R1.6 / C6: one input form, one hairline — `--input-border`
+                  at `--underline-w`. The `--border` this used to take is a
+                  content divider, not a line you write on. */}
+              <Field
                 type="number"
+                inputMode="numeric"
+                align="end"
                 min={min}
                 max={max}
                 step={step}
                 value={value}
-                onChange={(e) => setLocalCatalogValue(entry.setting, parseFloat(e.target.value))}
-                aria-label={label}
-                className="w-full bg-transparent px-0 outline-none t-body num"
-                style={{
-                  color: "var(--text-primary)",
-                  borderRadius: 0,
-                  borderBottomWidth: "1px",
-                  borderBottomStyle: "solid",
-                  borderBottomColor: "var(--border)",
-                  height: "var(--tap)",
-                }}
+                ariaLabel={label}
+                onChange={(next) =>
+                  setLocalCatalogValue(entry.setting, parseFloat(next))
+                }
               />
             </>
           ) : (
@@ -510,11 +522,15 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
               segments={meterSegments(min, max, step)}
               displayValue={display}
               changed={changed}
+              steppers={{
+                decrement: t("app.decrease"),
+                increment: t("app.increase"),
+              }}
               onChange={(next) => setLocalCatalogValue(entry.setting, next)}
             />
           )}
           {description !== null && (
-            <div className="t-label text-tertiary leading-tight">{description}</div>
+            <div className={ROW_DESC_CLASS}>{description}</div>
           )}
         </div>
       </div>
@@ -535,7 +551,7 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
     return (
       <div
         key={entry.setting}
-        className="settings-card-enter flex items-center gap-3 py-3"
+        className={`settings-card-enter flex items-center ${ROW_GUTTER} py-3`}
         style={rowStyle(idx)}
       >
         {settingGlyph(settingIconName(entry), "var(--text-tertiary)")}
@@ -565,9 +581,11 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
             style={{
               color: changed ? "var(--accent)" : "var(--text-primary)",
               borderRadius: 0,
-              borderBottomWidth: "1px",
+              // Above the five-choice cap this stays a native select, but it
+              // is still an input and takes the one input rule (C6, C24).
+              borderBottomWidth: UNDERLINE_W,
               borderBottomStyle: "solid",
-              borderBottomColor: "var(--border)",
+              borderBottomColor: INPUT_RULE,
               minHeight: "var(--tap)",
             }}
           >
@@ -598,7 +616,7 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
     return (
       <div
         key={entry.setting}
-        className="settings-card-enter flex items-center gap-3 py-3"
+        className={`settings-card-enter flex items-center ${ROW_GUTTER} py-3`}
         style={rowStyle(idx)}
       >
         {settingGlyph(settingIconName(entry), "var(--text-tertiary)")}
@@ -639,18 +657,22 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
       className="flex h-full flex-col"
       style={{ paddingLeft: "var(--rail)", paddingRight: "var(--rail)" }}
     >
+      {/* The tab body is ONE scroller — the same box the maintenance tab uses,
+          spelled the same way (C32). The commit band stays OUTSIDE it so an
+          unsaved change is never scrolled off the screen it belongs to. */}
       <div className="flex-1 min-h-0 flex flex-col overflow-y-auto custom-scroll py-5">
         {catalogGroupsView !== null ? (
           catalogGroupsView.map(({ group, entries: groupEntries }) => {
             const headerIdx = cardIndex++;
             return (
               <div key={group} className="mb-6">
-                <div
-                  className="settings-header-enter t-label font-medium text-tertiary mb-2"
-                  style={{ ...stagger(headerIdx), paddingLeft: ROW_INSET }}
+                <Heading
+                  hang="inner"
+                  className="settings-header-enter"
+                  style={stagger(headerIdx)}
                 >
                   {settingGroupLabel(locale, group)}
-                </div>
+                </Heading>
                 {groupEntries.map((entry) => renderCatalogEntry(entry, cardIndex++))}
               </div>
             );
@@ -658,13 +680,10 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
         ) : (
           <>
             <div className="mb-6">
-              <div
-                className="settings-header-enter t-label font-medium text-tertiary mb-2"
-                style={{ paddingLeft: ROW_INSET }}
-              >
+              <Heading hang="inner" className="settings-header-enter">
                 {t("settings.toggles")}
-              </div>
-              {SWITCHES.map(({ suffix, labelKey, descKey, iconSrc, iconAlt }) => {
+              </Heading>
+              {SWITCHES.map(({ suffix, labelKey, descKey, iconSrc }) => {
                 const exists = getEntity(entities, prefix, "switch", suffix);
                 if (!exists) return null;
                 const isOn = localSwitches[suffix] ?? false;
@@ -674,10 +693,10 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
                 return (
                   <div
                     key={suffix}
-                    className="settings-card-enter flex items-center gap-3 py-3"
+                    className={`settings-card-enter flex items-center ${ROW_GUTTER} py-3`}
                     style={rowStyle(idx)}
                   >
-                    <MelittaIcon src={iconSrc} alt={iconAlt} lit={isOn} />
+                    <Glyph src={iconSrc} alt="" lit={isOn} />
                     {rowHeading(label, t(descKey))}
                     {booleanRow(label, suffix, isOn, changed, (next) =>
                       setLocalSwitch(suffix, next),
@@ -688,13 +707,14 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
             </div>
 
             <div className="mb-6">
-              <div
-                className="settings-header-enter t-label font-medium text-tertiary mb-2"
-                style={{ ...stagger(cardIndex), paddingLeft: ROW_INSET }}
+              <Heading
+                hang="inner"
+                className="settings-header-enter"
+                style={stagger(cardIndex)}
               >
                 {t("settings.adjustments")}
-              </div>
-              {NUMBERS.map(({ suffix, labelKey, descKey, format, iconSrc, iconAlt }) => {
+              </Heading>
+              {NUMBERS.map(({ suffix, labelKey, descKey, format, iconSrc }) => {
                 const entity = getEntity(entities, prefix, "number", suffix);
                 if (!entity) return null;
                 const min = entity.attributes?.min ?? 0;
@@ -708,11 +728,15 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
                 return (
                   <div
                     key={suffix}
-                    className="settings-card-enter flex items-start gap-3 py-3"
+                    className={`settings-card-enter flex items-start ${ROW_GUTTER} py-3`}
                     style={rowStyle(idx)}
                   >
+                    {/* A number row has no on/off state, so its mark is lit:
+                        the old permanent 0.45 knock-down said "unavailable"
+                        about a live control, and the catalog tier already
+                        drew the same role at full opacity (C28). */}
                     <span className="mt-0.5 flex">
-                      <MelittaIcon src={iconSrc} alt={iconAlt} />
+                      <Glyph src={iconSrc} alt="" />
                     </span>
                     <div className="flex-1 min-w-0 space-y-1.5">
                       <MeterField
@@ -724,9 +748,13 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
                         segments={meterSegments(min, max, step)}
                         displayValue={displayValue}
                         changed={changed}
+                        steppers={{
+                          decrement: t("app.decrease"),
+                          increment: t("app.increase"),
+                        }}
                         onChange={(next) => setLocalNumber(suffix, next)}
                       />
-                      <div className="t-label text-tertiary leading-tight">{t(descKey)}</div>
+                      <div className={ROW_DESC_CLASS}>{t(descKey)}</div>
                     </div>
                   </div>
                 );
@@ -742,29 +770,30 @@ export function SettingsSection({ conn, entities, prefix, contract = null }: Pro
         </div>
       </div>
 
+      {/* C10: ONE arrangement for a commit band — the 2px `--accent` rule
+          (§8.3), then a single row with the secondary word first and the
+          commit rectangle taking the rest. The stacked form this replaces
+          (word right-aligned on its own line ABOVE a full-width commit) was
+          one of three layouts the app drew for the same job.
+
+          `inset="none"`, not `"rail"`: this tab already carries the rail on
+          its root, so the band's rule spans rail to rail as §8.3 requires and
+          the row would otherwise be inset by a second rail. The 10px hang the
+          secondary word needs is the shared token, spelled once. */}
       {hasChanges && (
-        <div className="settings-bar-enter shrink-0 flex flex-col pb-4">
-          {/* §8.3: the one 2px accent rule in the app opens the action band. */}
-          <Rule weight={2} tone="accent" />
-          <div className="flex justify-end" style={{ paddingRight: ROW_INSET }}>
-            <button
+        <ActionBand
+          className="settings-bar-enter pb-4"
+          inset="none"
+          secondary={
+            <Word
+              label={t("settings.reset")}
+              icon={<RotateCcw size={16} strokeWidth={1.75} />}
               onClick={handleReset}
-              className="tap press t-body gap-2"
-              style={{
-                color: "var(--text-secondary)",
-                borderRadius: 0,
-                borderBottomWidth: "1px",
-                borderBottomStyle: "solid",
-                borderBottomColor: "var(--border)",
-              }}
-            >
-              <RotateCcw size={16} strokeWidth={1.75} aria-hidden="true" />
-              {t("settings.reset")}
-            </button>
-          </div>
-          {/* The screen's one commit rectangle, width locked to the column. */}
-          <Commit label={t("settings.apply")} onCommit={handleApply} />
-        </div>
+              style={{ paddingLeft: HANG }}
+            />
+          }
+          commit={<Commit label={t("settings.apply")} onCommit={handleApply} />}
+        />
       )}
     </div>
   );

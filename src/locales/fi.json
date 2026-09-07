@@ -97,7 +97,6 @@
   "sommelier.generate": "Luo",
   "sommelier.hopper": "Papusäiliö",
   "sommelier.surprise_me": "Yllätä minut",
-  "sommelier.brew": "Valmista",
   "sommelier.brewing": "Valmistetaan…",
   "sommelier.favorite": "Lisää suosikkeihin",
   "sommelier.remove": "Poista",
@@ -158,5 +157,14 @@
   "wizard.machine.failed": "Valmistus epäonnistui",
   "wizard.machine.confirm": "Vahvista",
   "wizard.finish.button": "Sulje",
-  "wizard.close.stay": "Pysy"
+  "wizard.close.stay": "Pysy",
+  "app.decrease": "Vähennä",
+  "app.increase": "Lisää",
+  "app.page": "Sivu {n}",
+  "freestyle.drink_name": "Juoman nimi",
+  "app.close": "Sulje",
+  "brew.two_cups": "2x",
+  "brew.two_cups_on": "2x päällä",
+  "app.previous": "Edellinen",
+  "app.next": "Seuraava"
 }

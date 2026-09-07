@@ -93,7 +93,6 @@
   "sommelier.generate": "Generar",
   "sommelier.hopper": "Tolva",
   "sommelier.surprise_me": "Sorpréndeme",
-  "sommelier.brew": "Preparar",
   "sommelier.brewing": "Preparando…",
   "sommelier.favorite": "Añadir a favoritos",
   "sommelier.remove": "Quitar",
@@ -154,5 +153,14 @@
   "wizard.machine.failed": "La preparación falló",
   "wizard.machine.confirm": "Confirmar",
   "wizard.finish.button": "Cerrar",
-  "wizard.close.stay": "Quedarme"
+  "wizard.close.stay": "Quedarme",
+  "app.decrease": "Reducir",
+  "app.increase": "Aumentar",
+  "app.page": "Página {n}",
+  "freestyle.drink_name": "Nombre de la bebida",
+  "app.close": "Cerrar",
+  "brew.two_cups": "2x",
+  "brew.two_cups_on": "2x activado",
+  "app.previous": "Anterior",
+  "app.next": "Siguiente"
 }

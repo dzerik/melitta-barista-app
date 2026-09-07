@@ -1,4 +1,5 @@
 import type { IconSpec } from "../lib/contract";
+import { DRINK_ASPECT, truthScale } from "./ui/tokens";
 import {
   isRenderableIconSpec,
   normalizeIconLayers,
@@ -230,6 +231,23 @@ interface Props {
   icon?: IconSpec | null;
   /** Served stable name_key (§6.3.6) for the asset lookup fallback tier. */
   nameKey?: string;
+  /**
+   * §6.3 TRUTH SCALE: this drink's real magnitude as a 0–1 fraction of the
+   * row's maximum (`total_ml / rowMaxMl`). The drawn width becomes
+   * `size × truthScale(fraction)` — floor 0.55×, ceiling 1.0× — so an espresso
+   * and a latte macchiato in the same row stop being the same height. Where no
+   * `total_ml` or IconSpec is served there is no truth to scale to: pass
+   * `TRUTH_UNSERVED` (0.80×) rather than letting the drink claim full size.
+   * Omitted entirely, the icon draws at `size` exactly, as it always has.
+   */
+  scaleTo?: number;
+  /**
+   * Bottom-align the (possibly shrunken) drawing inside a box of the FULL
+   * unscaled height, so every base in a row lands on one line and the tops
+   * stay deliberately ragged. That ragged edge is the comparison, read before
+   * any number is. Pair it with `scaleTo`: alone it only reserves the height.
+   */
+  baseline?: boolean;
 }
 
 /**
@@ -237,25 +255,51 @@ interface Props {
  * drawn (§3.6); otherwise the local PNG is looked up by served `name_key`,
  * then by English display name, then the freestyle placeholder — so a
  * pre-contract integration renders byte-identically to the legacy app.
+ *
+ * `scaleTo` and `baseline` implement §6.3, the reference panels' single
+ * biggest move: within a row the glasses are NOT normalised to a uniform box.
+ * The maths used to live hand-rolled in one section (`StatsSection`'s local
+ * `truthScale`) while every other row in the app rendered flat; it lives here
+ * now, and `truthScale` is exported from `components/ui/tokens` so the icon,
+ * the stat tile and the tests all agree on the same band.
  */
-export function CoffeeIcon({ recipe, size = 80, icon = null, nameKey }: Props) {
-  if (isRenderableIconSpec(icon)) {
-    return <IconSpecDrawing spec={icon} label={recipe} size={size} />;
-  }
+export function CoffeeIcon({
+  recipe,
+  size = 80,
+  icon = null,
+  nameKey,
+  scaleTo,
+  baseline = false,
+}: Props) {
+  const drawn =
+    scaleTo === undefined ? size : Math.round(size * truthScale(scaleTo));
 
-  const src =
-    (nameKey !== undefined ? NAME_KEY_IMAGES[nameKey] : undefined) ||
-    RECIPE_IMAGES[recipe] ||
-    imgFreestyle;
-
-  return (
+  const glyph = isRenderableIconSpec(icon) ? (
+    <IconSpecDrawing spec={icon} label={recipe} size={drawn} />
+  ) : (
     <img
-      src={src}
+      src={
+        (nameKey !== undefined ? NAME_KEY_IMAGES[nameKey] : undefined) ||
+        RECIPE_IMAGES[recipe] ||
+        imgFreestyle
+      }
       alt={recipe}
-      width={size}
-      height={Math.round(size * (720 / 1080))}
+      width={drawn}
+      height={Math.round(drawn * DRINK_ASPECT)}
       style={{ objectFit: "contain" }}
       draggable={false}
     />
+  );
+
+  if (!baseline) return glyph;
+
+  return (
+    <span
+      data-ui="coffee-icon-baseline"
+      className="flex w-full items-end justify-center"
+      style={{ height: Math.round(size * DRINK_ASPECT), lineHeight: 0 }}
+    >
+      {glyph}
+    </span>
   );
 }

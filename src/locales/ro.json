@@ -97,7 +97,6 @@
   "sommelier.generate": "Generează",
   "sommelier.hopper": "Rezervor",
   "sommelier.surprise_me": "Surprinde-mă",
-  "sommelier.brew": "Prepară",
   "sommelier.brewing": "Se prepară…",
   "sommelier.favorite": "La favorite",
   "sommelier.remove": "Elimină",
@@ -155,5 +154,14 @@
   "wizard.machine.failed": "Prepararea a eșuat",
   "wizard.machine.confirm": "Confirmă",
   "wizard.finish.button": "Închide",
-  "wizard.close.stay": "Rămâi"
+  "wizard.close.stay": "Rămâi",
+  "app.decrease": "Scade",
+  "app.increase": "Crește",
+  "app.page": "Pagina {n}",
+  "freestyle.drink_name": "Numele băuturii",
+  "app.close": "Închide",
+  "brew.two_cups": "2x",
+  "brew.two_cups_on": "2x activat",
+  "app.previous": "Anterior",
+  "app.next": "Următor"
 }

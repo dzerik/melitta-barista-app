@@ -95,7 +95,6 @@
   "sommelier.generate": "Générer",
   "sommelier.hopper": "Bac à grains",
   "sommelier.surprise_me": "Surprenez-moi",
-  "sommelier.brew": "Préparer",
   "sommelier.brewing": "Préparation…",
   "sommelier.favorite": "Ajouter aux favoris",
   "sommelier.remove": "Retirer",
@@ -153,5 +152,14 @@
   "wizard.machine.failed": "Échec de la préparation",
   "wizard.machine.confirm": "Confirmer",
   "wizard.finish.button": "Fermer",
-  "wizard.close.stay": "Rester"
+  "wizard.close.stay": "Rester",
+  "app.decrease": "Diminuer",
+  "app.increase": "Augmenter",
+  "app.page": "Page {n}",
+  "freestyle.drink_name": "Nom de la boisson",
+  "app.close": "Fermer",
+  "brew.two_cups": "2x",
+  "brew.two_cups_on": "2x activé",
+  "app.previous": "Précédent",
+  "app.next": "Suivant"
 }

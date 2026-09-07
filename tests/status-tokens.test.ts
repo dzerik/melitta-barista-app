@@ -524,8 +524,10 @@ describe("StatusBar — visual contract", () => {
   it("hangs its content 10px inside the rail (§G2.1)", () => {
     const { container } = renderStatusBar(tokenEntities());
     const row = container.querySelector<HTMLElement>('[data-ui="status-strip"]')!;
-    expect(row.style.paddingLeft).toBe("calc(var(--rail) + 10px)");
-    expect(row.style.paddingRight).toBe("calc(var(--rail) + 10px)");
+    // C23: the 10px hang has ONE spelling now — `RAIL_TEXT` from components/ui,
+    // which reads `--hang` rather than restating the literal in each section.
+    expect(row.style.paddingLeft).toBe("calc(var(--rail) + var(--hang))");
+    expect(row.style.paddingRight).toBe("calc(var(--rail) + var(--hang))");
   });
 
   it("adds the attention item behind a vertical hairline when the machine asks", () => {
