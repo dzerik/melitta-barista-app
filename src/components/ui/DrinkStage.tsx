@@ -2,9 +2,6 @@ import type { CSSProperties, ReactNode } from "react";
 import { usePrefersReducedMotion } from "./reduced-motion";
 import { DRINK_ASPECT } from "./tokens";
 
-/** §6.2: the mirrored copy is 18% of the drawn object's height. */
-const REFLECTION_RATIO = 0.18;
-
 export interface DrinkStageProps {
   /** The drink itself — a `<CoffeeIcon />`. Rendered twice: once upright, once mirrored. */
   children: ReactNode;
@@ -46,8 +43,16 @@ export interface DrinkStageProps {
  * grey-white in dark, warm-neutral in light — and never accent-tinted, so
  * neighbours read as separate lit objects on a black field rather than as
  * accent chips. It terminates hard at the base; below that horizon the glass
- * throws a `scaleY(-1)` copy 18% of its height at `opacity: 0.28`, masked to
- * nothing, plus a 1px darkening one value step below `--bg`.
+ * throws a `scaleY(-1)` copy `--reflection-height` of its height at
+ * `--reflection-alpha`, masked to nothing, plus a 1px darkening one value step
+ * below `--bg`.
+ *
+ * THE SURFACE IS A FAMILY DECISION, and it is expressed in three tokens rather
+ * than three literals: `--drink-sheen` (a cold highlight raked across the glass,
+ * laid on the glow layer so it adds no painted element), `--reflection-alpha`
+ * and `--reflection-height`. Obsidian stands the glass on polished stone —
+ * sheen on, a strong reflection falling far; caramel stands it on matte sugar —
+ * no sheen, a short faint one; cappuccino keeps the 0.28 / 0.18 it shipped.
  *
  * THIS IS THE ONLY REFLECTION IN THE APP (C29, R6). The rival was drawn inside
  * `FreestyleGlass`'s SVG with hardcoded `rgba(255,255,255,0.02)` fill and
@@ -84,7 +89,6 @@ export function DrinkStage({
   const baseY = Math.round(drawnHeight * clampedBase);
   /** Empty drawing below the base, which the horizon must be pulled up over. */
   const tail = drawnHeight - baseY;
-  const reflectionHeight = Math.max(1, Math.round(baseY * REFLECTION_RATIO));
 
   return (
     <div
@@ -108,8 +112,15 @@ export function DrinkStage({
           top: 0,
           height: baseY,
           zIndex: 0,
+          /*
+            Two layers on ONE element: the family's cold sheen raked across the
+            glass, over the neutral halo. The sheen rides this layer rather than
+            adding a painted element of its own, so it stays §S4.4 imagery and
+            never becomes a container fill; `none` in the warm families leaves
+            the halo exactly as it shipped.
+          */
           backgroundImage:
-            "radial-gradient(ellipse 62% 72% at 50% 44%, var(--drink-glow), transparent 70%)",
+            "var(--drink-sheen), radial-gradient(ellipse 62% 72% at 50% 44%, var(--drink-glow), transparent 70%)",
           opacity: active ? 1 : 0.55,
           transition: reduced ? "none" : "opacity 250ms var(--ease)",
           borderRadius: 0,
@@ -142,7 +153,21 @@ export function DrinkStage({
           aria-hidden="true"
           data-ui="drink-reflection"
           className="pointer-events-none overflow-hidden"
-          style={{ height: reflectionHeight, zIndex: 0, lineHeight: 0 }}
+          style={{
+            /*
+              How far the drink falls is a family decision: glass on polished
+              stone throws further than a matte sugar surface does. The token is
+              a unitless FRACTION of the drawn base height, multiplied here in
+              CSS, so nothing in JavaScript ever has to resolve a custom
+              property.
+            */
+            // max(1px, …) keeps the mirror from rounding away to nothing on a small
+            // glass, which is what the old Math.max(1, …) guarded before the
+            // ratio became a token.
+            height: `max(1px, calc(var(--reflection-height) * ${baseY}px))`,
+            zIndex: 0,
+            lineHeight: 0,
+          }}
         >
           {/*
             Flip first, then translate up by the empty tail: the child's y=baseY
@@ -155,7 +180,8 @@ export function DrinkStage({
                 tail === 0
                   ? "scaleY(-1)"
                   : `translateY(${-tail}px) scaleY(-1)`,
-              opacity: 0.28,
+              /** How strongly the surface mirrors, per family (§6.2). */
+              opacity: "var(--reflection-alpha)",
               WebkitMaskImage:
                 "linear-gradient(to bottom, rgba(0,0,0,0.55), transparent)",
               maskImage:

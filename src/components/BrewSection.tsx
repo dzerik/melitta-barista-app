@@ -839,6 +839,11 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
                   className="tap press relative flex flex-col items-center justify-center overflow-hidden p-2 pb-3"
                   style={{
                     backgroundColor: isSelected ? "var(--accent)" : "var(--bg)",
+                    // An armed tile IS this screen's commit rectangle, so it
+                    // takes the family's commit material too — otherwise
+                    // obsidian's chrome ramp stops at the page-level commit and
+                    // the same act is painted two ways.
+                    backgroundImage: isSelected ? "var(--commit-fill)" : undefined,
                     borderRadius: 0,
                     boxShadow: "none",
                     minHeight: "var(--tap-lg)",

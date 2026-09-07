@@ -80,6 +80,8 @@ export {
   UNDERLINE_W_PX,
   UNDERLINE_W_NAV_PX,
   underlineSlot,
+  UNDERLINE_FILL,
+  underlineFill,
   INPUT_RULE,
   RAIL_TEXT,
   HANG,

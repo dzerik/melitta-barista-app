@@ -70,6 +70,49 @@ export function underlineSlot(
   };
 }
 
+/**
+ * The material a family paints ON the lit underline — the amendment's third
+ * permitted gradient surface. `none` in cappuccino and caramel, where the flat
+ * `--accent` border the slot already reserves shows through untouched.
+ */
+export const UNDERLINE_FILL = "var(--underline-fill)";
+
+/**
+ * The 1px (2px at nav level) strip that carries `--underline-fill` over the
+ * reserved border, for the ONE state that may show it: chosen.
+ *
+ * It is a second element rather than a `background-image` on the control
+ * because a border cannot hold a gradient, and it is laid OVER the border
+ * rather than replacing it so `borderBottomColor === "var(--accent)"` — the
+ * contract five test files assert and every flat family renders — is never
+ * disturbed. A family whose fill must not be backlit by the accent underneath
+ * carries its own opaque ground layer inside the token (obsidian does exactly
+ * that); a family with `none` paints nothing at all and the strip is invisible.
+ *
+ * The strip is positioned against the control's PADDING box, so it is pushed
+ * down by exactly the underline's own width to land on the border it covers,
+ * and it occupies precisely `--underline-w` (`--underline-w-nav`) — the same
+ * measure `underlineSlot` reserves in both states, so a gradient underline
+ * shifts no more layout than a flat one does.
+ *
+ * The caller must be a positioned ancestor, and must render this ONLY when
+ * chosen: an unchosen word reserves its slot with a transparent border and
+ * paints nothing, in every family.
+ */
+export function underlineFill(level: "option" | "nav" = "option"): CSSProperties {
+  const w = level === "nav" ? UNDERLINE_W_NAV : UNDERLINE_W;
+  return {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: `calc(-1 * ${w})`,
+    height: w,
+    backgroundImage: UNDERLINE_FILL,
+    borderRadius: 0,
+    pointerEvents: "none",
+  };
+}
+
 /* ── The input rule (§R1.6, C6) ─────────────────────────────────────────── */
 
 /**

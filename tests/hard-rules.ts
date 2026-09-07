@@ -39,6 +39,12 @@ import { expect } from "vitest";
  *   glow     the neutral halo behind a drink (§6.2)
  *   contact  the 1px contact darkening under a glass base (§6.2)
  *   rule     a hairline, and the 1px-gap mosaic ground a grid shows through
+ *   underline the amendment's FOURTH permitted gradient surface (2026-09-07):
+ *            the lit selection underline, which a family may paint with
+ *            `--underline-fill` as a 1px strip over the accent border the slot
+ *            already reserves. It is named apart from `rule` because it is a
+ *            STATE — it exists only while a word is chosen — and because
+ *            selection is still the word plus a lit line, never a fill.
  *   ground   a mosaic CELL repainting the page ground (§S4.1/§S4.3) — held to
  *            exactly `var(--bg)` below, so it can never become a licence for a
  *            tint
@@ -56,6 +62,7 @@ export const CARVE_OUTS: ReadonlySet<string> = new Set([
   "glow",
   "contact",
   "rule",
+  "underline",
   "ground",
   "magnitude",
 ]);

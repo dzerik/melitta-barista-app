@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { fireEvent, renderHook, act, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { PreferencesProvider, usePreferences } from "../src/lib/preferences";
+import {
+  PreferencesProvider,
+  THEME_FAMILIES,
+  usePreferences,
+} from "../src/lib/preferences";
 import { renderWithProviders } from "./test-utils";
 import { PreferencesModal } from "../src/components/PreferencesModal";
 import { SUPPORTED_LOCALES } from "../src/lib/i18n";
@@ -168,6 +172,81 @@ describe("usePreferences", () => {
     act(() => result.current.setViewMode("grid"));
     expect(result.current.viewMode).toBe("grid");
   });
+
+  // -------------------------------------------------------------------------
+  // The MATERIAL axis
+  // -------------------------------------------------------------------------
+
+  it("starts on cappuccino, by absence rather than by writing one", () => {
+    const { result } = renderHook(() => usePreferences(), { wrapper });
+    expect(result.current.themeFamily).toBe("cappuccino");
+    // Nothing is stored until the user picks, so an untouched install is the
+    // base family because no family block matches, not because we wrote one.
+    expect(localStorage.getItem("melitta_theme_family")).toBeNull();
+  });
+
+  it("falls back to cappuccino for a family this version cannot paint", () => {
+    localStorage.setItem("melitta_theme_family", "Obsidian ");
+    const { result } = renderHook(() => usePreferences(), { wrapper });
+    expect(result.current.themeFamily).toBe("cappuccino");
+  });
+
+  it("an unknown family leaves the stored mode alone", () => {
+    localStorage.setItem("melitta_theme_family", "titanium");
+    localStorage.setItem("melitta_theme", "light");
+    const { result } = renderHook(() => usePreferences(), { wrapper });
+    expect(result.current.themeFamily).toBe("cappuccino");
+    expect(result.current.theme).toBe("light");
+    expect(localStorage.getItem("melitta_theme")).toBe("light");
+  });
+
+  it("setThemeFamily persists and writes both axes onto <html>", () => {
+    mockPrefersDark(true);
+    const { result } = renderHook(() => usePreferences(), { wrapper });
+    act(() => result.current.setThemeFamily("caramel"));
+    expect(result.current.themeFamily).toBe("caramel");
+    expect(localStorage.getItem("melitta_theme_family")).toBe("caramel");
+    // One without the other resolves to cappuccino, so both or neither.
+    expect(document.documentElement.getAttribute("data-theme-family")).toBe("caramel");
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+  });
+
+  it("a dark-only family paints dark WITHOUT editing the stored mode", () => {
+    localStorage.setItem("melitta_theme", "light");
+    const { result } = renderHook(() => usePreferences(), { wrapper });
+    expect(result.current.theme).toBe("light");
+
+    act(() => result.current.setThemeFamily("obsidian"));
+    expect(result.current.theme).toBe("dark");
+    expect(result.current.themeModeLocked).toBe(true);
+    expect(result.current.themeModes).toEqual(["dark"]);
+    // The clamp is a place you visit, not a thing that rewrites your settings.
+    expect(result.current.themePreference).toBe("light");
+    expect(localStorage.getItem("melitta_theme")).toBe("light");
+  });
+
+  it("leaving the dark-only family gives the light theme straight back", () => {
+    localStorage.setItem("melitta_theme", "light");
+    const { result } = renderHook(() => usePreferences(), { wrapper });
+    act(() => result.current.setThemeFamily("obsidian"));
+    expect(result.current.theme).toBe("dark");
+
+    act(() => result.current.setThemeFamily("cappuccino"));
+    expect(result.current.theme).toBe("light");
+    expect(result.current.themeModeLocked).toBe(false);
+    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+  });
+
+  it("choosing a mode while it is clamped still records the choice", () => {
+    localStorage.setItem("melitta_theme_family", "obsidian");
+    const { result } = renderHook(() => usePreferences(), { wrapper });
+    act(() => result.current.setTheme("light"));
+    // Obsidian keeps painting dark; the preference is what the user asked for.
+    expect(result.current.theme).toBe("dark");
+    expect(result.current.themePreference).toBe("light");
+    act(() => result.current.setThemeFamily("caramel"));
+    expect(result.current.theme).toBe("light");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -239,11 +318,16 @@ describe("PreferencesModal", () => {
     expect(onClose).toHaveBeenCalledTimes(3);
   });
 
-  it("names its two groups with the one shared heading treatment", () => {
+  it("names its three groups with the one shared heading treatment", () => {
     open();
     const headings = document.querySelectorAll<HTMLElement>('[data-ui="heading"]');
+    // Two theme rows, two questions: WHAT the surfaces are made of, and how
+    // light the room is. The material row is first because the mode row is a
+    // refinement of it — and because a family can hold the mode row, never the
+    // other way round.
     expect(Array.from(headings).map((h) => h.textContent)).toEqual([
       "Theme",
+      "Mode",
       "Language",
     ]);
     headings.forEach((h) => {
@@ -257,10 +341,10 @@ describe("PreferencesModal", () => {
     });
   });
 
-  it("makes the three themes words with a reserved underline, not ringed tiles", () => {
+  it("makes the three modes words with a reserved underline, not ringed tiles", () => {
     localStorage.setItem("melitta_theme", "dark");
     open();
-    const themes = screen.getByRole("radiogroup", { name: "Theme" });
+    const themes = screen.getByRole("radiogroup", { name: "Mode" });
     const words = within(themes).getAllByRole("radio");
     expect(words.map((w) => w.textContent)).toEqual(["System", "Dark", "Light"]);
 
@@ -289,15 +373,149 @@ describe("PreferencesModal", () => {
     ).toBe("transparent");
   });
 
-  it("picks a theme through the same word row", () => {
+  it("picks a mode through the same word row", () => {
     open();
     fireEvent.click(
-      within(screen.getByRole("radiogroup", { name: "Theme" })).getByRole(
+      within(screen.getByRole("radiogroup", { name: "Mode" })).getByRole(
         "radio",
         { name: "Light" },
       ),
     );
     expect(localStorage.getItem("melitta_theme")).toBe("light");
+  });
+
+  // -------------------------------------------------------------------------
+  // The material row, and the mode row it can hold
+  // -------------------------------------------------------------------------
+
+  /** The three families as words, in the order the row offers them. */
+  function families() {
+    return within(screen.getByRole("radiogroup", { name: "Theme" })).getAllByRole(
+      "radio",
+    );
+  }
+
+  /** The three modes as words, dimmed or not. */
+  function modes() {
+    return within(screen.getByRole("radiogroup", { name: "Mode" })).getAllByRole(
+      "radio",
+    );
+  }
+
+  it("offers the three materials as words, in THEME_FAMILIES order", () => {
+    open();
+    expect(families().map((w) => w.textContent)).toEqual([
+      "Cappuccino",
+      "Obsidian",
+      "Caramel",
+    ]);
+    expect(families()).toHaveLength(THEME_FAMILIES.length);
+    // Same control as every other choice in the app: a word over a reserved
+    // underline slot, never a swatch, a tile or a filled chip.
+    families().forEach((w) => {
+      expect(w.dataset.ui).toBe("option");
+      expect(w.style.backgroundColor).toBe("");
+      expect(w.style.borderBottomStyle).toBe("solid");
+    });
+    expect(
+      within(screen.getByRole("radiogroup", { name: "Theme" })).getByRole("radio", {
+        name: "Cappuccino",
+      }),
+    ).toHaveAttribute("data-underline", "lit");
+  });
+
+  it("choosing a family sets it and lights its word", () => {
+    open();
+    fireEvent.click(
+      within(screen.getByRole("radiogroup", { name: "Theme" })).getByRole("radio", {
+        name: "Caramel",
+      }),
+    );
+    expect(localStorage.getItem("melitta_theme_family")).toBe("caramel");
+    expect(document.documentElement.getAttribute("data-theme-family")).toBe(
+      "caramel",
+    );
+    const [cappuccino, , caramel] = families();
+    expect(caramel).toHaveAttribute("data-underline", "lit");
+    expect(cappuccino).toHaveAttribute("data-underline", "reserved");
+  });
+
+  it("obsidian dims the mode row without erasing the stored mode", () => {
+    localStorage.setItem("melitta_theme", "light");
+    open();
+    fireEvent.click(
+      within(screen.getByRole("radiogroup", { name: "Theme" })).getByRole("radio", {
+        name: "Obsidian",
+      }),
+    );
+
+    // DIM IS STATE, OMIT IS CAPABILITY: all three words are still on screen,
+    // in their places, held at §10's disabled treatment.
+    expect(modes().map((w) => w.textContent)).toEqual(["System", "Dark", "Light"]);
+    modes().forEach((w) => {
+      expect(w.style.opacity).toBe("0.35");
+      expect(w.style.pointerEvents).toBe("none");
+    });
+    // The reason sits beside them, quiet and at full opacity — the note is not
+    // disabled, the words are.
+    const note = document.querySelector<HTMLElement>('[data-ui="mode-locked-note"]')!;
+    expect(note).toBeTruthy();
+    expect(note.textContent).toBe("This theme is painted dark only");
+    expect(note.className).toContain("t-label");
+    expect(note.className).toContain("text-tertiary");
+
+    // The stored choice survives, and stays visibly the chosen one.
+    expect(localStorage.getItem("melitta_theme")).toBe("light");
+    expect(
+      within(screen.getByRole("radiogroup", { name: "Mode" })).getByRole("radio", {
+        name: "Light",
+      }),
+    ).toHaveAttribute("data-underline", "lit");
+    // ...while the page itself paints dark.
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+  });
+
+  it("a held mode word cannot be pressed", () => {
+    localStorage.setItem("melitta_theme", "light");
+    open();
+    fireEvent.click(
+      within(screen.getByRole("radiogroup", { name: "Theme" })).getByRole("radio", {
+        name: "Obsidian",
+      }),
+    );
+    fireEvent.click(
+      within(screen.getByRole("radiogroup", { name: "Mode" })).getByRole("radio", {
+        name: "Dark",
+      }),
+    );
+    expect(localStorage.getItem("melitta_theme")).toBe("light");
+  });
+
+  it("switching back off obsidian restores the mode row and the light theme", () => {
+    localStorage.setItem("melitta_theme", "light");
+    open();
+    const theme = screen.getByRole("radiogroup", { name: "Theme" });
+    fireEvent.click(within(theme).getByRole("radio", { name: "Obsidian" }));
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+
+    fireEvent.click(within(theme).getByRole("radio", { name: "Cappuccino" }));
+    modes().forEach((w) => {
+      expect(w.style.opacity).toBe("1");
+      expect(w.style.pointerEvents).toBe("");
+    });
+    expect(
+      document.querySelector('[data-ui="mode-locked-note"]'),
+    ).toBeNull();
+    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+    // And the row is live again.
+    fireEvent.click(within(screen.getByRole("radiogroup", { name: "Mode" })).getByRole("radio", { name: "Dark" }));
+    expect(localStorage.getItem("melitta_theme")).toBe("dark");
+  });
+
+  it("says nothing about the mode row while every mode is available", () => {
+    open();
+    expect(document.querySelector('[data-ui="mode-locked-note"]')).toBeNull();
+    modes().forEach((w) => expect(w.style.opacity).toBe("1"));
   });
 
   it("lists every locale as an endonym word and switches on tap", () => {
@@ -335,7 +553,11 @@ describe("PreferencesModal", () => {
     // A 1px `--border` hairline is §S4.2 — a drawn boundary, not a container
     // fill — and it declares itself `data-fill="rule"` so the inventory query
     // still sees every painted pixel on the screen.
-    const allowed = new Set(["scrim", "panel", "rule"]);
+    // `underline` joins them for the same reason (the 2026-09-07 amendment):
+    // a chosen word carries a 1px `--underline-fill` strip over the accent
+    // border its slot reserves. It paints `none` in every family but obsidian,
+    // and it is a LINE, never a fill behind the word.
+    const allowed = new Set(["scrim", "panel", "rule", "underline"]);
     [scrim, ...Array.from(scrim.querySelectorAll<HTMLElement>("*"))].forEach(
       (el) => {
         const painted =

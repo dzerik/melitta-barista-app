@@ -12,6 +12,48 @@
    under a mouse pointer and a wet fingertip.
    ═══════════════════════════════════════════════════════════════════════ */
 
+/* ═══════════════════════════════════════════════════════════════════════
+   THE TWO THEME AXES, AND HOW THEY COMPOSE WITHOUT `!important`
+
+       data-theme-family = "cappuccino" | "obsidian" | "caramel"   the MATERIAL
+       data-theme        = "dark" | "light"                        the MODE
+
+   Both are set on <html> by `lib/preferences.tsx`, always together.
+
+   The cascade is organised so that neither axis ever has to shout:
+
+     MODE blocks  are written with ONE attribute selector — `:root`,
+                  `[data-theme="dark"]`, `[data-theme="light"]` — so their
+                  specificity is (0,1,0).
+     FAMILY blocks are written with TWO — `[data-theme-family="F"][data-theme="M"]`
+                  — so their specificity is (0,2,0).
+
+   (0,2,0) beats (0,1,0) unconditionally, in BOTH directions and regardless of
+   source order, so a family override always wins over the mode block it is
+   refining and no declaration anywhere in this file carries `!important`. It
+   also means the two axes compose rather than collide: a family block restates
+   only what that family changes, and every token it stays silent about keeps
+   the value the mode block gave it.
+
+   CAPPUCCINO IS THE BASE. It has no family block at all — it simply IS the two
+   mode blocks below. That is what makes this a refactor for cappuccino rather
+   than a redesign: with `data-theme-family="cappuccino"` nothing extra matches
+   and the resolved values are byte-identical to what shipped.
+
+   Obsidian is dark only, so it is written `[data-theme-family="obsidian"][data-theme]`
+   — still (0,2,0), but pinned to its dark material whichever mode is on the
+   element. `preferences.tsx` already clamps the mode to dark for it; this is the
+   belt to that braces, and it is why the family can never half-resolve.
+
+   MATERIAL TOKENS ARE OVERLAY LAYERS. Every `--*-fill` / `--*-wash` / `--*-sheen`
+   token below is a `background-image` value that is painted OVER whatever the
+   element already paints, and every one of them is `none` in cappuccino. `none`
+   means "this family adds nothing", which is the mechanical reason cappuccino
+   cannot have changed: a `none` layer is a no-op. A family that wants the line
+   itself, rather than a wash over it, lays an opaque base layer of its own
+   underneath (see obsidian's `--underline-fill`).
+   ═══════════════════════════════════════════════════════════════════════ */
+
 :root,
 [data-theme="dark"] {
   /* Ground: warm near-black, never pure #000 — pure black flattens the
@@ -30,7 +72,7 @@
      white, which flattened every hierarchy in the app). */
   --text-primary: #f7f3ec;
   --text-secondary: #b5a899;
-  --text-tertiary: #7d7166;
+  --text-tertiary: #867a6f;
   --text-inverse: #17130f;
 
   /* Crema — the amber of a fresh espresso, and the only saturated colour
@@ -57,6 +99,52 @@
      light — and NEVER accent-tinted: the drink is the hero, not a lit chip. */
   --drink-glow: rgba(247, 243, 236, 0.10);
   --drink-contact: rgba(0, 0, 0, 0.55);
+
+  /* ── MATERIAL (cappuccino: porcelain and paper — it adds nothing) ────────
+     These live on the `:root` arm of this selector, so they serve cappuccino
+     LIGHT as well: the light block below restates palette, not material.
+
+     Each is a `background-image` layer, painted over the element's own paint:
+
+       --ground-wash       the page ground (`body`, `.bg-page`) — applied here,
+                           so no component has to learn about it
+       --rule-fill         a STRUCTURAL Rule, over its tone colour
+       --rule-fill-inline  an INLINE Rule, over the fade it already draws away
+                           from its anchor
+       --underline-fill    the lit selection underline, over the 1px accent
+                           border the slot already reserves
+       --commit-fill       the one commit rectangle, over its flat --accent
+       --drink-sheen       a cold highlight across the glass, laid on the same
+                           DrinkStage layer that draws the neutral glow (§S4.4
+                           imagery — it is not a container fill)
+
+     `none` everywhere is the whole cappuccino material story, and it is what
+     the theme test asserts: a family that paints nothing cannot have changed
+     a pixel. */
+  --ground-wash: none;
+  --rule-fill: none;
+  --rule-fill-inline: none;
+  --underline-fill: none;
+  --commit-fill: none;
+  --drink-sheen: none;
+
+  /* How strongly, and how far, DrinkStage mirrors the drink (§6.2). Unitless
+     on purpose: the alpha goes straight into `opacity`, and the height is a
+     fraction the component multiplies by the drawn base height in a `calc()`,
+     so neither needs resolving in JavaScript. 0.28 / 0.18 are the literals
+     these two replace. */
+  --reflection-alpha: 0.28;
+  --reflection-height: 0.18;
+
+  /* ── WEIGHT (the theme axis the amendment opened) ───────────────────────
+     Weight is a theme axis; SIZE is not. The four-step scale below is frozen
+     and no family may add a fifth step. `.t-label` sits one notch above body
+     in every family — `calc(var(--w-body) + 100)` — which is what keeps it at
+     today's 500 here. */
+  --w-title: 600;   /* .t-display, .t-title — a drink name, a section title */
+  --w-body: 400;    /* body copy, and the unchosen word in an option row */
+  --w-chosen: 600;  /* the chosen word, and the commit verb */
+
   color-scheme: dark;
 }
 
@@ -72,10 +160,10 @@
 
   --text-primary: #211c18;
   --text-secondary: #6a5f55;
-  --text-tertiary: #97897c;
+  --text-tertiary: #786a5d;
   --text-inverse: #fbf8f3;
 
-  --accent: #a9713a;
+  --accent: #986029;
   --accent-strong: #8d5c2c;
 
   /* Owner decision 3: the light theme's inverse near-black commit is retired.
@@ -93,6 +181,219 @@
   --glass-reflection: rgba(255, 255, 255, 0.40);
   --drink-glow: rgba(42, 30, 20, 0.07);
   --drink-contact: rgba(42, 30, 20, 0.14);
+  color-scheme: light;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   OBSIDIAN — glass and chrome. Dark only: a glossy black light theme is a
+   contradiction, so the family declares one mode and `preferences.tsx`
+   clamps to it.
+
+   `[data-theme-family="obsidian"][data-theme]` matches whatever mode is on
+   the element and is (0,2,0), so it outranks BOTH mode blocks above. The
+   family therefore cannot half-resolve into porcelain if a stale
+   `data-theme="light"` ever reaches the element.
+
+   The only warm thing on this screen is the drink itself: the accent is
+   platinum, which carries the meter's filled segments and the tick ring with
+   no further tokens. The three surfaces that may curve nothing and paint
+   nothing elsewhere — ground, rule, underline, commit — are where the whole
+   material lives.
+   ═══════════════════════════════════════════════════════════════════════ */
+[data-theme-family="obsidian"][data-theme] {
+  /* The wash's own midpoint, so a mosaic cell repainting `--bg` sits quietly
+     on the gradient instead of cutting a hole in it. */
+  --bg: #0b0b0f;
+  --surface: #14141a;
+
+  --border: rgba(201, 204, 212, 0.12);
+  --border-hover: rgba(201, 204, 212, 0.26);
+  --border-active: rgba(201, 204, 212, 0.48);
+  --section-divider: rgba(201, 204, 212, 0.10);
+
+  --text-primary: #f2f3f6;
+  --text-secondary: #9aa0ab;
+  --text-tertiary: #757a83;
+  --text-inverse: #0e0e12;
+
+  --accent: #c9ccd4;
+  --accent-strong: #e8eaef;
+
+  --meter-empty: #23232b;
+
+  --input-border: rgba(201, 204, 212, 0.22);
+  --success: #86c58f;
+  --error-text: #f0a09a;
+  --error-border: rgba(214, 108, 98, 0.45);
+
+  --overlay-bg: rgba(5, 5, 8, 0.88);
+  --glass-stroke: rgba(255, 255, 255, 0.46);
+  --glass-fill: rgba(255, 255, 255, 0.06);
+  --glass-reflection: rgba(255, 255, 255, 0.20);
+  --drink-glow: rgba(226, 232, 240, 0.10);
+  --drink-contact: rgba(0, 0, 0, 0.62);
+
+  /* Polished stone: a vertical fall from near-black to slate, with one faint
+     radial lift high on the page so the ground has a light source. */
+  --ground-wash:
+    radial-gradient(ellipse 90% 58% at 50% 38%, rgba(201, 204, 212, 0.055), transparent 70%),
+    linear-gradient(180deg, #07070a 0%, #101015 100%);
+
+  /* A structural hairline is a chrome sliver that dies along its length. */
+  --rule-fill: linear-gradient(90deg, rgba(201, 204, 212, 0.28), rgba(201, 204, 212, 0.06));
+  /* An inline rule fades from its anchor to nothing, as it does everywhere —
+     this only makes the fade platinum rather than a wash of `--border`. */
+  --rule-fill-inline: linear-gradient(90deg, rgba(201, 204, 212, 0.34), transparent);
+
+  /* The lit underline is a chrome sliver. The second layer is opaque ground:
+     it hides the flat platinum border the slot reserves underneath, so the
+     top layer's fade reads as a fade instead of dying into a solid line. */
+  --underline-fill:
+    linear-gradient(90deg, #e8eaef 0%, rgba(232, 234, 239, 0.15) 100%),
+    linear-gradient(var(--bg), var(--bg));
+
+  /* A reflection, not a fill. The 1px light top edge is the gradient's first
+     stop rather than a box-shadow, which the language does not have. */
+  --commit-fill:
+    linear-gradient(
+      180deg,
+      #f4f6f9 0px,
+      #f4f6f9 1px,
+      #e8eaef 1px,
+      #b9bec8 48%,
+      #8f949e 100%
+    );
+
+  /* Glass on polished stone: one cold highlight raked across the glass, and a
+     longer, stronger mirror below it. */
+  --drink-sheen:
+    linear-gradient(
+      112deg,
+      transparent 34%,
+      rgba(226, 232, 240, 0.14) 47%,
+      rgba(226, 232, 240, 0.03) 55%,
+      transparent 66%
+    );
+  --reflection-alpha: 0.34;
+  --reflection-height: 0.22;
+
+  /* Selection is colour and an underline here, never weight — so the three
+     steps sit close together. Floor, per the spec: nothing that must be READ
+     goes under 300, which is why `--w-body` stops there and `.t-label` lands
+     on 400. `--w-title` may go thinner because a 20–28px title is display
+     type, not reading matter. */
+  --w-title: 200;
+  --w-body: 300;
+  --w-chosen: 400;
+
+  color-scheme: dark;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CARAMEL — matte sugar, deliberately the opposite of obsidian: no gloss
+   anywhere, every material token `none`, and the difference carried by
+   denser rules, a burnt-sugar accent, a close warm glow, a short shy
+   reflection and type that is simply thicker. Caramel is thick, and the
+   type says so.
+
+   Both modes are written at (0,2,0) and each restates the SAME token set, so
+   neither can leak the other's palette through the mode blocks above.
+   ═══════════════════════════════════════════════════════════════════════ */
+[data-theme-family="caramel"][data-theme="dark"] {
+  --bg: #170f07;
+  --surface: #21160c;
+
+  --border: rgba(224, 138, 46, 0.16);
+  --border-hover: rgba(224, 138, 46, 0.30);
+  --border-active: rgba(224, 138, 46, 0.52);
+  --section-divider: rgba(224, 138, 46, 0.16);
+
+  --text-primary: #f8efe3;
+  --text-secondary: #c2ad95;
+  --text-tertiary: #8c7a62;
+  --text-inverse: #1a1006;
+
+  --accent: #e08a2e;
+  --accent-strong: #f0a552;
+
+  --meter-empty: #33230f;
+
+  --input-border: rgba(224, 138, 46, 0.26);
+  --success: #8fbf6d;
+  --error-text: #f0938a;
+  --error-border: rgba(200, 80, 68, 0.45);
+
+  --overlay-bg: rgba(14, 9, 4, 0.88);
+  --glass-stroke: rgba(255, 255, 255, 0.42);
+  --glass-fill: rgba(255, 255, 255, 0.05);
+  --glass-reflection: rgba(255, 255, 255, 0.16);
+  --drink-glow: rgba(255, 214, 160, 0.12);
+  --drink-contact: rgba(0, 0, 0, 0.55);
+
+  /* Matte: nothing is painted anywhere. */
+  --ground-wash: none;
+  --rule-fill: none;
+  --rule-fill-inline: none;
+  --underline-fill: none;
+  --commit-fill: none;
+  --drink-sheen: none;
+
+  /* The drink stands on a matte surface, not on glass. */
+  --reflection-alpha: 0.16;
+  --reflection-height: 0.12;
+
+  --w-title: 700;
+  --w-body: 500;
+  --w-chosen: 700;
+
+  color-scheme: dark;
+}
+
+[data-theme-family="caramel"][data-theme="light"] {
+  --bg: #f7ece0;
+  --surface: #fffaf3;
+
+  --border: rgba(122, 74, 26, 0.16);
+  --border-hover: rgba(122, 74, 26, 0.28);
+  --border-active: rgba(179, 96, 26, 0.55);
+  --section-divider: rgba(122, 74, 26, 0.16);
+
+  --text-primary: #2a1c0e;
+  --text-secondary: #6d5a45;
+  --text-tertiary: #7b6850;
+  --text-inverse: #fdf7ef;
+
+  --accent: #a7540e;
+  --accent-strong: #944d10;
+
+  --meter-empty: #e6d5c0;
+
+  --input-border: rgba(122, 74, 26, 0.22);
+  --success: #4d7c3f;
+  --error-text: #b3261e;
+  --error-border: rgba(179, 38, 30, 0.35);
+
+  --overlay-bg: rgba(247, 236, 224, 0.90);
+  --glass-stroke: rgba(42, 30, 20, 0.30);
+  --glass-fill: rgba(42, 30, 20, 0.04);
+  --glass-reflection: rgba(255, 255, 255, 0.42);
+  --drink-glow: rgba(60, 40, 20, 0.08);
+  --drink-contact: rgba(60, 40, 20, 0.16);
+
+  --ground-wash: none;
+  --rule-fill: none;
+  --rule-fill-inline: none;
+  --underline-fill: none;
+  --commit-fill: none;
+  --drink-sheen: none;
+
+  --reflection-alpha: 0.16;
+  --reflection-height: 0.12;
+
+  --w-title: 700;
+  --w-body: 500;
+  --w-chosen: 700;
+
   color-scheme: light;
 }
 
@@ -149,7 +450,14 @@
    jsdom drops `background: var(--x)` outright, so a shorthand fill is
    invisible to every test in this repo (R3). Prefer the `Panel` primitive,
    which sets its own fill inline and is therefore assertable. */
-.bg-page { background-color: var(--bg); }
+/* The page ground, and the ONE element the amendment lets carry a gradient
+   without a component knowing about it: `--ground-wash` is `none` in every
+   flat family, so this is the same flat `--bg` it always was. Declared on both
+   `body` and `.bg-page` because a full-height `.bg-page` covers the body. */
+.bg-page {
+  background-color: var(--bg);
+  background-image: var(--ground-wash);
+}
 /* The only remaining fill utility: the single §5.B panel inside a modal or
    overlay. `.surface-card` and `.surface-elevated` are gone with their tokens. */
 .surface { background-color: var(--surface); }
@@ -192,7 +500,11 @@ body {
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 16px;
   line-height: 1.45;
-  background: var(--bg);
+  /* Longhands, not the `background` shorthand: the shorthand would swallow
+     `--ground-wash` into a property no test in this repo can read. */
+  background-color: var(--bg);
+  background-image: var(--ground-wash);
+  font-weight: var(--w-body);
   color: var(--text-primary);
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
@@ -200,20 +512,29 @@ body {
   overflow: hidden;
 }
 
+/* FOUR STEPS, AND THE SIZES ARE FROZEN. The amendment made WEIGHT a theme axis
+   and left SIZE settled: a family may re-weight these four, and may not add a
+   fifth. The `.t-label` weight is expressed as one notch above body rather
+   than as a fourth weight token, which is what holds it at today's 500 in
+   cappuccino while it thins to 400 in obsidian and thickens to 600 in caramel. */
 .t-display {
   font-size: 1.75rem;
   line-height: 1.15;
   letter-spacing: -0.02em;
-  font-weight: 600;
+  font-weight: var(--w-title);
 }
 .t-title {
   font-size: 1.25rem;
   line-height: 1.25;
   letter-spacing: -0.01em;
-  font-weight: 600;
+  font-weight: var(--w-title);
 }
-.t-body { font-size: 0.9375rem; line-height: 1.45; }
-.t-label { font-size: 0.8125rem; line-height: 1.3; font-weight: 500; }
+.t-body { font-size: 0.9375rem; line-height: 1.45; font-weight: var(--w-body); }
+.t-label {
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  font-weight: calc(var(--w-body) + 100);
+}
 /* The canonical way to say "tabular", and the only one (§7.6, C25). The raw
    Tailwind `tabular-nums` utility is retired; every machine number takes this. */
 .num { font-variant-numeric: tabular-nums; }

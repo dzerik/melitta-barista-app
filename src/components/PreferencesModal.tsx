@@ -1,4 +1,9 @@
-import { usePreferences, type ThemePreference } from "../lib/preferences";
+import {
+  THEME_FAMILIES,
+  usePreferences,
+  type ThemeFamily,
+  type ThemePreference,
+} from "../lib/preferences";
 import { SUPPORTED_LOCALES, LOCALE_ENDONYM } from "../lib/i18n";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { Heading, Option, OptionRow, Panel } from "./ui";
@@ -10,6 +15,11 @@ interface Props {
 
 type ThemeLabelKey = "prefs.theme_system" | "prefs.theme_dark" | "prefs.theme_light";
 
+type FamilyLabelKey =
+  | "prefs.family_cappuccino"
+  | "prefs.family_obsidian"
+  | "prefs.family_caramel";
+
 const THEMES: { value: ThemePreference; labelKey: ThemeLabelKey; icon: typeof Moon }[] = [
   { value: "system", labelKey: "prefs.theme_system", icon: Monitor },
   { value: "dark", labelKey: "prefs.theme_dark", icon: Moon },
@@ -17,7 +27,32 @@ const THEMES: { value: ThemePreference; labelKey: ThemeLabelKey; icon: typeof Mo
 ];
 
 /**
+ * The word for each material. Keyed by family rather than listed, so the row
+ * is driven by `THEME_FAMILIES` — the one place the order is declared — and a
+ * fourth family cannot be added to the enum without the compiler asking for
+ * its word here.
+ */
+const FAMILY_LABEL: Record<ThemeFamily, FamilyLabelKey> = {
+  cappuccino: "prefs.family_cappuccino",
+  obsidian: "prefs.family_obsidian",
+  caramel: "prefs.family_caramel",
+};
+
+/**
  * Theme and language, drawn as words.
+ *
+ * TWO THEME ROWS, TWO AXES. The first picks the MATERIAL — porcelain and
+ * paper, glass and chrome, matte sugar — and the second picks how light the
+ * room is. They are separate rows because they are separate questions: the
+ * mode row's answer survives a visit to a family that cannot paint it, and
+ * comes back untouched when the user leaves.
+ *
+ * DIM IS STATE, OMIT IS CAPABILITY. Obsidian paints one mode, so choosing it
+ * takes the mode row to `opacity .35 / pointer-events: none` (§10, and exactly
+ * what `Option`'s `disabled` already does) with a quiet line beside it saying
+ * why. The row is never removed and the words never move: the axis has not
+ * gone away, it is held. The lit underline stays on whichever mode is stored,
+ * so the user can see their light theme waiting for them.
  *
  * The three theme tiles — the app's most literal rounded-frame-plus-fill, and
  * its only `ring-2` — are gone: a choice here is a glyph-and-word Option whose
@@ -44,7 +79,16 @@ const THEMES: { value: ThemePreference; labelKey: ThemeLabelKey; icon: typeof Mo
  * recipe editor use — one guard written once, outside the scrim `Panel` owns.
  */
 export function PreferencesModal({ onClose }: Props) {
-  const { themePreference, locale, setTheme, setLocale, t } = usePreferences();
+  const {
+    themePreference,
+    themeFamily,
+    themeModeLocked,
+    locale,
+    setTheme,
+    setThemeFamily,
+    setLocale,
+    t,
+  } = usePreferences();
 
   return (
     <SwipeGuard>
@@ -57,18 +101,42 @@ export function PreferencesModal({ onClose }: Props) {
         bodyClassName="p-5"
       >
         <div className="mb-6">
-          <Heading>{t("prefs.theme")}</Heading>
-          <OptionRow role="radiogroup" ariaLabel={t("prefs.theme")}>
+          <Heading>{t("prefs.theme_family")}</Heading>
+          <OptionRow role="radiogroup" ariaLabel={t("prefs.theme_family")}>
+            {THEME_FAMILIES.map((value) => (
+              <Option
+                key={value}
+                label={t(FAMILY_LABEL[value])}
+                selected={themeFamily === value}
+                role="radio"
+                onSelect={() => setThemeFamily(value)}
+              />
+            ))}
+          </OptionRow>
+        </div>
+
+        <div className="mb-6">
+          <Heading>{t("prefs.theme_mode")}</Heading>
+          <OptionRow role="radiogroup" ariaLabel={t("prefs.theme_mode")}>
             {THEMES.map(({ value, labelKey, icon: Icon }) => (
               <Option
                 key={value}
                 label={t(labelKey)}
                 selected={themePreference === value}
+                /* Held, not hidden — and the stored choice stays lit beneath. */
+                disabled={themeModeLocked}
                 role="radio"
                 onSelect={() => setTheme(value)}
                 icon={<Icon size={20} strokeWidth={1.75} />}
               />
             ))}
+            {themeModeLocked ? (
+              /* The reason, at full opacity: the note is not disabled, the
+                 words are. §7.3 gives quiet meta the tertiary ink. */
+              <span data-ui="mode-locked-note" className="t-label text-tertiary">
+                {t("prefs.family_dark_only")}
+              </span>
+            ) : null}
           </OptionRow>
         </div>
 

@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import { underlineSlot } from "./tokens";
+import { underlineFill, underlineSlot } from "./tokens";
 
 export type OptionLevel = "option" | "nav";
 export type OptionRole = "button" | "radio";
@@ -41,8 +41,10 @@ export interface OptionProps {
  * One selectable word — the app's only single-choice control.
  *
  * Embodies the owner's first binding decision and §C3.1–C3.3: a control is a
- * word plus a reserved 1px underline slot. Chosen = `--text-primary` at weight
- * 600 with the underline lit in `--accent`; unchosen = `--text-secondary` with
+ * word plus a reserved 1px underline slot. Chosen = `--text-primary` at
+ * `--w-chosen` with the underline lit in `--accent` (and, where the family
+ * paints one, a `--underline-fill` strip laid over it); unchosen =
+ * `--text-secondary` at `--w-body` with
  * the same underline declared `transparent`, so selection never shifts a
  * single pixel of layout. Accent TEXT is deliberately NOT used for the chosen
  * word — that ink is reserved for the label half of a value pair and for
@@ -90,7 +92,9 @@ export function Option({
       /** The visual contract other tests assert on: the slot is always there. */
       data-underline={selected ? "lit" : "reserved"}
       className={[
-        "tap press t-body gap-2",
+        // `relative` positions the material strip below against this box, and
+        // costs nothing when the family paints none.
+        "tap press t-body gap-2 relative",
         level === "nav" ? "tap-lg" : "",
         className,
       ]
@@ -98,7 +102,14 @@ export function Option({
         .join(" ")}
       style={{
         color: selected ? "var(--text-primary)" : "var(--text-secondary)",
-        fontWeight: selected ? 600 : 400,
+        /*
+          Weight is a theme axis now. Cappuccino and caramel still say "chosen"
+          with a heavier word (600 / 700); obsidian deliberately does not —
+          it holds body and chosen a notch apart at 300/400 and lets colour and
+          the lit underline carry the whole state, which is why this reads a
+          token instead of the two literals it used to spell.
+        */
+        fontWeight: selected ? "var(--w-chosen)" : "var(--w-body)",
         // `literal` only because two tests outside components/ui assert the
         // resolved "1px"; the measure itself lives in tokens.ts / index.css.
         ...underlineSlot(selected, level, { literal: true }),
@@ -124,6 +135,15 @@ export function Option({
         </span>
       ) : null}
       {hideLabel ? null : <span>{label}</span>}
+      {selected ? (
+        <span
+          aria-hidden="true"
+          data-ui="option-underline"
+          /** The amendment's third permitted gradient surface (§C3.1). */
+          data-fill="underline"
+          style={underlineFill(level)}
+        />
+      ) : null}
     </button>
   );
 }

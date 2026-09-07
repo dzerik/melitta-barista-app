@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.1.0] — 2026-09-07 (not released)
+
+### Added
+
+- **Three themes, chosen by material rather than by colour.** *Cappuccino* is what the app has been: porcelain and paper, flat rules, crema accent. *Obsidian* is glass and chrome — a graded near-black ground, chrome hairlines, a commit rectangle that reads as a reflection with a 1px light edge, platinum accents and thin type, so the only warm thing on the screen is the drink itself; it is dark-only, because a glossy black light theme is a contradiction. *Caramel* is the opposite of obsidian: matte molasses with no gloss anywhere, dense rules, burnt-sugar accent, a warm close glow with almost no reflection, and type one step heavier — caramel is thick, and the type says so. The three are separable on a black-and-white screenshot.
+- Theme and mode are now two axes. Picking a dark-only family paints dark without overwriting the mode you chose, so switching back restores it. New keys in all 29 languages.
+
+### Changed
+
+- The rule against fills is amended, deliberately and narrowly: a gradient is legal on the page ground, a rule, a selection underline, the one commit rectangle, and the drink's own imagery. Containers and controls still paint nothing, in every family, and a test pins it.
+- Weight becomes a theme axis; the four-step size scale stays frozen.
+
+### Fixed
+
+- **Contrast.** Measuring every ink against every ground turned up failures the app already shipped: tertiary text was 4.06:1 on the dark ground and 2.99:1 on porcelain, and the light accent 3.62:1 — all below WCAG AA at the sizes they are set in. Every ink in every family now clears 4.5:1.
+- The drink's reflection keeps its 1px floor, which it lost when its ratio became a token.
+- An armed DirectKey tile takes the family's commit material, so the same act is not painted two ways.
+
 ## [3.0.1] — 2026-09-07 (not released)
 
 ### Fixed

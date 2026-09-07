@@ -31,6 +31,14 @@ export interface RuleProps {
 /**
  * The hairline — the app's container. §S4.2 and §R1.3/R1.4.
  *
+ * THE MATERIAL LAYER (the amendment's second permitted gradient surface). A
+ * family may lay `--rule-fill` over a structural rule's tone colour and
+ * `--rule-fill-inline` over the fade an inline rule already draws. Both are
+ * `background-image` values and both are `none` in cappuccino and caramel, so
+ * a `none` layer is a no-op and the flat hairline those families ship is
+ * unchanged. Obsidian is the family that uses them: its rules are chrome that
+ * catches the light at one end.
+ *
  * Not one of the seven real machine panels studied uses a per-item card, tile
  * fill or tinted block; they all separate content with 1px rules and nothing
  * else. So this is what bounds a region here: a flat rule when it is
@@ -56,15 +64,32 @@ export function Rule({
 }: RuleProps) {
   const ink = TONE[tone];
   const horizontal = orientation === "horizontal";
+  const inline = variant === "inline";
 
-  const paint: CSSProperties =
-    variant === "inline"
+  /*
+    A material layer must fade in the direction the rule already fades, and
+    `--rule-fill-inline` is written ONCE, at a fixed 90deg, dying toward the
+    end. So a rule that fades toward its START is drawn end-ward and mirrored
+    with `scaleX(-1)`: both layers turn together, the pair of mirrored rules
+    that flank a caption stay symmetrical in every family, and a transform on a
+    1px decoration costs no layout. A VERTICAL inline rule gets no material
+    layer at all — the token is horizontal by construction, and raking a 90deg
+    gradient across a 1px-wide column would paint one arbitrary column of it.
+  */
+  const mirrored = inline && horizontal && fadeToward === "start";
+
+  const paint: CSSProperties = inline
+    ? horizontal
       ? {
-          backgroundImage: `linear-gradient(${horizontal ? "90deg" : "180deg"}, ${
+          backgroundImage: `var(--rule-fill-inline), linear-gradient(90deg, ${ink}, transparent)`,
+          ...(mirrored ? { transform: "scaleX(-1)" } : null),
+        }
+      : {
+          backgroundImage: `linear-gradient(180deg, ${
             fadeToward === "end" ? `${ink}, transparent` : `transparent, ${ink}`
           })`,
         }
-      : { backgroundColor: ink };
+    : { backgroundColor: ink, backgroundImage: "var(--rule-fill)" };
 
   return (
     <div

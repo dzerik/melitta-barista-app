@@ -34,6 +34,8 @@ import {
   TRUTH_UNSERVED,
   UNDERLINE_W,
   UNDERLINE_W_NAV,
+  UNDERLINE_FILL,
+  underlineFill,
 } from "../src/components/ui";
 import { CoffeeIcon } from "../src/components/CoffeeIcon";
 import { CARVE_OUTS } from "./hard-rules";
@@ -484,21 +486,22 @@ describe("DrinkStage", () => {
     expect(glow().style.opacity).toBe("0.55");
   });
 
-  it("mirrors the glass at 18% height under a mask, plus a contact darkening", () => {
+  it("mirrors the glass under a mask at the family's depth, plus a contact darkening", () => {
     const { container } = render(
       <DrinkStage size={140}>
         <Glass />
       </DrinkStage>,
     );
-    // 140 wide → 93 tall → 18% → 17px.
+    // 140 wide → 93 drawn tall; how far of that the mirror falls is
+    // `--reflection-height` (0.18 in cappuccino, as it shipped).
     const reflection = container.querySelector<HTMLElement>(
       '[data-ui="drink-reflection"]',
     )!;
-    expect(reflection.style.height).toBe("17px");
+    expect(reflection.style.height).toBe("max(1px, calc(var(--reflection-height) * 93px))");
 
     const mirrored = reflection.firstElementChild as HTMLElement;
     expect(mirrored.style.transform).toBe("scaleY(-1)");
-    expect(mirrored.style.opacity).toBe("0.28");
+    expect(mirrored.style.opacity).toBe("var(--reflection-alpha)");
     expect(mirrored.style.maskImage).toContain("linear-gradient");
 
     const contact = container.querySelector<HTMLElement>(
@@ -539,8 +542,10 @@ describe("Rule", () => {
     const { container } = render(<Rule variant="inline" tone="divider" />);
     const rule = container.firstElementChild as HTMLElement;
 
+    // The family's material rides ON the tone fade, as a first layer that is
+    // `none` in every family but obsidian.
     expect(rule.style.backgroundImage).toBe(
-      "linear-gradient(90deg, var(--section-divider), transparent)",
+      "var(--rule-fill-inline), linear-gradient(90deg, var(--section-divider), transparent)",
     );
     expect(rule.style.backgroundColor).toBe("");
   });
@@ -1196,10 +1201,13 @@ describe("DrinkStage serves any drawn object, so there is one reflection (C29)",
     const glow = container.querySelector<HTMLElement>('[data-ui="drink-glow"]')!;
     // 280 wide × 1.25 = 350 drawn tall — not 187.
     expect(glow.style.height).toBe("350px");
+    // The drawn base height is still resolved here; only HOW FAR the mirror
+    // falls became a family decision, and it is multiplied in CSS so no
+    // JavaScript ever resolves a custom property.
     expect(
       container.querySelector<HTMLElement>('[data-ui="drink-reflection"]')!.style
         .height,
-    ).toBe("63px");
+    ).toBe("max(1px, calc(var(--reflection-height) * 350px))");
   });
 
   it("puts the horizon on the object's base, not on the bottom of its box", () => {
@@ -1219,7 +1227,9 @@ describe("DrinkStage serves any drawn object, so there is one reflection (C29)",
     // 350 drawn tall, base at 261 → 89px of empty drawing below it.
     expect(glow.style.height).toBe("261px");
     expect(contact.style.marginTop).toBe("-89px");
-    expect(reflection.style.height).toBe("47px");
+    // The mirror hangs from the BASE, so its height is a fraction of 261, not
+    // of the 350 the box draws.
+    expect(reflection.style.height).toBe("max(1px, calc(var(--reflection-height) * 261px))");
     expect(
       (reflection.firstElementChild as HTMLElement).style.transform,
     ).toBe("translateY(-89px) scaleY(-1)");
@@ -1427,5 +1437,417 @@ describe("the hard rules hold across every primitive", () => {
         expect(el.style.borderBottomWidth).toBe("");
         expect(el.style.borderBottomColor).toBe("");
       });
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+   THE THREE THEME FAMILIES (the 2026-09-07 amendment)
+
+   A family changes the MATERIAL, never the mechanism. Everything the
+   primitives can be asked about here is therefore the same question asked
+   three ways: does the component read a token, or does it know which family
+   it is in? Vitest runs with `css: false`, so `getComputedStyle` answers ""
+   for every custom property — which is exactly why these tests assert on the
+   token REFERENCES a primitive emits rather than on resolved colour. The
+   resolved values are pinned on the other side, in `tests/theme.test.tsx`,
+   which parses `index.css` and works the cascade out itself.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Every family/mode pair that resolves. Obsidian is dark-only by design. */
+const FAMILIES: ReadonlyArray<readonly [string, string]> = [
+  ["cappuccino", "dark"],
+  ["cappuccino", "light"],
+  ["obsidian", "dark"],
+  ["caramel", "dark"],
+  ["caramel", "light"],
+];
+
+/** Render inside the two attributes `<html>` carries in the running app. */
+function renderInFamily(
+  family: string,
+  mode: string,
+  element: React.ReactElement,
+) {
+  return render(
+    <div data-theme-family={family} data-theme={mode}>
+      {element}
+    </div>,
+  );
+}
+
+/** The primitives a family can touch, plus the ones it deliberately cannot. */
+const THEMED_SAMPLES: Array<[string, React.ReactElement]> = [
+  ["Option (chosen)", <Option label="Мягкий" selected onSelect={() => {}} />],
+  ["Option (idle)", <Option label="Мягкий" selected={false} onSelect={() => {}} />],
+  [
+    "Option (chosen, nav)",
+    <Option label="Рецепты" selected level="nav" onSelect={() => {}} />,
+  ],
+  ["Commit", <Commit label="Заварить" onCommit={() => {}} />],
+  ["Rule (structural)", <Rule rail />],
+  ["Rule (inline)", <Rule variant="inline" tone="divider" />],
+  [
+    "Rule (inline, fading toward the start)",
+    <Rule variant="inline" tone="divider" fadeToward="start" />,
+  ],
+  [
+    "DrinkStage",
+    <DrinkStage size={140}>
+      <svg width={140} height={93} />
+    </DrinkStage>,
+  ],
+  ["Meter", <Meter value={50} max={100} segments={12} />],
+  ["TickRing", <TickRing value={50} max={100} />],
+  ["Dot", <Dot current />],
+];
+
+describe("a family changes the material, and no primitive knows which family it is in", () => {
+  it.each(THEMED_SAMPLES)(
+    "%s draws identical markup in all three families",
+    (_name, element) => {
+      const drawn = FAMILIES.map(([family, mode]) => {
+        const { container, unmount } = renderInFamily(family, mode, element);
+        const html = (container.firstElementChild as HTMLElement).innerHTML;
+        unmount();
+        return html;
+      });
+
+      // One string, five renders. If a primitive ever branched on the family —
+      // an `if (obsidian)`, a palette lookup, a second element drawn only for
+      // one material — this is the assertion that would catch it, and the
+      // whole scheme would have failed: the material belongs in `index.css`,
+      // and a component's job is to name the token that carries it.
+      drawn.forEach((html) => expect(html).toBe(drawn[0]));
+    },
+  );
+
+  it("spends its family tokens on the four permitted surfaces and nowhere else", () => {
+    /**
+     * Which `data-fill` each material token is allowed to land on. This is the
+     * amendment restated as a machine-checkable map: `--drink-sheen` is on the
+     * list because it rides the DrinkStage GLOW layer — §S4.4 imagery, not a
+     * container fill — which is precisely why it adds no element of its own.
+     */
+    const MATERIAL: Record<string, string> = {
+      "--rule-fill": "rule",
+      "--rule-fill-inline": "rule",
+      "--underline-fill": "underline",
+      "--commit-fill": "commit",
+      "--drink-sheen": "glow",
+      "--ground-wash": "ground",
+    };
+
+    for (const [family, mode] of FAMILIES) {
+      for (const [name, element] of THEMED_SAMPLES) {
+        const { container, unmount } = renderInFamily(family, mode, element);
+
+        container.querySelectorAll<HTMLElement>("*").forEach((el) => {
+          const image = el.style?.backgroundImage ?? "";
+          for (const [token, expected] of Object.entries(MATERIAL)) {
+            if (!image.includes(`var(${token})`)) continue;
+            expect(
+              el.getAttribute("data-fill"),
+              `${name} in ${family}/${mode}: ${token} is painted on data-fill=` +
+                `${el.getAttribute("data-fill")}, and it belongs on "${expected}"`,
+            ).toBe(expected);
+          }
+        });
+
+        unmount();
+      }
+    }
+  });
+
+  it("paints a gradient only where the amendment permits one", () => {
+    /** The amendment's four, verbatim. */
+    const PERMITTED = new Set(["ground", "rule", "underline", "commit"]);
+    /**
+     * §S4.4 imagery, which predates the amendment and is not a fill in its
+     * sense: the neutral halo behind a drink and the 1px contact darkening
+     * under its base. Neither is a container, a card, a row or a control —
+     * they are the ground the drink stands on, and both already shipped.
+     */
+    const IMAGERY = new Set(["glow", "contact"]);
+
+    for (const [family, mode] of FAMILIES) {
+      for (const [name, element] of THEMED_SAMPLES) {
+        const { container, unmount } = renderInFamily(family, mode, element);
+
+        container.querySelectorAll<HTMLElement>("*").forEach((el) => {
+          const image = el.style?.backgroundImage ?? "";
+          if (image === "") return;
+          const declared = el.getAttribute("data-fill") ?? "(none)";
+          expect(
+            PERMITTED.has(declared) || IMAGERY.has(declared),
+            `${name} in ${family}/${mode}: <${el.tagName.toLowerCase()}> paints ` +
+              `"${image}" on data-fill=${declared}. A gradient is legal only on ` +
+              `ground | rule | underline | commit, and on the drink's own ` +
+              `imagery (glow | contact).`,
+          ).toBe(true);
+        });
+
+        unmount();
+      }
+    }
+  });
+
+  it("never expresses selection, or any state, as a container fill", () => {
+    for (const [family, mode] of FAMILIES) {
+      for (const [name, element] of THEMED_SAMPLES) {
+        const { container, unmount } = renderInFamily(family, mode, element);
+
+        container.querySelectorAll<HTMLElement>("*").forEach((el) => {
+          const bg = el.style?.backgroundColor ?? "";
+          if (bg === "" || bg === "transparent") return;
+          const declared = el.getAttribute("data-fill") ?? "(none)";
+          expect(
+            CARVE_OUTS.has(declared),
+            `${name} in ${family}/${mode}: a background-color on data-fill=${declared}`,
+          ).toBe(true);
+          // And the one that would be a regression rather than a slip: no
+          // family may fill the chosen word's box.
+          expect(declared).not.toBe("underline");
+        });
+
+        unmount();
+      }
+    }
+  });
+
+  it("adds no radius and no shadow in any family", () => {
+    for (const [family, mode] of FAMILIES) {
+      for (const [name, element] of THEMED_SAMPLES) {
+        const { container, unmount } = renderInFamily(family, mode, element);
+
+        container.querySelectorAll<HTMLElement>("*").forEach((el) => {
+          const radius = el.style?.borderRadius ?? "";
+          if (radius !== "" && el.getAttribute("data-shape") !== "circle") {
+            expect(radius, `${name} in ${family}/${mode}`).toBe("0px");
+          }
+          const shadow = el.style?.boxShadow ?? "";
+          if (shadow !== "") expect(shadow).toBe("none");
+        });
+
+        unmount();
+      }
+    }
+  });
+});
+
+describe("the lit underline keeps its slot when a family paints a gradient on it", () => {
+  const strip = (root: HTMLElement) =>
+    root.querySelector<HTMLElement>('[data-fill="underline"]');
+
+  it("lays the family's fill as a 1px strip over the reserved accent border", () => {
+    const { container } = render(<Option label="Мягкий" selected onSelect={() => {}} />);
+    const word = container.firstElementChild as HTMLElement;
+    const lit = strip(word)!;
+
+    // The border is untouched — five test files outside this directory assert
+    // it, and every flat family still renders exactly that.
+    expect(word.style.borderBottomColor).toBe("var(--accent)");
+    expect(word.style.borderBottomWidth).toBe("1px");
+
+    expect(lit).not.toBeNull();
+    expect(lit).toHaveAttribute("aria-hidden", "true");
+    expect(lit.style.backgroundImage).toBe(UNDERLINE_FILL);
+    // Exactly `--underline-w` tall, laid on the border it covers rather than
+    // above it, so the strip occupies the slot instead of adding to it.
+    expect(lit.style.height).toBe(UNDERLINE_W);
+    expect(lit.style.bottom).toBe(`calc(-1 * ${UNDERLINE_W})`);
+    expect(lit.style.position).toBe("absolute");
+    expect(lit.style.borderRadius).toBe("0px");
+    // It carries no colour of its own: a family with `none` paints nothing.
+    expect(lit.style.backgroundColor).toBe("");
+  });
+
+  it("takes the nav measure at nav level", () => {
+    const { container } = render(
+      <Option label="Рецепты" selected level="nav" onSelect={() => {}} />,
+    );
+    const lit = strip(container.firstElementChild as HTMLElement)!;
+    expect(lit.style.height).toBe(UNDERLINE_W_NAV);
+    expect(lit.style.bottom).toBe(`calc(-1 * ${UNDERLINE_W_NAV})`);
+  });
+
+  it("shows the strip ONLY when chosen, and shifts no layout when it appears", () => {
+    const { container, rerender } = render(
+      <Option label="Мягкий" selected={false} onSelect={() => {}} />,
+    );
+    const word = () => container.firstElementChild as HTMLElement;
+
+    // Unchosen: the slot is reserved by the transparent border and nothing is
+    // painted — a family cannot make an unchosen word glow.
+    expect(strip(word())).toBeNull();
+    expect(word()).toHaveAttribute("data-underline", "reserved");
+    const before = word().style.borderBottomWidth;
+
+    rerender(<Option label="Мягкий" selected onSelect={() => {}} />);
+    expect(strip(word())).not.toBeNull();
+    expect(word().style.borderBottomWidth).toBe(before);
+    // The strip is out of flow, so the word itself cannot move.
+    expect(strip(word())!.style.position).toBe("absolute");
+    expect(word().className).toContain("relative");
+  });
+
+  it("declares the measure once, in tokens, for both levels", () => {
+    expect(underlineFill()).toMatchObject({
+      height: UNDERLINE_W,
+      backgroundImage: UNDERLINE_FILL,
+      borderRadius: 0,
+    });
+    expect(underlineFill("nav").height).toBe(UNDERLINE_W_NAV);
+    // Same slot, same absence of colour, whichever level asks.
+    expect(underlineFill().backgroundColor).toBeUndefined();
+  });
+});
+
+describe("weight is a theme axis; the primitives read it rather than spelling it", () => {
+  it("gives the chosen word --w-chosen and the unchosen one --w-body", () => {
+    const { container, rerender } = render(
+      <Option label="Мягкий" selected onSelect={() => {}} />,
+    );
+    const word = () => container.firstElementChild as HTMLElement;
+    expect(word().style.fontWeight).toBe("var(--w-chosen)");
+
+    rerender(<Option label="Мягкий" selected={false} onSelect={() => {}} />);
+    expect(word().style.fontWeight).toBe("var(--w-body)");
+  });
+
+  it("weighs the commit verb as a chosen word", () => {
+    const { container } = render(<Commit label="Заварить" onCommit={() => {}} />);
+    expect((container.firstElementChild as HTMLElement).style.fontWeight).toBe(
+      "var(--w-chosen)",
+    );
+  });
+
+  it("never introduces a size of its own — the four-step scale is frozen", () => {
+    for (const [family, mode] of FAMILIES) {
+      for (const [name, element] of THEMED_SAMPLES) {
+        const { container, unmount } = renderInFamily(family, mode, element);
+        container.querySelectorAll<HTMLElement>("*").forEach((el) => {
+          expect(el.style?.fontSize ?? "", `${name} in ${family}/${mode}`).toBe("");
+        });
+        unmount();
+      }
+    }
+  });
+});
+
+describe("Rule and Commit carry the material, and carry it in the right direction", () => {
+  it("lays --rule-fill over a structural rule's tone colour, not instead of it", () => {
+    const { container } = render(<Rule tone="border-hover" />);
+    const rule = container.firstElementChild as HTMLElement;
+
+    expect(rule.style.backgroundColor).toBe("var(--border-hover)");
+    expect(rule.style.backgroundImage).toBe("var(--rule-fill)");
+    expect(rule).toHaveAttribute("data-fill", "rule");
+  });
+
+  it("mirrors an inline rule that fades toward its start, so both layers turn together", () => {
+    const end = render(<Rule variant="inline" tone="divider" />);
+    const endRule = end.container.firstElementChild as HTMLElement;
+    expect(endRule.style.transform).toBe("");
+
+    const start = render(
+      <Rule variant="inline" tone="divider" fadeToward="start" />,
+    );
+    const startRule = start.container.firstElementChild as HTMLElement;
+
+    // `--rule-fill-inline` is written once, at a fixed 90deg dying toward the
+    // end. A start-fading rule is therefore drawn end-ward and flipped, which
+    // turns the tone fade and the material together — the pair of mirrored
+    // rules that flank a caption stay symmetrical in every family.
+    expect(startRule.style.backgroundImage).toBe(endRule.style.backgroundImage);
+    expect(startRule.style.transform).toBe("scaleX(-1)");
+  });
+
+  it("leaves a vertical inline rule to its tone: the material token is horizontal", () => {
+    const { container } = render(
+      <Rule orientation="vertical" variant="inline" tone="divider" />,
+    );
+    const rule = container.firstElementChild as HTMLElement;
+    expect(rule.style.backgroundImage).toBe(
+      "linear-gradient(180deg, var(--section-divider), transparent)",
+    );
+    expect(rule.style.backgroundImage).not.toContain("--rule-fill");
+  });
+
+  it("keeps the commit a flat --accent rectangle with the family's ramp over it", () => {
+    const { container } = render(<Commit label="Заварить" onCommit={() => {}} />);
+    const commit = container.firstElementChild as HTMLElement;
+
+    expect(commit.style.backgroundColor).toBe("var(--accent)");
+    expect(commit.style.backgroundImage).toBe("var(--commit-fill)");
+    expect(commit).toHaveAttribute("data-fill", "commit");
+    // Obsidian's 1px light top edge is the gradient's first hard stop. It is
+    // not, and may never become, a shadow.
+    expect(commit.style.boxShadow).toBe("none");
+    expect(commit.style.borderRadius).toBe("0px");
+  });
+});
+
+describe("DrinkStage takes its surface from the family without gaining an element", () => {
+  const Glass = () => <svg data-testid="glass" width={140} height={93} />;
+
+  it("rides the sheen on the glow layer, over the halo and never over the drink", () => {
+    const { container } = render(
+      <DrinkStage size={140}>
+        <Glass />
+      </DrinkStage>,
+    );
+    const glow = container.querySelector<HTMLElement>('[data-ui="drink-glow"]')!;
+
+    expect(glow.style.backgroundImage).toBe(
+      "var(--drink-sheen), radial-gradient(ellipse 62% 72% at 50% 44%, var(--drink-glow), transparent 70%)",
+    );
+    // The sheen is a highlight ACROSS the glass, so it sits above the halo in
+    // the layer list, and it is still the halo's own element: §S4.4 imagery
+    // gains no painted rectangle just because a family turned it on.
+    expect(glow).toHaveAttribute("data-fill", "glow");
+
+    const drink = screen.getAllByTestId("glass")[0].parentElement as HTMLElement;
+    expect(drink.style.backgroundImage).toBe("");
+    expect(drink.style.filter).toBe("");
+  });
+
+  it("paints exactly two things in every family: the halo and the contact line", () => {
+    for (const [family, mode] of FAMILIES) {
+      const { container, unmount } = renderInFamily(
+        family,
+        mode,
+        <DrinkStage size={140}>
+          <Glass />
+        </DrinkStage>,
+      );
+      const painted = Array.from(
+        container.querySelectorAll<HTMLElement>("*"),
+      ).filter((el) => (el.style?.backgroundImage ?? "") !== "");
+
+      expect(painted.map((el) => el.getAttribute("data-fill"))).toEqual([
+        "glow",
+        "contact",
+      ]);
+      unmount();
+    }
+  });
+
+  it("reads how strongly and how far it mirrors from the family", () => {
+    const { container } = render(
+      <DrinkStage size={140}>
+        <Glass />
+      </DrinkStage>,
+    );
+    const reflection = container.querySelector<HTMLElement>(
+      '[data-ui="drink-reflection"]',
+    )!;
+
+    // Unitless tokens: the alpha goes straight into `opacity` and the height
+    // is multiplied by the drawn base height in CSS, so nothing here asks
+    // JavaScript to resolve a custom property (it would answer "").
+    expect((reflection.firstElementChild as HTMLElement).style.opacity).toBe(
+      "var(--reflection-alpha)",
+    );
+    expect(reflection.style.height).toBe("max(1px, calc(var(--reflection-height) * 93px))");
   });
 });

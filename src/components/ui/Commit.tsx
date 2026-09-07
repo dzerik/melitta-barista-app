@@ -88,11 +88,21 @@ export function Commit({
         .join(" ")}
       style={{
         backgroundColor: "var(--accent)",
+        /*
+          The amendment's fourth permitted gradient surface, and the ONE
+          rectangle allowed to carry it. `none` in cappuccino and caramel, so
+          those families keep the flat accent slab byte for byte; obsidian
+          lays a brushed-metal ramp over it whose FIRST HARD STOP is the 1px
+          light top edge. That edge is a stop, never a `box-shadow` — this
+          language has no shadow, and the rectangle stays radius 0.
+        */
+        backgroundImage: "var(--commit-fill)",
         color: "var(--text-inverse)",
         minHeight: "var(--tap-lg)",
         borderRadius: 0,
         boxShadow: "none",
-        fontWeight: 600,
+        /** The commit verb weighs what a chosen word weighs, per family. */
+        fontWeight: "var(--w-chosen)",
         opacity: disabled ? 0.35 : busy ? 0.5 : 1,
         pointerEvents: inert ? "none" : undefined,
         ...style,

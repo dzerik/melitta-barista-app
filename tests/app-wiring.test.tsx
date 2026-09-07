@@ -6,6 +6,8 @@
  * App wiring: mismatch screens, capability-gated tabs, contract props
  * threading into the sections, the i18n/get trigger, the stale banner.
  */
+import { readFileSync } from "node:fs";
+import { resolve as resolvePath } from "node:path";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { screen, waitFor, renderHook, act } from "@testing-library/react";
 import type { Connection, HassEntities, HassEntity } from "home-assistant-js-websocket";
@@ -395,12 +397,69 @@ const FILL_ALLOWLIST = new Set([
   "glow",
   "contact",
   "rule",
+  // The 2026-09-07 amendment's fourth gradient surface: the 1px
+  // `--underline-fill` strip a chosen `Option` lays over the accent border its
+  // slot already reserves. `none` in every family but obsidian, and a line
+  // rather than a fill in all of them.
+  "underline",
+  // The amendment's FIRST gradient surface: the page ground itself. The shell
+  // draws it as one declared layer (`data-ui="ground"`), held below to exactly
+  // `var(--bg)` plus the family's `--ground-wash`.
+  "ground",
   "scrim",
   "panel",
 ]);
 
 function everyElement(root: HTMLElement): HTMLElement[] {
   return Array.from(root.querySelectorAll<HTMLElement>("*"));
+}
+
+/**
+ * Colour-bearing inline properties. A family repaints the app by moving
+ * tokens, so a literal in any of these is a colour no theme can reach.
+ * A gradient assembled FROM tokens is fine — what is banned is the literal.
+ */
+const COLOUR_PROPS = [
+  "color",
+  "backgroundColor",
+  "backgroundImage",
+  "borderColor",
+  "borderTopColor",
+  "borderRightColor",
+  "borderBottomColor",
+  "borderLeftColor",
+  "outlineColor",
+  "fill",
+  "stroke",
+] as const;
+
+const LITERAL_COLOUR = /#[0-9a-f]{3,8}\b|\brgba?\(|\bhsla?\(/i;
+/** Tailwind palette utilities — the other way a literal colour gets in. */
+const PALETTE_UTILITY =
+  /\b(bg|text|border|from|via|to|fill|stroke|decoration|outline|caret|divide|placeholder)-(black|white|slate|gray|grey|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)(-\d{2,3})?(\/\d{1,3})?\b/;
+/** Weight is a theme axis (`--w-*`); a utility pins it to one family. */
+const WEIGHT_UTILITY =
+  /\bfont-(thin|extralight|light|normal|medium|semibold|bold|extrabold|black)\b/;
+
+/**
+ * Every colour and every weight on a rendered screen must be reachable by a
+ * theme — spelled as a token, never as a literal or a palette utility. This is
+ * the shell's half of the three-family sweep: obsidian turns the ink platinum
+ * and thins every weight, so one `#fff` or one `font-semibold` left in the
+ * shell would survive the family switch and read as a bug in the theme.
+ */
+function assertNoHardcodedInk(root: HTMLElement) {
+  for (const el of everyElement(root)) {
+    const at = `<${el.tagName.toLowerCase()} class="${el.getAttribute("class") ?? ""}">`;
+    const cls = el.getAttribute("class") ?? "";
+    expect(cls, `palette utility on ${at}`).not.toMatch(PALETTE_UTILITY);
+    expect(cls, `weight utility on ${at}`).not.toMatch(WEIGHT_UTILITY);
+    for (const prop of COLOUR_PROPS) {
+      const value = el.style[prop] ?? "";
+      if (value === "") continue;
+      expect(value, `${prop} on ${at}`).not.toMatch(LITERAL_COLOUR);
+    }
+  }
 }
 
 describe("App shell — visual contract", () => {
@@ -427,6 +486,89 @@ describe("App shell — visual contract", () => {
       }),
     };
   }
+
+  it("draws exactly one page-ground layer, and it declares itself", async () => {
+    const { container } = await renderShell();
+    const grounds = container.querySelectorAll<HTMLElement>('[data-fill="ground"]');
+    expect(grounds).toHaveLength(1);
+
+    const ground = grounds[0];
+    expect(ground.dataset.ui).toBe("ground");
+    // §S4.1 held literally: the ground paints the ground colour and the
+    // family's wash over it, and nothing else may claim the name (hard-rules.ts
+    // pins `data-fill="ground"` to exactly `var(--bg)`).
+    expect(ground.style.backgroundColor).toBe("var(--bg)");
+    expect(ground.style.backgroundImage).toBe("var(--ground-wash)");
+    expect(ground.style.borderRadius).toBe("0px");
+    expect(ground.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("keeps the ground behind the content, out of reach and out of the scroll", async () => {
+    const { container } = await renderShell();
+    const ground = container.querySelector<HTMLElement>('[data-ui="ground"]')!;
+    const shell = ground.parentElement!;
+
+    // Scenery, never a target: the pager, the tab words and the status strip
+    // all sit over it and every pointer must fall through.
+    expect(ground.className).toContain("pointer-events-none");
+    // One layer pinned to the shell box — it cannot scroll away from the
+    // content, because it does not scroll at all.
+    expect(ground.className).toContain("absolute");
+    expect(ground.className).toContain("inset-0");
+    expect(ground.className).not.toMatch(/overflow-|fixed|sticky/);
+
+    // Behind all content and above nothing: the ground is the first thing the
+    // shell draws, and the one column that holds every tab is stacked over it.
+    expect(shell.firstElementChild).toBe(ground);
+    expect(ground.style.zIndex).toBe("0");
+    const content = ground.nextElementSibling as HTMLElement;
+    expect(content.className).toContain("z-10");
+    expect(content.contains(container.querySelector("nav"))).toBe(true);
+    expect(content.contains(screen.getByTestId("status-bar"))).toBe(true);
+  });
+
+  it("the ground paints nothing at all in cappuccino", async () => {
+    // The layer reaches its wash only through `--ground-wash`, and cappuccino
+    // declares that token `none` — which is the whole mechanical claim that
+    // adding three families did not move a pixel of the shipped one. Asserted
+    // end to end: the element's paint here, the token's value in the base
+    // block (`:root` also serves cappuccino LIGHT, which restates palette
+    // only) there.
+    const { container } = await renderShell();
+    const ground = container.querySelector<HTMLElement>('[data-ui="ground"]')!;
+    expect(ground.style.backgroundImage).toBe("var(--ground-wash)");
+    expect(ground.getAttribute("style")).not.toMatch(/gradient/);
+
+    // From the vitest root, not `import.meta.url`: under jsdom that URL is an
+    // http one and `readFileSync` refuses it.
+    const css = readFileSync(resolvePath(process.cwd(), "src/index.css"), "utf8");
+    const base = /:root,\s*\[data-theme="dark"\]\s*\{([\s\S]*?)\n\}/.exec(css);
+    expect(base, "the cappuccino base block").not.toBeNull();
+    expect(/--ground-wash:\s*none\s*;/.test(base![1])).toBe(true);
+  });
+
+  it("hardcodes no colour and no weight the three families cannot reach", async () => {
+    const { container } = await renderShell();
+    assertNoHardcodedInk(container);
+  });
+
+  it("…and neither does the status strip, which this file otherwise mocks", async () => {
+    // The strip is stubbed above so App's wiring is what the shell tests
+    // measure; its own ink still has to answer to the families, so the real
+    // component is rendered once, here.
+    const { StatusBar: RealStatusBar } = await vi.importActual<
+      typeof import("../src/components/StatusBar")
+    >("../src/components/StatusBar");
+    const { container } = renderWithProviders(
+      <RealStatusBar
+        entities={bridgeEntities()}
+        prefix="melitta"
+        onDisconnect={vi.fn()}
+        onOpenPrefs={vi.fn()}
+      />,
+    );
+    assertNoHardcodedInk(container);
+  });
 
   it("the tab bar paints nothing and sits under a rail-to-rail rule", async () => {
     const { container } = await renderShell();
@@ -456,7 +598,13 @@ describe("App shell — visual contract", () => {
     // the overlap `Option`'s own `margin-bottom: -1px` produces in the sub-nav.
     expect(mark.style.top).toBe("-1px");
     expect(mark.getAttribute("class")).not.toMatch(/rounded-|h-\[/);
-    expect(mark.dataset.fill).toBe("rule");
+    // The mark is a SELECTION underline that rides on the rule, not the rule,
+    // and it carries the same material a chosen `Option` does: `--accent`
+    // beneath, `--underline-fill` over it. `none` in cappuccino and caramel, so
+    // the flat accent bar is untouched there; obsidian gets its chrome sliver
+    // in the tab bar and the sub-nav alike instead of one of each.
+    expect(mark.dataset.fill).toBe("underline");
+    expect(mark.style.backgroundImage).toBe("var(--underline-fill)");
   });
 
   it("keeps every tab at the 60px reach and marks the current one by value", async () => {
@@ -677,6 +825,9 @@ describe("Sign-in screen — visual contract", () => {
         `${el.tagName} "${cls}" paints without an allowed data-fill`,
       ).toBe(true);
     }
+    // …and every ink on it is a token, so obsidian's platinum and caramel's
+    // burnt sugar reach the sign-in screen as they reach the shell.
+    assertNoHardcodedInk(container);
   });
 });
 
@@ -736,6 +887,7 @@ describe("ResolutionGuard — visual contract", () => {
       if (!paints) continue;
       expect(FILL_ALLOWLIST.has(el.dataset.fill ?? "")).toBe(true);
     }
+    assertNoHardcodedInk(scrim);
   });
 
   it("draws its mark on the one glyph ladder and its figures with .num", async () => {

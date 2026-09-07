@@ -21,6 +21,7 @@ import {
   Glyph,
   RAIL_TEXT,
   Rule,
+  UNDERLINE_FILL,
   UNDERLINE_W_NAV,
   UNDERLINE_W_PX,
   Word,
@@ -188,123 +189,179 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-full flex-col bg-page">
-      <StatusBar
-        entities={entities}
-        prefix={prefix}
-        onDisconnect={handleDisconnect}
-        onOpenPrefs={() => setPrefsOpen(true)}
+    <div className="relative flex h-full flex-col">
+      {/* THE PAGE GROUND (§S4.1, and the amendment's first permitted gradient
+          surface). One layer, and the shell's only painted rectangle: it holds
+          the flat `--bg` every family has always painted, plus `--ground-wash`
+          over it — `none` in cappuccino and caramel, obsidian's fall from
+          near-black to slate with one faint radial lift.
+
+          It is an element rather than the root's own `.bg-page` class because
+          the amendment is audited two ways and this is the surface that needs
+          both: the CSS half pins `--ground-wash` to `body` and `.bg-page` and
+          to nothing else, while the DOM half sweeps a rendered family for
+          gradients and reads `data-fill`. A class paints invisibly to the
+          second. The sign-in screen, which is one centred column with nothing
+          stacked over it, still takes the class and its root simply IS the
+          ground.
+
+          `pointer-events-none` because a ground is scenery, never a target;
+          `absolute inset-0` inside a non-scrolling `h-full` root so it cannot
+          scroll away from the content; z-0 under the z-10 content column, so
+          it sits beneath every tab and above nothing. `body` carries the same
+          two paints (index.css) for the canvas behind portals and before this
+          tree mounts — this layer is opaque, so the ground is drawn once. */}
+      <div
+        aria-hidden="true"
+        data-ui="ground"
+        data-fill="ground"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          zIndex: 0,
+          backgroundColor: "var(--bg)",
+          backgroundImage: "var(--ground-wash)",
+          borderRadius: 0,
+        }}
       />
 
-      {/* §5.4: persisted last-good contract rendered before a live fetch lands.
-          The notice sits between two hairlines and paints nothing — the top
-          rule is the StatusBar's own rail rule directly above it, so drawing a
-          second one here would double the line to 2px. */}
-      {session.stale && (
-        <div className="shrink-0">
-          <div
-            className="py-1 text-center t-label text-tertiary"
-            style={{ paddingLeft: RAIL_TEXT, paddingRight: RAIL_TEXT }}
-          >
-            {t("contract.stale_notice")}
-          </div>
-          <Rule rail />
-        </div>
-      )}
+      {/* Everything the user can see or touch, in one column above the ground:
+          the strip, the pager and the tab bar keep the exact distribution they
+          had when they were the root's own children. */}
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+        <StatusBar
+          entities={entities}
+          prefix={prefix}
+          onDisconnect={handleDisconnect}
+          onOpenPrefs={() => setPrefsOpen(true)}
+        />
 
-      {/* Swipe pager */}
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <div
-          className="flex h-full will-change-transform"
-          style={{
-            width: `${visibleTabs.length * 100}%`,
-            transform: `translateX(${pager.offsetPx}px)`,
-            transition: pager.dragging
-              ? "none"
-              : "transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
-          }}
-          onTouchStart={swipe.onTouchStart}
-          onTouchMove={swipe.onTouchMove}
-          onTouchEnd={swipe.onTouchEnd}
-        >
-          {visibleTabs.map((tt) => (
-            <div key={tt} className="h-full" style={{ width: `${pageWidth}px` }}>
-              {renderSection(tt)}
+        {/* §5.4: persisted last-good contract rendered before a live fetch lands.
+            The notice sits between two hairlines and paints nothing — the top
+            rule is the StatusBar's own rail rule directly above it, so drawing a
+            second one here would double the line to 2px. */}
+        {session.stale && (
+          <div className="shrink-0">
+            <div
+              className="py-1 text-center t-label text-tertiary"
+              style={{ paddingLeft: RAIL_TEXT, paddingRight: RAIL_TEXT }}
+            >
+              {t("contract.stale_notice")}
             </div>
-          ))}
-        </div>
-      </div>
+            <Rule rail />
+          </div>
+        )}
 
-      {/* Tab bar — no fill of its own (§L2): one rail-to-rail hairline with a
-          square-cut 2px accent bar riding on it, and six 60px word targets on
-          the bare ground. Every tab is a full-height target, so the same row
-          works under a pointer and a thumb.
-
-          C19: this is the app's second nav idiom, and it now differs from the
-          sommelier sub-nav (`Option level="nav"`, the §C6a reference) in ONE
-          respect only — the mark slides instead of being reserved per word,
-          because it tracks a finger drag and a per-word underline cannot. The
-          measure, the ink, the type step and where the mark sits on the rule
-          are byte-identical to that reference below. */}
-      <div className="shrink-0">
-        <Rule rail />
-        <nav
-          className="relative flex"
-          style={{ marginLeft: "var(--rail)", marginRight: "var(--rail)" }}
-        >
-          {/* The screen's one position mark (§8.1c). Identical to a lit
-              `Option level="nav"` underline: `--underline-w-nav` of `--accent`,
-              square-cut, its top pulled 1px so the bar lands ON the rule rather
-              than beside it — the same overlap `Option`'s `margin-bottom: -1px`
-              produces against the sub-nav's own rule. */}
+        {/* Swipe pager */}
+        <div className="flex-1 min-h-0 overflow-hidden">
           <div
-            aria-hidden="true"
-            data-ui="tab-indicator"
-            data-fill="rule"
-            className="absolute"
+            className="flex h-full will-change-transform"
             style={{
-              top: `-${UNDERLINE_W_PX}px`,
-              height: UNDERLINE_W_NAV,
-              width: `${100 / visibleTabs.length}%`,
-              transform: `translateX(${(-pager.offsetPx / pageWidth) * 100}%)`,
+              width: `${visibleTabs.length * 100}%`,
+              transform: `translateX(${pager.offsetPx}px)`,
               transition: pager.dragging
                 ? "none"
                 : "transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
-              backgroundColor: "var(--accent)",
-              borderRadius: 0,
             }}
-          />
-          {visibleTabs.map((tt, i) => {
-            const current = tt === tab;
-            const locked = hasAction && tt !== tab;
-            return (
-              <button
-                key={tt}
-                onClick={() => onPageChange(i)}
-                disabled={locked}
-                aria-current={current ? "page" : undefined}
-                data-ui="tab"
-                data-selected={current ? "true" : "false"}
-                // `t-body`, the step `Option level="nav"` sets — the sub-nav
-                // and the tab bar were a step apart (C19).
-                className={`tap tap-lg press flex-1 t-body ${
-                  locked
-                    ? "text-tertiary cursor-not-allowed"
-                    : current
-                      ? "text-primary font-semibold"
-                      : "text-secondary hover:text-primary"
-                }`}
-                style={{
-                  borderRadius: 0,
-                  // §10 disabled: 0.35, and the row keeps its space.
-                  opacity: locked ? 0.35 : 1,
-                }}
-              >
-                {t(TAB_LABEL_KEYS[tt])}
-              </button>
-            );
-          })}
-        </nav>
+            onTouchStart={swipe.onTouchStart}
+            onTouchMove={swipe.onTouchMove}
+            onTouchEnd={swipe.onTouchEnd}
+          >
+            {visibleTabs.map((tt) => (
+              <div key={tt} className="h-full" style={{ width: `${pageWidth}px` }}>
+                {renderSection(tt)}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Tab bar — no fill of its own (§L2): one rail-to-rail hairline with a
+            square-cut 2px accent bar riding on it, and six 60px word targets on
+            the bare ground. Every tab is a full-height target, so the same row
+            works under a pointer and a thumb.
+
+            C19: this is the app's second nav idiom, and it now differs from the
+            sommelier sub-nav (`Option level="nav"`, the §C6a reference) in ONE
+            respect only — the mark slides instead of being reserved per word,
+            because it tracks a finger drag and a per-word underline cannot. The
+            measure, the ink, the type step and where the mark sits on the rule
+            are byte-identical to that reference below. */}
+        <div className="shrink-0">
+          <Rule rail />
+          <nav
+            className="relative flex"
+            style={{ marginLeft: "var(--rail)", marginRight: "var(--rail)" }}
+          >
+            {/* The screen's one position mark (§8.1c). Identical to a lit
+                `Option level="nav"` underline: `--underline-w-nav` of `--accent`,
+                square-cut, its top pulled 1px so the bar lands ON the rule rather
+                than beside it — the same overlap `Option`'s `margin-bottom: -1px`
+                produces against the sub-nav's own rule.
+
+                And identical in MATERIAL too: it lays `--underline-fill` over
+                that accent, exactly as `Option` lays it over the border its slot
+                reserves. Flat accent in cappuccino and caramel, where the token
+                is `none`; obsidian's chrome sliver here and in the sub-nav both,
+                rather than a chrome sub-nav beside a flat tab bar. That is also
+                why it declares `data-fill="underline"` rather than "rule": it is
+                a selection mark that rides on the rule, not the rule. */}
+            <div
+              aria-hidden="true"
+              data-ui="tab-indicator"
+              data-fill="underline"
+              className="absolute"
+              style={{
+                top: `-${UNDERLINE_W_PX}px`,
+                height: UNDERLINE_W_NAV,
+                width: `${100 / visibleTabs.length}%`,
+                transform: `translateX(${(-pager.offsetPx / pageWidth) * 100}%)`,
+                transition: pager.dragging
+                  ? "none"
+                  : "transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
+                backgroundColor: "var(--accent)",
+                backgroundImage: UNDERLINE_FILL,
+                borderRadius: 0,
+              }}
+            />
+            {visibleTabs.map((tt, i) => {
+              const current = tt === tab;
+              const locked = hasAction && tt !== tab;
+              return (
+                <button
+                  key={tt}
+                  onClick={() => onPageChange(i)}
+                  disabled={locked}
+                  aria-current={current ? "page" : undefined}
+                  data-ui="tab"
+                  data-selected={current ? "true" : "false"}
+                  // `t-body`, the step `Option level="nav"` sets — the sub-nav
+                  // and the tab bar were a step apart (C19).
+                  className={`tap tap-lg press flex-1 t-body ${
+                    locked
+                      ? "text-tertiary cursor-not-allowed"
+                      : current
+                        ? "text-primary"
+                        : "text-secondary hover:text-primary"
+                  }`}
+                  style={{
+                    borderRadius: 0,
+                    /*
+                      The same two weight tokens `Option` reads, for the same
+                      reason: weight is a theme axis now. `font-semibold` was a
+                      hardcoded 600 — right for cappuccino, wrong for caramel's
+                      thicker chosen word, and wrong in kind for obsidian, where
+                      selection is colour and the lit mark, never weight.
+                    */
+                    fontWeight: current ? "var(--w-chosen)" : "var(--w-body)",
+                    // §10 disabled: 0.35, and the row keeps its space.
+                    opacity: locked ? 0.35 : 1,
+                  }}
+                >
+                  {t(TAB_LABEL_KEYS[tt])}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
       </div>
 
       <StatusOverlay conn={connection} entities={entities} prefix={prefix} />
