@@ -19,9 +19,8 @@ import {
   type CatalogAction,
 } from "../lib/actions";
 import { serverString } from "../lib/server-strings";
-import { resolveMdiIcon } from "../lib/icons";
 import type { TranslationKey } from "../lib/i18n";
-import { Glyph, GLYPH_PX, HANG, Heading, Rule, Word } from "./ui";
+import { Glyph, HANG, Heading, Rule, Word, rowGlyph } from "./ui";
 import {
   ROW_DESC_CLASS,
   ROW_GUTTER,
@@ -45,23 +44,6 @@ function MelittaIcon({ src }: { src: string }) {
   return <Glyph src={src} alt="" />;
 }
 
-/**
- * The catalog row's mark — a served mdi name resolved to a lucide node (C27).
- *
- * It goes through `Glyph` for the same reason the settings tab's does: a raw
- * `<Icon size={20}>` in a hand-rolled span is a THIRD way of drawing the one
- * role, and it occupies a box the raster mark beside it does not, so two rows
- * of the same list line their labels up differently. `Glyph` owns the box, the
- * 20px rung and the shrink; this only says what to draw and in what ink.
- */
-function ActionIcon({ icon }: { icon: string }) {
-  const Icon = resolveMdiIcon(icon);
-  return (
-    <Glyph alt="" style={{ color: "var(--text-tertiary)" }}>
-      <Icon size={GLYPH_PX.row} strokeWidth={1.75} />
-    </Glyph>
-  );
-}
 
 interface Props {
   conn: Connection;
@@ -418,7 +400,7 @@ export function MaintenanceSection({ conn, entities, prefix, contract = null }: 
             <ActionCard
               key={entry.action}
               index={startIndex + i + 1}
-              icon={<ActionIcon icon={actionIconName(entry)} />}
+              icon={rowGlyph(actionIconName(entry), "var(--text-tertiary)")}
               label={actionLabel(locale, entry.action)}
               description={actionDescription(locale, entry.action)}
               duration={actionDuration(entry.action)}

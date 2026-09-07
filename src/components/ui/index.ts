@@ -61,7 +61,7 @@ export type { PanelProps, PanelMeasure } from "./Panel";
 export { Heading } from "./Heading";
 export type { HeadingProps, HeadingHang } from "./Heading";
 
-export { Glyph, GLYPH_PX, GLYPH_OPACITY, GLYPH_OPACITY_UNLIT } from "./Glyph";
+export { Glyph, GLYPH_PX, GLYPH_OPACITY, GLYPH_OPACITY_UNLIT, rowGlyph } from "./Glyph";
 export type { GlyphProps, GlyphSize } from "./Glyph";
 
 export { Dot } from "./Dot";

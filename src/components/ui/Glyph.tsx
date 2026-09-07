@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { resolveMdiIcon } from "../../lib/icons";
 
 export type GlyphSize = "row" | "state";
 
@@ -121,5 +122,23 @@ export function Glyph({
     >
       {children}
     </span>
+  );
+}
+
+/**
+ * A named lucide mark on the row rung, in one ink.
+ *
+ * A FUNCTION, not a component, and deliberately so: resolving an icon name to
+ * a component and then rendering that local inside another component creates a
+ * component during render, which the React Compiler refuses to optimise around
+ * (and which cost this repo a red CI). Settings and Maintenance both draw this
+ * mark; they now draw it the same way, through here (C28).
+ */
+export function rowGlyph(icon: string, tone: string) {
+  const Icon = resolveMdiIcon(icon);
+  return (
+    <Glyph alt="" style={{ color: tone }}>
+      <Icon size={GLYPH_PX.row} strokeWidth={1.75} />
+    </Glyph>
   );
 }

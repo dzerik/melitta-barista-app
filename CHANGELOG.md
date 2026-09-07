@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.1.2] — 2026-09-07
+
+### Fixed
+
+- CI's lint gate was red on the 3.1.1 tree: two hook dependency lists omitted a value the React Compiler infers, so it stopped optimising those components, and the maintenance row built its icon component during render. The row icon now goes through one shared helper that Settings and Maintenance both call — which is the shape C28 asked for in the first place — and the dependency lists say what they use.
+
 ## [3.1.1] — 2026-09-07 (not released)
 
 ### Fixed

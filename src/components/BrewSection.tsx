@@ -468,7 +468,7 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
       dkLongPressTriggered.current = true;
       setEditingDk({ category: cat, recipe });
     }, 500);
-  }, [dkEditBlocked]);
+  }, [dkEditBlocked, setEditingDk]);
 
   const cancelDkLongPress = useCallback(() => {
     if (dkLongPressTimer.current) {
@@ -486,12 +486,12 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
     } else {
       setSelectedDk(cat);
     }
-  }, [conn, brewId, selectedDk, twoCups]);
+  }, [conn, brewId, selectedDk, twoCups, locale]);
 
   const handleDkDoubleClick = useCallback((cat: DirectKeyCategory, recipe: DirectKeyRecipe) => {
     if (dkEditBlocked) return;
     setEditingDk({ category: cat, recipe });
-  }, [dkEditBlocked]);
+  }, [dkEditBlocked, setEditingDk]);
 
   const startLongPress = useCallback((slot: DirectKeyProfileSlotModel, name: string) => {
     longPressTriggered.current = false;
