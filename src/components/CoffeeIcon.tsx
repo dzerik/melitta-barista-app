@@ -174,6 +174,20 @@ const GLASS_GEOMETRY: Record<string, GlassGeometry> = {
   tall_glass: { topY: 12, botY: 64, topW: 30, botW: 24, handle: false },
 };
 
+/**
+ * Steam puffs: each leaves the drink surface, spreads as it climbs and
+ * dissolves before the top of the frame. `dx` is relative to the cup centre,
+ * `rise` the travel in viewBox units (capped by the headroom the glass leaves —
+ * a tall glass has far less), `peak` the opacity it reaches. Negative `begin`
+ * values start puffs mid-flight so the column is never caught empty.
+ */
+const STEAM_PUFFS = [
+  { dx: -4, begin: 0, dur: 3.4, r0: 2.8, r1: 7.0, rise: 18, peak: 0.55 },
+  { dx: 3, begin: -1.2, dur: 3.8, r0: 2.4, r1: 6.5, rise: 20, peak: 0.5 },
+  { dx: 7, begin: -2.3, dur: 3.1, r0: 2.1, r1: 5.5, rise: 16, peak: 0.4 },
+  { dx: -1, begin: -0.6, dur: 4.2, r0: 2.6, r1: 7.5, rise: 21, peak: 0.38 },
+];
+
 const CX = 54;
 
 function segmentFill(seg: IconSegment): { fill: string; opacity: number } {
@@ -215,6 +229,8 @@ function IconSpecDrawing({
   const halfTop = geo.topW / 2;
   const halfBot = geo.botW / 2;
   const clipId = `glass-${spec.glass}-${geo.topW}`;
+  const steamBlurId = `steam-blur-${spec.glass}-${geo.topW}`;
+  const steamGradId = `steam-grad-${spec.glass}-${geo.topW}`;
 
   // Stack segments bottom → top inside the liquid region.
   const rects = layoutSegments(segments, liquidH, geo.botY).map((seg, i) => {
@@ -260,11 +276,52 @@ function IconSpecDrawing({
         <clipPath id={clipId}>
           <path d={`${outline} Z`} />
         </clipPath>
+        {spec.steam && (
+          <>
+            <filter id={steamBlurId} x="-80%" y="-80%" width="260%" height="260%">
+              <feGaussianBlur stdDeviation="1.3" />
+            </filter>
+            <radialGradient id={steamGradId}>
+              <stop offset="0%" stopColor="currentColor" stopOpacity={1} />
+              <stop offset="55%" stopColor="currentColor" stopOpacity={0.5} />
+              <stop offset="100%" stopColor="currentColor" stopOpacity={0} />
+            </radialGradient>
+          </>
+        )}
       </defs>
       {spec.steam && (
-        <g data-steam="true" stroke="#9a9a9a" strokeOpacity={0.5} fill="none" strokeWidth={1.4} strokeLinecap="round">
-          <path d={`M ${CX - 6} ${geo.topY - 3} q 3 -3.5 0 -7 q -3 -3.5 0 -7`} />
-          <path d={`M ${CX + 6} ${geo.topY - 3} q 3 -3.5 0 -7 q -3 -3.5 0 -7`} />
+        <g
+          data-steam="true"
+          filter={`url(#${steamBlurId})`}
+          style={{ color: "var(--text-secondary, #9a9a9a)" }}
+        >
+          {STEAM_PUFFS.map((puff, i) => {
+            const rise = Math.min(puff.rise, Math.max(5, geo.topY - 2));
+            const from = geo.topY - 1;
+            const dur = `${puff.dur}s`;
+            const begin = `${puff.begin}s`;
+            return (
+              <ellipse
+                key={i}
+                cx={CX + puff.dx}
+                cy={from}
+                rx={puff.r0}
+                ry={puff.r0 * 0.7}
+                fill={`url(#${steamGradId})`}
+                opacity={0}
+              >
+                <animate attributeName="cy" values={`${from};${from - rise}`}
+                  dur={dur} begin={begin} repeatCount="indefinite" />
+                <animate attributeName="rx" values={`${puff.r0};${puff.r1}`}
+                  dur={dur} begin={begin} repeatCount="indefinite" />
+                <animate attributeName="ry" values={`${puff.r0 * 0.7};${puff.r1 * 0.85}`}
+                  dur={dur} begin={begin} repeatCount="indefinite" />
+                <animate attributeName="opacity"
+                  values={`0;${puff.peak};${puff.peak * 0.5};0`} keyTimes="0;0.25;0.6;1"
+                  dur={dur} begin={begin} repeatCount="indefinite" />
+              </ellipse>
+            );
+          })}
         </g>
       )}
       <g clipPath={`url(#${clipId})`}>{rects}</g>
