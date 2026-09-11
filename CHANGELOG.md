@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.1.4] — 2026-09-11
+
+### Fixed
+
+- **The app speaks 28 languages again, not two.** Only German and Russian carried a complete set of strings. The other 26 bundles were between 141 and 159 keys short — 3,781 strings in all — and nothing said so, because a missing key falls back to English instead of breaking. That is the failure users report and reviewers never see: a Dutch or Polish screen that is three-quarters translated and silently finishes the sentence in English. Every bundle is now complete, and 87 strings that had been left in English inside an otherwise translated bundle have been written properly.
+- The fallback was not a safety net for the parts that matter most. Roughly a third of the gap was app chrome the bundle is the only source for — the tab bar, freestyle, statistics, preferences, the maintenance and status copy — which no server string can cover. The rest mirrors what the integration serves, and that copy is read too: an installation on 0.91–0.93 is served none of these families, and switching language offline drops the served strings entirely.
+- Danish named the maintenance tab "Service", the English word, where the card and the integration both say *Vedligeholdelse*; Macedonian lost the accent on *Kahlúa* that the other 27 languages carry.
+
+### Added
+
+- A parity test over every shipped bundle, so a short bundle fails the build instead of quietly showing English. It pins both halves of the defect — keys missing against English, and keys present but still holding the English string — and takes its exceptions as explicit, commented lists: the eight keys English still carries that no code path can reach, the proper names and numerals that stay Latin everywhere, and the per-language cognates that genuinely are spelled the English way. The cognate list is itself checked for rot, so it cannot drift into a list of stale claims.
+
 ## [3.1.3] — 2026-09-07
 
 ### Fixed

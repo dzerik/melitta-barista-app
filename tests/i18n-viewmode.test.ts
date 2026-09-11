@@ -80,11 +80,13 @@ describe("i18n bundle parity", () => {
     expect(Object.keys(BUNDLES)).toHaveLength(29);
   });
 
-  // Bundles are deliberately sparse outside en: `t()` overlays en for any key
-  // a locale lacks, so a translation gap degrades to English rather than to a
-  // raw key. What must never happen is the reverse — a key that exists ONLY
-  // in a translation, which means it was renamed or dropped in en and that
-  // locale now carries dead weight nobody can reach.
+  // `t()` overlays en for any key a locale lacks, so a gap degrades to English
+  // rather than to a raw key. That used to be written up here as a licence for
+  // sparse bundles; it is not one — degrading to English IS the bug users
+  // report, and 26 bundles sat ~150 keys short behind it. Full parity is
+  // pinned in i18n-bundle-parity.test.ts. This test covers the opposite
+  // direction: a key that exists ONLY in a translation, which means it was
+  // renamed or dropped in en and that locale now carries dead weight.
   it("no locale carries a key en does not have", () => {
     const enKeys = new Set(Object.keys(en));
     for (const [path, bundle] of Object.entries(BUNDLES)) {
@@ -188,9 +190,9 @@ describe("§7.5 sentence case", () => {
   // code, which no bundle carries. `brew.two_cups_on` was "2x ON" (R4); this
   // is what keeps it from coming back in any of the 29 bundles.
   it("no bundle shouts", () => {
-    // Acronyms are not shouting. `KI` is German for AI; `ОК` is the Cyrillic
-    // spelling of the same two letters.
-    const ACRONYMS = new Set([...PROPER_NOUNS, "KI", "ОК"]);
+    // Acronyms are not shouting. `KI` is German for AI, `IA` the Romance
+    // spelling of the same acronym; `ОК` is the Cyrillic spelling of "OK".
+    const ACRONYMS = new Set([...PROPER_NOUNS, "KI", "IA", "ОК"]);
     const offenders: string[] = [];
     for (const [path, bundle] of Object.entries(BUNDLES)) {
       for (const [key, value] of Object.entries(bundle)) {
