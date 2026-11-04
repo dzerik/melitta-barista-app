@@ -31,6 +31,7 @@ import {
 import { Plus } from "lucide-react";
 import iconNotConnected from "../assets/icons/not_connected.png";
 import { noteBrewStarted } from "../lib/brew-origin";
+import { milkModeFor, milkShotsFor } from "../lib/milk-mode";
 
 /** §6.1: a mosaic tile's drink sits on the 64 rung. */
 const PICKER_ICON = 64;
@@ -136,10 +137,13 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
   const tempOpts2 = resolveEnumTokens(contract, "temperature", opts.tempOpts2).tokens;
   const shotsOpts1 = resolveEnumTokens(contract, "shots", opts.shotsOpts1).tokens;
   const shotsOpts2 = resolveEnumTokens(contract, "shots", opts.shotsOpts2).tokens;
+  const milkModeOpts = resolveEnumTokens(contract, "milk_mode").tokens;
   const portion1Range = resolvePortionRange(contract, "c1");
   const portion2Range = resolvePortionRange(contract, "c2");
 
   const handleBrew = () => {
+    const shots1 = milkShotsFor(fs.process1, fs.shots1, fs.milk_mode1);
+    const shots2 = milkShotsFor(fs.process2, fs.shots2, fs.milk_mode2);
     // The machine will not tell anyone what this is; if we do not remember it
     // now, the brewing screen can only name the phase.
     noteBrewStarted(fs.name || t("tab.freestyle"), {
@@ -147,13 +151,13 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
       c1_intensity: fs.intensity1,
       c1_aroma: fs.aroma1,
       c1_temperature: fs.temperature1,
-      c1_shots: fs.shots1,
+      c1_shots: shots1,
       c1_portion_ml: fs.portion1,
       c2_process: fs.process2,
       c2_intensity: fs.intensity2,
       c2_aroma: fs.aroma2,
       c2_temperature: fs.temperature2,
-      c2_shots: fs.shots2,
+      c2_shots: shots2,
       c2_portion_ml: fs.portion2,
     } as never);
     safeCall(() =>
@@ -164,13 +168,13 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
         aroma1: fs.aroma1,
         portion1_ml: fs.portion1,
         temperature1: fs.temperature1,
-        shots1: fs.shots1,
+        shots1,
         process2: fs.process2,
         intensity2: fs.intensity2,
         aroma2: fs.aroma2,
         portion2_ml: fs.portion2,
         temperature2: fs.temperature2,
-        shots2: fs.shots2,
+        shots2,
       }),
     );
   };
@@ -232,7 +236,9 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
             <TokenRow family="intensity" label={t("freestyle.intensity")} options={intensityOpts1} value={fs.intensity1} onChange={(v) => update("intensity1", v)} disabled={fs.process1 !== "coffee"} />
             <TokenRow family="aroma" label={t("freestyle.aroma")} options={aromaOpts1} value={fs.aroma1} onChange={(v) => update("aroma1", v)} disabled={fs.process1 !== "coffee"} />
             <TokenRow family="temperature" label={t("freestyle.temperature")} options={tempOpts1} value={fs.temperature1} onChange={(v) => update("temperature1", v)} />
-            <TokenRow family="shots" label={t("freestyle.shots")} options={shotsOpts1} value={fs.shots1} onChange={(v) => update("shots1", v)} disabled={fs.process1 !== "coffee"} />
+            {fs.process1 === "milk"
+              ? <TokenRow family="milk_mode" label={t("freestyle.milk_mode")} options={milkModeOpts} value={milkModeFor(fs.shots1, fs.milk_mode1)} onChange={(v) => update("milk_mode1", v)} />
+              : <TokenRow family="shots" label={t("freestyle.shots")} options={shotsOpts1} value={fs.shots1} onChange={(v) => update("shots1", v)} disabled={fs.process1 !== "coffee"} />}
           </div>
         </div>
 
@@ -376,7 +382,9 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
             <TokenRow family="intensity" label={t("freestyle.intensity")} options={intensityOpts2} value={fs.intensity2} onChange={(v) => update("intensity2", v)} disabled={fs.process2 !== "coffee"} />
             <TokenRow family="aroma" label={t("freestyle.aroma")} options={aromaOpts2} value={fs.aroma2} onChange={(v) => update("aroma2", v)} disabled={fs.process2 !== "coffee"} />
             <TokenRow family="temperature" label={t("freestyle.temperature")} options={tempOpts2} value={fs.temperature2} onChange={(v) => update("temperature2", v)} disabled={fs.process2 === "none"} />
-            <TokenRow family="shots" label={t("freestyle.shots")} options={shotsOpts2} value={fs.shots2} onChange={(v) => update("shots2", v)} disabled={fs.process2 !== "coffee"} />
+            {fs.process2 === "milk"
+              ? <TokenRow family="milk_mode" label={t("freestyle.milk_mode")} options={milkModeOpts} value={milkModeFor(fs.shots2, fs.milk_mode2)} onChange={(v) => update("milk_mode2", v)} />
+              : <TokenRow family="shots" label={t("freestyle.shots")} options={shotsOpts2} value={fs.shots2} onChange={(v) => update("shots2", v)} disabled={fs.process2 !== "coffee"} />}
           </div>
         </div>
       </div>

@@ -11,12 +11,14 @@ export interface FreestyleState {
   aroma1: string;
   temperature1: string;
   shots1: string;
+  milk_mode1?: string;
   portion1: number;
   process2: string;
   intensity2: string;
   aroma2: string;
   temperature2: string;
   shots2: string;
+  milk_mode2?: string;
   portion2: number;
 }
 
@@ -69,6 +71,14 @@ function saveToStorage(state: FreestyleState): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
+/** Read an optional native override, keeping an inherited label implicit. */
+function readMilkMode(entities: HassEntities, prefix: string, component: 1 | 2): string | undefined {
+  const entity = entities[`select.${prefix}_freestyle_milk_mode_${component}`];
+  const value = entity && Object.hasOwn(entity.attributes, "milk_mode")
+    ? entity.attributes.milk_mode : entity?.state;
+  return value === "warm_milk" || value === "milk_froth" ? value : undefined;
+}
+
 /** Read current freestyle values from HA entities. */
 function readFromBackend(entities: HassEntities, prefix: string): FreestyleState {
   return {
@@ -78,12 +88,14 @@ function readFromBackend(entities: HassEntities, prefix: string): FreestyleState
     aroma1: getState(entities, prefix, "select", "freestyle_aroma_1") || DEFAULTS.aroma1,
     temperature1: getState(entities, prefix, "select", "freestyle_temperature_1") || DEFAULTS.temperature1,
     shots1: getState(entities, prefix, "select", "freestyle_shots_1") || DEFAULTS.shots1,
+    milk_mode1: readMilkMode(entities, prefix, 1),
     portion1: parseInt(getState(entities, prefix, "number", "freestyle_portion_1") || String(DEFAULTS.portion1)),
     process2: getState(entities, prefix, "select", "freestyle_process_2") || DEFAULTS.process2,
     intensity2: getState(entities, prefix, "select", "freestyle_intensity_2") || DEFAULTS.intensity2,
     aroma2: getState(entities, prefix, "select", "freestyle_aroma_2") || DEFAULTS.aroma2,
     temperature2: getState(entities, prefix, "select", "freestyle_temperature_2") || DEFAULTS.temperature2,
     shots2: getState(entities, prefix, "select", "freestyle_shots_2") || DEFAULTS.shots2,
+    milk_mode2: readMilkMode(entities, prefix, 2),
     portion2: parseInt(getState(entities, prefix, "number", "freestyle_portion_2") || String(DEFAULTS.portion2)),
   };
 }

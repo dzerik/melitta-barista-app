@@ -46,6 +46,7 @@
   "freestyle.temperature": "Teplota",
   "freestyle.aroma": "Aroma",
   "freestyle.shots": "Shoty",
+  "freestyle.milk_mode": "Režim mléka",
   "freestyle.use_recipe": "Použít recept jako základ",
   "freestyle.available_when_ready": "Freestyle je dostupný, až bude kávovar připraven",
   "stats.total_cups": "Celkem šálků",

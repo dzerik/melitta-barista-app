@@ -14,6 +14,7 @@ import {
   resolvePortionRange,
 } from "../lib/parameters";
 import { saveDirectkeyDefaults } from "../lib/actions";
+import { milkModeFor, milkShotsFor } from "../lib/milk-mode";
 
 const SHOTS_TO_STRING: Record<number, string> = { 0: "none", 1: "one", 2: "two", 3: "three" };
 
@@ -51,12 +52,14 @@ interface EditState {
   aroma1: string;
   temperature1: string;
   shots1: string;
+  milk_mode1?: string;
   portion1: number;
   process2: string;
   intensity2: string;
   aroma2: string;
   temperature2: string;
   shots2: string;
+  milk_mode2?: string;
   portion2: number;
 }
 
@@ -117,6 +120,7 @@ export function RecipeEditModal({ conn, brewEntityId, category, categoryLabel, r
   const aromaOpts = resolveEnumTokens(contract, "aroma").tokens;
   const temperatureOpts = resolveEnumTokens(contract, "temperature").tokens;
   const shotsOpts = resolveEnumTokens(contract, "shots").tokens;
+  const milkModeOpts = resolveEnumTokens(contract, "milk_mode").tokens;
   const portion1Range = resolvePortionRange(contract, "c1");
   const portion2Range = resolvePortionRange(contract, "c2");
 
@@ -135,13 +139,13 @@ export function RecipeEditModal({ conn, brewEntityId, category, categoryLabel, r
         aroma1: state.aroma1,
         portion1_ml: state.portion1,
         temperature1: state.temperature1,
-        shots1: state.shots1,
+        shots1: milkShotsFor(state.process1, state.shots1, state.milk_mode1),
         process2: state.process2,
         intensity2: state.intensity2,
         aroma2: state.aroma2,
         portion2_ml: state.portion2,
         temperature2: state.temperature2,
-        shots2: state.shots2,
+        shots2: milkShotsFor(state.process2, state.shots2, state.milk_mode2),
       });
       onClose();
     });
@@ -188,7 +192,9 @@ export function RecipeEditModal({ conn, brewEntityId, category, categoryLabel, r
               <TokenRow family="intensity" label={t("freestyle.intensity")} options={intensityOpts} value={state.intensity1} onChange={(v) => update("intensity1", v)} disabled={state.process1 !== "coffee"} />
               <TokenRow family="aroma" label={t("freestyle.aroma")} options={aromaOpts} value={state.aroma1} onChange={(v) => update("aroma1", v)} disabled={state.process1 !== "coffee"} />
               <TokenRow family="temperature" label={t("freestyle.temperature")} options={temperatureOpts} value={state.temperature1} onChange={(v) => update("temperature1", v)} />
-              <TokenRow family="shots" label={t("freestyle.shots")} options={shotsOpts} value={state.shots1} onChange={(v) => update("shots1", v)} disabled={state.process1 !== "coffee"} />
+              {state.process1 === "milk"
+                ? <TokenRow family="milk_mode" label={t("freestyle.milk_mode")} options={milkModeOpts} value={milkModeFor(state.shots1, state.milk_mode1)} onChange={(v) => update("milk_mode1", v)} />
+                : <TokenRow family="shots" label={t("freestyle.shots")} options={shotsOpts} value={state.shots1} onChange={(v) => update("shots1", v)} disabled={state.process1 !== "coffee"} />}
             </div>
           </div>
 
@@ -246,7 +252,9 @@ export function RecipeEditModal({ conn, brewEntityId, category, categoryLabel, r
               <TokenRow family="intensity" label={t("freestyle.intensity")} options={intensityOpts} value={state.intensity2} onChange={(v) => update("intensity2", v)} disabled={state.process2 !== "coffee"} />
               <TokenRow family="aroma" label={t("freestyle.aroma")} options={aromaOpts} value={state.aroma2} onChange={(v) => update("aroma2", v)} disabled={state.process2 !== "coffee"} />
               <TokenRow family="temperature" label={t("freestyle.temperature")} options={temperatureOpts} value={state.temperature2} onChange={(v) => update("temperature2", v)} disabled={state.process2 === "none"} />
-              <TokenRow family="shots" label={t("freestyle.shots")} options={shotsOpts} value={state.shots2} onChange={(v) => update("shots2", v)} disabled={state.process2 !== "coffee"} />
+              {state.process2 === "milk"
+                ? <TokenRow family="milk_mode" label={t("freestyle.milk_mode")} options={milkModeOpts} value={milkModeFor(state.shots2, state.milk_mode2)} onChange={(v) => update("milk_mode2", v)} />
+                : <TokenRow family="shots" label={t("freestyle.shots")} options={shotsOpts} value={state.shots2} onChange={(v) => update("shots2", v)} disabled={state.process2 !== "coffee"} />}
             </div>
           </div>
         </div>

@@ -47,6 +47,7 @@
   "freestyle.temperature": "Lämpötila",
   "freestyle.aroma": "Aromi",
   "freestyle.shots": "Shotit",
+  "freestyle.milk_mode": "Maitotila",
   "freestyle.use_recipe": "Käytä reseptiä pohjana",
   "freestyle.available_when_ready": "Freestyle on käytettävissä, kun kone on valmis",
   "stats.total_cups": "Kupillisia yhteensä",

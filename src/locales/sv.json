@@ -47,6 +47,7 @@
   "freestyle.temperature": "Temperatur",
   "freestyle.aroma": "Arom",
   "freestyle.shots": "Shots",
+  "freestyle.milk_mode": "Mjölkläge",
   "freestyle.use_recipe": "Använd recept som grund",
   "freestyle.available_when_ready": "Freestyle är tillgängligt när maskinen är redo",
   "stats.total_cups": "Totalt antal koppar",

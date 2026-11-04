@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.1.5-beta.2] — 2026-11-04 (beta)
+
+### Added
+
+- Choose warm milk or milk froth independently for both components in
+  Freestyle and the recipe editor (#60). Coffee shots and legacy saved values
+  are preserved; requests use the existing service fields on older backends.
+
 ## [3.1.5-beta.1] — 2026-11-04 (beta)
 
 ### Fixed

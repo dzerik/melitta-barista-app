@@ -33,6 +33,7 @@ export const CONST_FREESTYLE_TOKENS: Record<string, readonly string[]> = {
   aroma: ["standard", "intense"],
   temperature: ["cold", "normal", "high"],
   shots: ["none", "one", "two", "three"],
+  milk_mode: ["warm_milk", "milk_froth"],
 };
 
 /** One inclusive slider range. */

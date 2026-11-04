@@ -47,6 +47,7 @@
   "freestyle.temperature": "Temperatur",
   "freestyle.aroma": "Aroma",
   "freestyle.shots": "Shots",
+  "freestyle.milk_mode": "Milchmodus",
   "freestyle.use_recipe": "Rezept als Basis verwenden",
   "freestyle.available_when_ready": "Freestyle ist verfügbar, wenn die Maschine bereit ist",
   "stats.total_cups": "Tassen gesamt",

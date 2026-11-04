@@ -40,6 +40,7 @@
   "freestyle.temperature": "Температура",
   "freestyle.aroma": "Арома",
   "freestyle.shots": "Шотови",
+  "freestyle.milk_mode": "Режим на млеко",
   "freestyle.use_recipe": "Користи рецепт како основа",
   "freestyle.available_when_ready": "Freestyle е достапен кога апаратот е подготвен",
   "stats.total_cups": "Вкупно шолји",

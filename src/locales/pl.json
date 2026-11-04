@@ -40,6 +40,7 @@
   "freestyle.temperature": "Temperatura",
   "freestyle.aroma": "Aromat",
   "freestyle.shots": "Shoty",
+  "freestyle.milk_mode": "Tryb mleka",
   "freestyle.use_recipe": "Użyj przepisu jako bazy",
   "freestyle.available_when_ready": "Freestyle jest dostępny, gdy ekspres jest gotowy",
   "stats.total_cups": "Łącznie filiżanek",

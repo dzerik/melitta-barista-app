@@ -47,6 +47,7 @@
   "freestyle.temperature": "Θερμοκρασία",
   "freestyle.aroma": "Άρωμα",
   "freestyle.shots": "Δόσεις",
+  "freestyle.milk_mode": "Λειτουργία γάλακτος",
   "freestyle.use_recipe": "Χρήση συνταγής ως βάση",
   "freestyle.available_when_ready": "Η ελεύθερη συνταγή είναι διαθέσιμη όταν η μηχανή είναι έτοιμη",
   "stats.total_cups": "Σύνολο φλιτζανιών",

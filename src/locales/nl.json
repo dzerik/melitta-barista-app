@@ -47,6 +47,7 @@
   "freestyle.temperature": "Temperatuur",
   "freestyle.aroma": "Aroma",
   "freestyle.shots": "Shots",
+  "freestyle.milk_mode": "Melkmodus",
   "freestyle.use_recipe": "Recept als basis gebruiken",
   "freestyle.available_when_ready": "Freestyle is beschikbaar zodra de machine gereed is",
   "stats.total_cups": "Totaal aantal kopjes",
