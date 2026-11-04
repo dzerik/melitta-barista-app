@@ -12,12 +12,14 @@ import {
   directKeyProfilesFromList,
   fetchDirectKeyRecipeList,
   directKeyCategoryLabel,
+  configuredDirectKeyRecipe,
   type RecipeDetails,
   type DirectKeyRecipe,
   type DirectKeyCategory,
   type DirectKeyProfileSlotModel,
 } from "../lib/entities";
 import { readDirectKey, type UiContract } from "../lib/contract";
+import { recipeDisplayName } from "../lib/recipes";
 import { serverString } from "../lib/server-strings";
 import { deriveMachineStatus, type ServiceKind } from "../lib/status";
 import { selectOption, pressButton, brewDirectkey, setTextValue, safeCall } from "../lib/ha";
@@ -456,7 +458,20 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
   const dkBlockPresent = contract !== null && readDirectKey(contract) !== null;
   const dkProfiles =
     (dkBlockPresent ? listProfiles : null) ?? directKey?.profiles ?? null;
-  const activeProfileRecipes = dkProfiles?.[activeProfileId] ?? {};
+  const configuredDrinks = getEntity(entities, prefix, "select", model.profileSelectSuffix)?.attributes.directkey_drinks;
+  const activeProfileRecipes = useMemo(() => Object.fromEntries(
+    Object.entries(dkProfiles?.[activeProfileId] ?? {}).map(([category, recipe]) => [category, {
+      ...recipe,
+      // Pushed metadata also refreshes WS-backed rows; absence clears old names.
+      configured_recipe: configuredDirectKeyRecipe(configuredDrinks, activeProfileId, category),
+    }]),
+  ), [dkProfiles, activeProfileId, configuredDrinks]);
+  const directKeyLabel = useCallback((category: string) => {
+    const identity = activeProfileRecipes[category]?.configured_recipe;
+    return identity
+      ? recipeDisplayName({ name: identity.name, nameKey: identity.name_key })
+      : directKeyCategoryLabel(locale, category);
+  }, [activeProfileRecipes, locale]);
   const hasDkRecipes = Object.keys(activeProfileRecipes).length > 0;
   // Slot 0 (`fixed`) recipes are not editable (§9.3.2).
   const activeSlot = model.profiles.find((p) => p.slot === activeProfileId);
@@ -482,12 +497,12 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
     if (dkLongPressTriggered.current) return;
     if (selectedDk === cat) {
       // Remember what we asked for: the machine will not tell us later.
-      noteBrewStarted(directKeyCategoryLabel(locale, cat));
+      noteBrewStarted(directKeyLabel(cat));
       safeCall(() => brewDirectkey(conn, brewId, cat, twoCups));
     } else {
       setSelectedDk(cat);
     }
-  }, [conn, brewId, selectedDk, twoCups, locale]);
+  }, [conn, brewId, selectedDk, twoCups, directKeyLabel]);
 
   const handleDkDoubleClick = useCallback((cat: DirectKeyCategory, recipe: DirectKeyRecipe) => {
     if (dkEditBlocked) return;
@@ -851,7 +866,7 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
               const cat = entry.category;
               const recipe = activeProfileRecipes[cat];
               if (!recipe) return null;
-              const label = directKeyCategoryLabel(locale, cat);
+              const label = directKeyLabel(cat);
               const isSelected = selectedDk === cat;
               const hasDetails = recipe.c1_process !== undefined && recipe.c1_process !== "none";
               return (

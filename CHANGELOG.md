@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.1.5-beta.1] — 2026-11-04 (beta)
+
+### Fixed
+
+- DirectKey tiles and brew confirmations show the profile's configured drink
+  name, including localized names from integration 0.96.0b3. Profile changes
+  and cache refreshes update or clear the displayed name without changing
+  the saved slot used for brewing. Older integrations and unknown/custom
+  drinks retain the category label.
+
+This beta is distributed as a downloadable build; the public GitHub Pages
+deployment remains on the stable release. Hardware testing is pending.
+
 ## [3.1.4] — 2026-09-11
 
 ### Fixed

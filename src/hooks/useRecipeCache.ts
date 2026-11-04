@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import type { HassEntities } from "home-assistant-js-websocket";
-import { getEntity, getOptions, type RecipeDetails, type DirectKeyData, type DirectKeyRecipe, DIRECTKEY_DISPLAY_TO_KEY } from "../lib/entities";
+import { getEntity, getOptions, configuredDirectKeyRecipe, type RecipeDetails, type DirectKeyData, type DirectKeyRecipe, DIRECTKEY_DISPLAY_TO_KEY } from "../lib/entities";
 
 const STORAGE_KEY = "melitta_recipes";
 
@@ -67,7 +67,10 @@ function buildFromEntities(entities: HassEntities, prefix: string): RecipeCache 
         profiles[pid] = {};
         for (const [displayName, recipe] of Object.entries(categories)) {
           const key = DIRECTKEY_DISPLAY_TO_KEY[displayName] || displayName;
-          profiles[pid][key] = recipe;
+          profiles[pid][key] = {
+            ...recipe,
+            configured_recipe: configuredDirectKeyRecipe(profileEntity.attributes.directkey_drinks, pid, key),
+          };
         }
       }
       directKey = { activeProfile, profiles };

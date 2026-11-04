@@ -22,6 +22,13 @@ export interface RecipeDetails {
   c2_portion_ml: number;
 }
 
+/** Known configured drink identity supplied separately from the DirectKey slot. */
+export interface ConfiguredRecipe {
+  type: number;
+  name: string;
+  name_key: string;
+}
+
 /** DirectKey recipe details per category, per profile. */
 export interface DirectKeyRecipe {
   category: number;
@@ -37,6 +44,8 @@ export interface DirectKeyRecipe {
   c2_temperature: string;
   c2_shots: number;
   c2_portion_ml: number;
+  /** Configured drink identity; independent of category/profile command targets. */
+  configured_recipe?: ConfiguredRecipe | null;
   /** Served IconSpec from a `recipes/list` row (§9.3.4); absent on the legacy attribute path. */
   icon?: IconSpec | null;
 }
@@ -235,6 +244,26 @@ export function legacyDirectKeyModel(profileCount: number): DirectKeyModel {
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+/** Read a known drink from pushed profile metadata, ignoring malformed/unknown identities. */
+export function configuredDirectKeyRecipe(
+  drinks: unknown,
+  profileId: number,
+  category: string,
+): ConfiguredRecipe | null {
+  if (!isRecord(drinks)) return null;
+  const profile = drinks[profileId];
+  if (!isRecord(profile)) return null;
+  const identity = profile[category];
+  if (
+    !isRecord(identity) ||
+    typeof identity.type !== "number" ||
+    !Number.isInteger(identity.type) || identity.type < 0 || identity.type > 23 ||
+    typeof identity.name !== "string" || identity.name.trim() === "" ||
+    typeof identity.name_key !== "string" || !/^[a-z][a-z0-9_]*$/.test(identity.name_key)
+  ) return null;
+  return { type: identity.type, name: identity.name, name_key: identity.name_key };
 }
 
 /**
