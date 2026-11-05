@@ -47,6 +47,7 @@
   "freestyle.temperature": "Temperatura",
   "freestyle.aroma": "Aroma",
   "freestyle.shots": "Doses",
+  "freestyle.milk_mode": "Modo de leite",
   "freestyle.use_recipe": "Usar a receita como base",
   "freestyle.available_when_ready": "O Freestyle fica disponível quando a máquina estiver pronta",
   "stats.total_cups": "Total de chávenas",

@@ -12,12 +12,14 @@ import {
   directKeyProfilesFromList,
   fetchDirectKeyRecipeList,
   directKeyCategoryLabel,
+  configuredDirectKeyRecipe,
   type RecipeDetails,
   type DirectKeyRecipe,
   type DirectKeyCategory,
   type DirectKeyProfileSlotModel,
 } from "../lib/entities";
 import { readDirectKey, type UiContract } from "../lib/contract";
+import { recipeDisplayName } from "../lib/recipes";
 import { serverString } from "../lib/server-strings";
 import { deriveMachineStatus, type ServiceKind } from "../lib/status";
 import { selectOption, pressButton, brewDirectkey, setTextValue, safeCall } from "../lib/ha";
@@ -334,6 +336,7 @@ const DK_RECIPE_ICON: Record<string, string> = {
   water: "Hot Water",
 };
 
+/** Render brewing controls with recipe edits bound to their originating profile. */
 export function BrewSection({ conn, entities, prefix, contract = null }: Props) {
   const { t, theme, viewMode, locale } = usePreferences();
   const isDark = theme === "dark";
@@ -392,7 +395,16 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
   const brewId = `button.${prefix}_brew`;
   const cancelId = `button.${prefix}_cancel`;
   const [hoveredRecipe, setHoveredRecipe] = useState<string | null>(null);
-  const [editingDk, setEditingDk] = useState<{ category: DirectKeyCategory; recipe: DirectKeyRecipe } | null>(null);
+  const [editingDk, setEditingDk] = useState<{
+    category: DirectKeyCategory;
+    recipe: DirectKeyRecipe;
+    profileId: number;
+    machineKey: string;
+  } | null>(null);
+  const editorMachineKey = `${prefix}:${contract?.entry_id ?? ""}`;
+  if (editingDk && editingDk.machineKey !== editorMachineKey) {
+    setEditingDk(null);
+  }
   const [selectedDk, setSelectedDk] = useState<DirectKeyCategory | null>(null);
   const [twoCups, setTwoCups] = useState(false);
   const [editingProfileIdx, setEditingProfileIdx] = useState<number | null>(null);
@@ -456,7 +468,20 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
   const dkBlockPresent = contract !== null && readDirectKey(contract) !== null;
   const dkProfiles =
     (dkBlockPresent ? listProfiles : null) ?? directKey?.profiles ?? null;
-  const activeProfileRecipes = dkProfiles?.[activeProfileId] ?? {};
+  const configuredDrinks = getEntity(entities, prefix, "select", model.profileSelectSuffix)?.attributes.directkey_drinks;
+  const activeProfileRecipes = useMemo(() => Object.fromEntries(
+    Object.entries(dkProfiles?.[activeProfileId] ?? {}).map(([category, recipe]) => [category, {
+      ...recipe,
+      // Pushed metadata also refreshes WS-backed rows; absence clears old names.
+      configured_recipe: configuredDirectKeyRecipe(configuredDrinks, activeProfileId, category),
+    }]),
+  ), [dkProfiles, activeProfileId, configuredDrinks]);
+  const directKeyLabel = useCallback((category: string) => {
+    const identity = activeProfileRecipes[category]?.configured_recipe;
+    return identity
+      ? recipeDisplayName({ name: identity.name, nameKey: identity.name_key })
+      : directKeyCategoryLabel(locale, category);
+  }, [activeProfileRecipes, locale]);
   const hasDkRecipes = Object.keys(activeProfileRecipes).length > 0;
   // Slot 0 (`fixed`) recipes are not editable (§9.3.2).
   const activeSlot = model.profiles.find((p) => p.slot === activeProfileId);
@@ -467,9 +492,9 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
     dkLongPressTriggered.current = false;
     dkLongPressTimer.current = setTimeout(() => {
       dkLongPressTriggered.current = true;
-      setEditingDk({ category: cat, recipe });
+      setEditingDk({ category: cat, recipe, profileId: activeProfileId, machineKey: editorMachineKey });
     }, 500);
-  }, [dkEditBlocked, setEditingDk]);
+  }, [dkEditBlocked, activeProfileId, editorMachineKey, setEditingDk]);
 
   const cancelDkLongPress = useCallback(() => {
     if (dkLongPressTimer.current) {
@@ -478,21 +503,23 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
     }
   }, []);
 
+  useEffect(() => () => cancelDkLongPress(), [cancelDkLongPress, editorMachineKey]);
+
   const handleDkClick = useCallback((cat: DirectKeyCategory) => {
     if (dkLongPressTriggered.current) return;
     if (selectedDk === cat) {
       // Remember what we asked for: the machine will not tell us later.
-      noteBrewStarted(directKeyCategoryLabel(locale, cat));
+      noteBrewStarted(directKeyLabel(cat));
       safeCall(() => brewDirectkey(conn, brewId, cat, twoCups));
     } else {
       setSelectedDk(cat);
     }
-  }, [conn, brewId, selectedDk, twoCups, locale]);
+  }, [conn, brewId, selectedDk, twoCups, directKeyLabel]);
 
   const handleDkDoubleClick = useCallback((cat: DirectKeyCategory, recipe: DirectKeyRecipe) => {
     if (dkEditBlocked) return;
-    setEditingDk({ category: cat, recipe });
-  }, [dkEditBlocked, setEditingDk]);
+    setEditingDk({ category: cat, recipe, profileId: activeProfileId, machineKey: editorMachineKey });
+  }, [dkEditBlocked, activeProfileId, editorMachineKey, setEditingDk]);
 
   const startLongPress = useCallback((slot: DirectKeyProfileSlotModel, name: string) => {
     longPressTriggered.current = false;
@@ -851,7 +878,7 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
               const cat = entry.category;
               const recipe = activeProfileRecipes[cat];
               if (!recipe) return null;
-              const label = directKeyCategoryLabel(locale, cat);
+              const label = directKeyLabel(cat);
               const isSelected = selectedDk === cat;
               const hasDetails = recipe.c1_process !== undefined && recipe.c1_process !== "none";
               return (
@@ -1001,7 +1028,7 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
           category={editingDk.category}
           categoryLabel={directKeyCategoryLabel(locale, editingDk.category)}
           recipe={editingDk.recipe}
-          profileId={activeProfileId}
+          profileId={editingDk.profileId}
           contract={contract}
           onClose={() => {
             setEditingDk(null);

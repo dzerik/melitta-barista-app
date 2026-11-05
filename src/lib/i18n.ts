@@ -151,7 +151,12 @@ export function tServer(locale: Locale, serverKey: string, bundleKey?: string): 
  * bundle `process.<token>` (the app's legacy bare-token value keys) →
  * humanized token. Family-scoped server keys exist because bare tokens
  * collide across families (`none`, `standard`).
+ * Milk modes also accept legacy recipe-name strings and local drink labels.
  */
 export function displayNameFor(locale: Locale, family: string, token: string): string {
+  if (family === "milk_mode" && (token === "warm_milk" || token === "milk_froth")) {
+    return serverString(`values.milk_mode.${token}`)
+      ?? tServer(locale, `recipes.name.${token}`, token === "warm_milk" ? "brew.dk_milk" : "brew.dk_milk_froth");
+  }
   return tServer(locale, `values.${family}.${token}`, `process.${token}`);
 }

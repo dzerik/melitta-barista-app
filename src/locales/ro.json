@@ -47,6 +47,7 @@
   "freestyle.temperature": "Temperatură",
   "freestyle.aroma": "Aromă",
   "freestyle.shots": "Doze",
+  "freestyle.milk_mode": "Mod lapte",
   "freestyle.use_recipe": "Folosește o rețetă ca bază",
   "freestyle.available_when_ready": "Freestyle este disponibil când espressorul este pregătit",
   "stats.total_cups": "Total cești",

@@ -45,6 +45,7 @@
   "freestyle.temperature": "Température",
   "freestyle.aroma": "Arôme",
   "freestyle.shots": "Doses",
+  "freestyle.milk_mode": "Mode lait",
   "freestyle.use_recipe": "Utiliser une recette comme base",
   "freestyle.available_when_ready": "Freestyle est disponible lorsque la machine est prête",
   "stats.total_cups": "Tasses au total",

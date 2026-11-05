@@ -1,5 +1,35 @@
 # Changelog
 
+## [Unreleased]
+
+## [3.1.5-beta.3] — 2026-11-05 (beta)
+
+### Fixed
+
+- DirectKey edits keep their original profile when the active profile changes externally. Switching machines or integration entries closes the open editor.
+- Freestyle and recipe editor previews show foam for milk froth, and omit it for warm milk, independently of temperature.
+
+## [3.1.5-beta.2] — 2026-11-04 (beta)
+
+### Added
+
+- Choose warm milk or milk froth independently for both components in
+  Freestyle and the recipe editor (#60). Coffee shots and legacy saved values
+  are preserved; requests use the existing service fields on older backends.
+
+## [3.1.5-beta.1] — 2026-11-04 (beta)
+
+### Fixed
+
+- DirectKey tiles and brew confirmations show the profile's configured drink
+  name, including localized names from integration 0.96.0b3. Profile changes
+  and cache refreshes update or clear the displayed name without changing
+  the saved slot used for brewing. Older integrations and unknown/custom
+  drinks retain the category label.
+
+This beta is distributed as a downloadable build; the public GitHub Pages
+deployment remains on the stable release. Hardware testing is pending.
+
 ## [3.1.4] — 2026-09-11
 
 ### Fixed

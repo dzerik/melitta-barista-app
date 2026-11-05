@@ -47,6 +47,7 @@
   "freestyle.temperature": "Температура",
   "freestyle.aroma": "Аромат",
   "freestyle.shots": "Порции",
+  "freestyle.milk_mode": "Режим молока",
   "freestyle.use_recipe": "Использовать рецепт как основу",
   "freestyle.available_when_ready": "Свой рецепт доступен, когда машина готова",
   "stats.total_cups": "Всего чашек",

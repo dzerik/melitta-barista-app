@@ -47,6 +47,7 @@
   "freestyle.temperature": "Sıcaklık",
   "freestyle.aroma": "Aroma",
   "freestyle.shots": "Shot",
+  "freestyle.milk_mode": "Süt modu",
   "freestyle.use_recipe": "Tarifi temel al",
   "freestyle.available_when_ready": "Freestyle, makine hazır olduğunda kullanılabilir",
   "stats.total_cups": "Toplam fincan",

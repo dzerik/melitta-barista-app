@@ -41,6 +41,7 @@
   "freestyle.temperature": "Hőmérséklet",
   "freestyle.aroma": "Aroma",
   "freestyle.shots": "Adagok",
+  "freestyle.milk_mode": "Tejmód",
   "freestyle.use_recipe": "Recept használata alapként",
   "freestyle.available_when_ready": "A Freestyle akkor érhető el, ha a gép készen áll",
   "stats.total_cups": "Összes csésze",

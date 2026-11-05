@@ -186,6 +186,7 @@
   "freestyle.portion": "Porción",
   "freestyle.aroma": "Aroma",
   "freestyle.shots": "Dosis",
+  "freestyle.milk_mode": "Modo de leche",
   "freestyle.use_recipe": "Usar una receta como base",
   "freestyle.available_when_ready": "Freestyle está disponible cuando la máquina está lista",
   "stats.not_available": "Estadísticas de tazas no disponibles. Comprueba que la máquina esté conectada.",

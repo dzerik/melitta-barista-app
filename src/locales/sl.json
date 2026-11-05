@@ -47,6 +47,7 @@
   "freestyle.temperature": "Temperatura",
   "freestyle.aroma": "Aroma",
   "freestyle.shots": "Shoti",
+  "freestyle.milk_mode": "Način priprave mleka",
   "freestyle.use_recipe": "Uporabi recept kot osnovo",
   "freestyle.available_when_ready": "Freestyle je na voljo, ko je aparat pripravljen",
   "stats.total_cups": "Skupno število skodelic",
