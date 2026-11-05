@@ -103,6 +103,7 @@ interface Props {
   contract?: UiContract | null;
 }
 
+/** Edit one profile recipe using the explicit save target supplied by its caller. */
 export function RecipeEditModal({ conn, brewEntityId, category, categoryLabel, recipe, profileId, onClose, contract = null }: Props) {
   const { t } = usePreferences();
   // §9.3.5: slot defaults from the save_directkey catalog entry's
@@ -217,10 +218,14 @@ export function RecipeEditModal({ conn, brewEntityId, category, categoryLabel, r
             >
               <FreestyleGlass
                 process1={state.process1}
+                shots1={state.shots1}
+                milkMode1={state.milk_mode1}
                 intensity1={state.intensity1}
                 temp1={state.temperature1}
                 portion1={state.portion1}
                 process2={state.process2}
+                shots2={state.shots2}
+                milkMode2={state.milk_mode2}
                 intensity2={state.intensity2}
                 temp2={state.temperature2}
                 portion2={state.portion2}

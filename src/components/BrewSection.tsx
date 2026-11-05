@@ -336,6 +336,7 @@ const DK_RECIPE_ICON: Record<string, string> = {
   water: "Hot Water",
 };
 
+/** Render brewing controls with recipe edits bound to their originating profile. */
 export function BrewSection({ conn, entities, prefix, contract = null }: Props) {
   const { t, theme, viewMode, locale } = usePreferences();
   const isDark = theme === "dark";
@@ -394,7 +395,16 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
   const brewId = `button.${prefix}_brew`;
   const cancelId = `button.${prefix}_cancel`;
   const [hoveredRecipe, setHoveredRecipe] = useState<string | null>(null);
-  const [editingDk, setEditingDk] = useState<{ category: DirectKeyCategory; recipe: DirectKeyRecipe } | null>(null);
+  const [editingDk, setEditingDk] = useState<{
+    category: DirectKeyCategory;
+    recipe: DirectKeyRecipe;
+    profileId: number;
+    machineKey: string;
+  } | null>(null);
+  const editorMachineKey = `${prefix}:${contract?.entry_id ?? ""}`;
+  if (editingDk && editingDk.machineKey !== editorMachineKey) {
+    setEditingDk(null);
+  }
   const [selectedDk, setSelectedDk] = useState<DirectKeyCategory | null>(null);
   const [twoCups, setTwoCups] = useState(false);
   const [editingProfileIdx, setEditingProfileIdx] = useState<number | null>(null);
@@ -482,9 +492,9 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
     dkLongPressTriggered.current = false;
     dkLongPressTimer.current = setTimeout(() => {
       dkLongPressTriggered.current = true;
-      setEditingDk({ category: cat, recipe });
+      setEditingDk({ category: cat, recipe, profileId: activeProfileId, machineKey: editorMachineKey });
     }, 500);
-  }, [dkEditBlocked, setEditingDk]);
+  }, [dkEditBlocked, activeProfileId, editorMachineKey, setEditingDk]);
 
   const cancelDkLongPress = useCallback(() => {
     if (dkLongPressTimer.current) {
@@ -492,6 +502,8 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
       dkLongPressTimer.current = null;
     }
   }, []);
+
+  useEffect(() => () => cancelDkLongPress(), [cancelDkLongPress, editorMachineKey]);
 
   const handleDkClick = useCallback((cat: DirectKeyCategory) => {
     if (dkLongPressTriggered.current) return;
@@ -506,8 +518,8 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
 
   const handleDkDoubleClick = useCallback((cat: DirectKeyCategory, recipe: DirectKeyRecipe) => {
     if (dkEditBlocked) return;
-    setEditingDk({ category: cat, recipe });
-  }, [dkEditBlocked, setEditingDk]);
+    setEditingDk({ category: cat, recipe, profileId: activeProfileId, machineKey: editorMachineKey });
+  }, [dkEditBlocked, activeProfileId, editorMachineKey, setEditingDk]);
 
   const startLongPress = useCallback((slot: DirectKeyProfileSlotModel, name: string) => {
     longPressTriggered.current = false;
@@ -1016,7 +1028,7 @@ export function BrewSection({ conn, entities, prefix, contract = null }: Props) 
           category={editingDk.category}
           categoryLabel={directKeyCategoryLabel(locale, editingDk.category)}
           recipe={editingDk.recipe}
-          profileId={activeProfileId}
+          profileId={editingDk.profileId}
           contract={contract}
           onClose={() => {
             setEditingDk(null);

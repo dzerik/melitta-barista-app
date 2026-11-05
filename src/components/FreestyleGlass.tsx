@@ -24,6 +24,7 @@
  * §6.1) interpolate by their ordinal position in the optional
  * `intensityScale`/`temperatureScale` token lists.
  */
+import { milkModeFor } from "../lib/milk-mode";
 import { processColor, cremaColor, heatFor } from "../lib/parameters";
 
 /* ── Geometry, declared once so the ground can be placed on it ───────────── */
@@ -52,10 +53,14 @@ export const GLASS_BASE_FRACTION = CUP_BOT / VB_H;
 
 interface Props {
   process1: string;
+  shots1?: string;
+  milkMode1?: string;
   intensity1: string;
   temp1: string;
   portion1: number;
   process2: string;
+  shots2?: string;
+  milkMode2?: string;
   intensity2: string;
   temp2: string;
   portion2: number;
@@ -67,7 +72,12 @@ interface Props {
   temperatureScale?: string[];
 }
 
+/** Draw the drink preview, using each milk component's mode for its foam cap. */
 export function FreestyleGlass({
+  shots1,
+  milkMode1,
+  shots2,
+  milkMode2,
   process1,
   intensity1,
   temp1,
@@ -166,18 +176,28 @@ export function FreestyleGlass({
   const frac1 = total > 0 ? (portion1 / capacityMl) * fillScale : 0;
   const frac2 = total > 0 ? (portion2 / capacityMl) * fillScale : 0;
 
+  // Callers without recipe mode data retain the legacy preview.
+  const froths = (shots?: string, mode?: string) => {
+    if (mode === "warm_milk" || mode === "milk_froth" ||
+        (shots !== undefined && ["none", "one", "two", "three"].includes(shots))) {
+      return milkModeFor(shots ?? "none", mode) === "milk_froth";
+    }
+    return true;
+  };
+
   // Build layers bottom-up: component 1 on bottom, component 2 on top
-  const layers: { color: string; frac: number; process: string; intensity: string }[] = [];
+  const layers: { color: string; frac: number; process: string; intensity: string; froth: boolean }[] = [];
   if (frac1 > 0 && process1 !== "none") {
-    layers.push({ color: processColor(process1, intensity1, intensityScale), frac: frac1, process: process1, intensity: intensity1 });
+    layers.push({ color: processColor(process1, intensity1, intensityScale), frac: frac1, process: process1, intensity: intensity1, froth: froths(shots1, milkMode1) });
   }
   if (frac2 > 0 && process2 !== "none") {
-    layers.push({ color: processColor(process2, intensity2, intensityScale), frac: frac2, process: process2, intensity: intensity2 });
+    layers.push({ color: processColor(process2, intensity2, intensityScale), frac: frac2, process: process2, intensity: intensity2, froth: froths(shots2, milkMode2) });
   }
 
   let layerY = ciBot;
   const layerEls: React.ReactElement[] = [];
   let topLayerProcess = "";
+  let topLayerFroth = false;
   let topLayerIntensity = "medium";
   let topLayerY = ciBot;
   let topLayerH = 0;
@@ -191,6 +211,7 @@ export function FreestyleGlass({
 
     if (i === layers.length - 1) {
       topLayerProcess = process;
+      topLayerFroth = layers[i].froth;
       topLayerIntensity = intensity;
       topLayerY = y0;
       topLayerH = lh;
@@ -246,7 +267,7 @@ export function FreestyleGlass({
   // Foam/crema on top — scales with top layer height, max 4px
   const foamH = Math.min(4, topLayerH * 0.15);
   const hasCoffeeOnTop = topLayerProcess === "coffee" && topLayerY < ciBot;
-  const hasMilkOnTop = topLayerProcess === "milk" && topLayerY < ciBot;
+  const hasMilkOnTop = topLayerProcess === "milk" && topLayerFroth && topLayerY < ciBot;
   const hasFoam = hasCoffeeOnTop || hasMilkOnTop;
   const cremaFill = cremaColor(topLayerIntensity, intensityScale);
   const milkFoamColor = "#F5EDE3"; // warm white foam

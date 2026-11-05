@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, within } from "@testing-library/react";
 import type { Connection, HassEntities } from "home-assistant-js-websocket";
+import { FreestyleGlass } from "../src/components/FreestyleGlass";
 import { FreestyleSection } from "../src/components/FreestyleSection";
 import { RecipeEditModal } from "../src/components/RecipeEditModal";
 import type { DirectKeyRecipe } from "../src/lib/entities";
@@ -205,5 +206,57 @@ describe("shared recipe editor milk modes", () => {
     fireEvent.click(within(modeRows()[1]).getByRole("radio", { name: "Legacy foam" }));
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(lastPayload("save_directkey").shots2).toBe("none");
+  });
+});
+
+describe("milk preview follows the selected mode", () => {
+  function foamPath() {
+    // The recipe editor is portalled outside the render container.
+    return document.body.querySelector('path[fill="url(#fs-foam)"]');
+  }
+
+  it.each([0, 1])("updates the editor glass for milk component %s", (component) => {
+    renderEditor({ ...RECIPE, c1_shots: 1, c2_shots: 1,
+      ...(component === 0 ? { c2_process: "none", c2_portion_ml: 0 } : { c1_process: "coffee" }) });
+    expect(foamPath()).toBeNull();
+    chooseMode(0, "Milk Froth");
+    expect(foamPath()).not.toBeNull();
+    chooseMode(0, "Milk");
+    expect(foamPath()).toBeNull();
+  });
+
+  it("updates the freestyle glass independently of temperature", () => {
+    localStorage.setItem("melitta_freestyle", JSON.stringify({ ...BASE,
+      process1: "milk", shots1: "one", process2: "none", portion2: 0, temperature1: "high" }));
+    renderFreestyle();
+    expect(foamPath()).toBeNull();
+    chooseMode(0, "Milk Froth");
+    expect(foamPath()).not.toBeNull();
+    chooseMode(0, "Milk");
+    expect(foamPath()).toBeNull();
+  });
+});
+
+
+describe("glass milk mode precedence and compatibility", () => {
+  it.each(["cold", "normal", "high"])("uses milk mode instead of temperature %s", (temp) => {
+    const glass = (mode?: string, shots?: string) => <FreestyleGlass
+      process1="milk" intensity1="medium" temp1={temp} portion1={100}
+      process2="none" intensity2="medium" temp2="normal" portion2={0}
+      milkMode1={mode} shots1={shots} />;
+    const { container, rerender } = renderWithProviders(glass("warm_milk", "none"));
+    const foam = () => container.querySelector('path[fill="url(#fs-foam)"]');
+    expect(foam()).toBeNull();
+    rerender(glass("milk_froth", "three"));
+    expect(foam()).not.toBeNull();
+    rerender(glass(undefined, "one"));
+    expect(foam()).toBeNull();
+    rerender(glass(undefined, "none"));
+    expect(foam()).not.toBeNull();
+    // Non-recipe callers with omitted/unknown mode data retain their legacy cap.
+    rerender(glass());
+    expect(foam()).not.toBeNull();
+    rerender(glass("future_mode", "future_shots"));
+    expect(foam()).not.toBeNull();
   });
 });

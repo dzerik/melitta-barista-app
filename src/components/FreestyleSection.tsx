@@ -115,6 +115,7 @@ function RecipePickerModal({
   );
 }
 
+/** Render the freestyle builder and a preview of its selected component modes. */
 export function FreestyleSection({ conn, entities, prefix, contract = null }: Props) {
   const { t, locale } = usePreferences();
   const view = deriveMachineStatus(entities, prefix, locale);
@@ -323,10 +324,14 @@ export function FreestyleSection({ conn, entities, prefix, contract = null }: Pr
           >
             <FreestyleGlass
               process1={fs.process1}
+              shots1={fs.shots1}
+              milkMode1={fs.milk_mode1}
               intensity1={fs.intensity1}
               temp1={fs.temperature1}
               portion1={fs.portion1}
               process2={fs.process2}
+              shots2={fs.shots2}
+              milkMode2={fs.milk_mode2}
               intensity2={fs.intensity2}
               temp2={fs.temperature2}
               portion2={fs.portion2}

@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+## [3.1.5-beta.3] — 2026-11-05 (beta)
+
+### Fixed
+
+- DirectKey edits keep their original profile when the active profile changes externally. Switching machines or integration entries closes the open editor.
+- Freestyle and recipe editor previews show foam for milk froth, and omit it for warm milk, independently of temperature.
+
 ## [3.1.5-beta.2] — 2026-11-04 (beta)
 
 ### Added
